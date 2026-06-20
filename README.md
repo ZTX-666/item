@@ -1,6 +1,7 @@
 # 赤瞳安全智能平台 (Chitung Safety Platform)
 
-> 协作交接文档：见 [`docs/COLLABORATION_HANDOFF.md`](docs/COLLABORATION_HANDOFF.md)
+> **Final developer handoff (English):** [`docs/FINAL_HANDOFF_EN.md`](docs/FINAL_HANDOFF_EN.md)  
+> 协作交接文档（中文）：[`docs/COLLABORATION_HANDOFF.md`](docs/COLLABORATION_HANDOFF.md)
 
 # FinalAgentSuite
 
