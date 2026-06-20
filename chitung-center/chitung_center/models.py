@@ -44,6 +44,7 @@ class ChatMessageResponse(BaseModel):
     cards: list[ActionCard] = Field(default_factory=list)
     tool_results: list[dict[str, Any]] = Field(default_factory=list)
     audit_id: str
+    applied_skill: Optional[dict[str, Any]] = None
 
 
 class CardActionRequest(BaseModel):

@@ -13,11 +13,19 @@ async def handle_feishu_event(payload: dict[str, Any]) -> dict[str, Any]:
     if not callback.get("ok"):
         return {"ok": False, "stage": "callback", "tool_result": callback}
 
-    if payload.get("type") == "url_verification" and payload.get("challenge"):
+    # Encrypted events are decrypted inside the toolbox; use the decrypted
+    # payload (returned in callback.data.payload) for routing decisions.
+    if isinstance(callback.get("data"), dict) and isinstance(callback["data"].get("payload"), dict):
+        payload = callback["data"]["payload"]
+
+    challenge = payload.get("challenge") or (
+        callback.get("data", {}).get("challenge") if isinstance(callback.get("data"), dict) else None
+    )
+    if payload.get("type") == "url_verification" and challenge:
         return {
             "ok": True,
             "stage": "url_verification",
-            "response": {"challenge": payload["challenge"]},
+            "response": {"challenge": challenge},
             "tool_result": callback,
         }
 

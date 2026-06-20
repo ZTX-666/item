@@ -44,6 +44,17 @@ function spawnService(name, cwd, command, args) {
   serviceProcesses.push(child)
 }
 
+function resolveVenvPython(projectDir) {
+  const candidates = [
+    path.join(projectDir, '.venv', 'bin', 'python'),
+    path.join(projectDir, '.venv', 'Scripts', 'python.exe'),
+  ]
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate
+  }
+  return process.platform === 'win32' ? 'python' : 'python3'
+}
+
 async function startLocalServices() {
   if (process.env.CHITUNG_AUTOSTART_SERVICES === 'false') return
 
@@ -52,13 +63,11 @@ async function startLocalServices() {
   const toolboxDir = path.join(suiteRoot, 'agent-toolbox')
 
   if (!(await isHealthy('http://127.0.0.1:8899/health'))) {
-    const python = path.join(toolboxDir, '.venv', 'Scripts', 'python.exe')
-    spawnService('agent-toolbox', toolboxDir, fs.existsSync(python) ? python : 'python', ['run_server.py'])
+    spawnService('agent-toolbox', toolboxDir, resolveVenvPython(toolboxDir), ['run_server.py'])
   }
 
   if (!(await isHealthy('http://127.0.0.1:8999/health'))) {
-    const python = path.join(centerDir, '.venv', 'Scripts', 'python.exe')
-    spawnService('chitung-center', centerDir, fs.existsSync(python) ? python : 'python', ['run_server.py'])
+    spawnService('chitung-center', centerDir, resolveVenvPython(centerDir), ['run_server.py'])
   }
 }
 

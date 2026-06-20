@@ -20,11 +20,11 @@ import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from ..models import ToolResult
+from ..models import ToolResult, ToolSpec
 from ..tasks import new_task_id, record_task_event
 
 
@@ -724,3 +724,125 @@ def docmate_apply_changeset(req: DocmateApplyChangesetRequest) -> ToolResult:
             "source_path": str(source_path),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Public interface expected by app.py / registry.py
+#
+# The application layer (app.py HTTP endpoints and registry.py tool listing)
+# imports a stable interface: request models named *Request, async tool_*
+# wrappers, and ALL_DOCMATE_SPECS. The pattern-matching implementation above
+# is the source of truth; the wrappers below adapt it to that contract.
+# ---------------------------------------------------------------------------
+
+class ReadDocxRequest(BaseModel):
+    file_path: str = Field(..., description=".docx 文件路径")
+
+
+class GenerateChangesetRequest(BaseModel):
+    doc_id: str = Field(..., description="文档 ID（来自 docmate_read_docx）")
+    instruction: str = Field(..., description="用户自然语言编辑指令")
+    context: Optional[Any] = Field(default=None, description="额外上下文（selected_text, form_type 等）")
+
+
+class PreviewChangesetRequest(BaseModel):
+    changeset_id: str = Field(..., description="ChangeSet ID")
+
+
+class ApplyChangesetRequest(BaseModel):
+    changeset_id: str = Field(..., description="ChangeSet ID")
+    accepted_change_ids: list[str] = Field(default_factory=list, description="接受的变更 ID 列表")
+    save_as: str = Field(default="", description="输出文件路径；留空则在源文件旁生成 *_modified.docx")
+
+
+def _context_to_str(context: Any) -> str:
+    if context is None:
+        return ""
+    if isinstance(context, str):
+        return context
+    try:
+        return json.dumps(context, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return str(context)
+
+
+async def tool_docmate_read_docx(request: ReadDocxRequest) -> ToolResult:
+    return docmate_read_docx(DocmateReadDocxRequest(file_path=request.file_path))
+
+
+async def tool_docmate_generate_changeset(request: GenerateChangesetRequest) -> ToolResult:
+    return docmate_generate_changeset(
+        DocmateGenerateChangesetRequest(
+            doc_id=request.doc_id,
+            instruction=request.instruction,
+            context=_context_to_str(request.context),
+        )
+    )
+
+
+async def tool_docmate_preview_changeset(request: PreviewChangesetRequest) -> ToolResult:
+    return docmate_preview_changeset(
+        DocmatePreviewChangesetRequest(changeset_id=request.changeset_id)
+    )
+
+
+async def tool_docmate_apply_changeset(request: ApplyChangesetRequest) -> ToolResult:
+    return docmate_apply_changeset(
+        DocmateApplyChangesetRequest(
+            changeset_id=request.changeset_id,
+            accepted_change_ids=request.accepted_change_ids,
+            save_as=request.save_as,
+        )
+    )
+
+
+ALL_DOCMATE_SPECS = [
+    ToolSpec(
+        name="docmate_read_docx",
+        description="解析 .docx 文件结构（段落、表格、图片统计），返回 doc_id 供后续编辑使用。",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string", "description": "Absolute path to .docx file"},
+            },
+            "required": ["file_path"],
+        },
+    ),
+    ToolSpec(
+        name="docmate_generate_changeset",
+        description="根据自然语言指令分析已加载文档并生成修改方案（changeset）。",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "doc_id": {"type": "string"},
+                "instruction": {"type": "string"},
+                "context": {"type": ["object", "string", "null"]},
+            },
+            "required": ["doc_id", "instruction"],
+        },
+    ),
+    ToolSpec(
+        name="docmate_preview_changeset",
+        description="返回一个 changeset 的变更预览卡片。",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "changeset_id": {"type": "string"},
+            },
+            "required": ["changeset_id"],
+        },
+    ),
+    ToolSpec(
+        name="docmate_apply_changeset",
+        description="将选中的变更应用到文档副本（自动备份原文件）。",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "changeset_id": {"type": "string"},
+                "accepted_change_ids": {"type": "array", "items": {"type": "string"}},
+                "save_as": {"type": "string"},
+            },
+            "required": ["changeset_id"],
+        },
+    ),
+]

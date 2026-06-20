@@ -129,7 +129,20 @@ async def integrations() -> dict[str, object]:
 
 @app.get("/api/skills")
 async def skills() -> dict[str, object]:
-    return {"items": [skill.__dict__ for skill in skill_loader.list_skills()]}
+    from chitung_center.skills import INTENT_TO_SKILL
+
+    return {
+        "items": [skill.__dict__ for skill in skill_loader.list_skills()],
+        "intent_bindings": INTENT_TO_SKILL,
+    }
+
+
+@app.get("/api/skills/{name}")
+async def skill_detail(name: str) -> dict[str, object]:
+    content = skill_loader.read_skill(name)
+    if content is None:
+        raise HTTPException(status_code=404, detail=f"Skill not found: {name}")
+    return {"name": name, "content": content}
 
 
 @app.get("/api/workbench/summary")

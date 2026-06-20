@@ -75,6 +75,24 @@ def _sign(secret: str, timestamp: str) -> str:
     return base64.b64encode(digest).decode("utf-8")
 
 
+def _decrypt_feishu_event(encrypt_key: str, encrypt_b64: str) -> dict[str, Any]:
+    """Decrypt a Feishu event-subscription `encrypt` payload (AES-256-CBC).
+
+    Feishu derives the AES key as SHA256(encrypt_key); the base64-decoded blob
+    is `IV(16 bytes) || ciphertext`, PKCS7-padded. Returns the decoded JSON dict.
+    """
+    from Crypto.Cipher import AES
+
+    key = hashlib.sha256(encrypt_key.encode("utf-8")).digest()
+    blob = base64.b64decode(encrypt_b64)
+    iv, ciphertext = blob[:16], blob[16:]
+    decrypted = AES.new(key, AES.MODE_CBC, iv).decrypt(ciphertext)
+    pad = decrypted[-1]
+    if 1 <= pad <= 16:
+        decrypted = decrypted[:-pad]
+    return json.loads(decrypted.decode("utf-8"))
+
+
 def notify_feishu(req: FeishuNotifyRequest) -> ToolResult:
     task_id = new_task_id("feishu")
     if not settings.feishu_webhook_url:
@@ -171,21 +189,32 @@ def feishu_build_safety_review_card(req: FeishuSafetyCardRequest) -> ToolResult:
 def feishu_handle_event_callback(req: FeishuEventCallbackRequest) -> ToolResult:
     payload = req.payload
     if "encrypt" in payload:
-        return ToolResult(
-            ok=False,
-            tool="feishu_handle_event_callback",
-            summary="收到加密飞书事件，但当前仅预留 encrypt key，尚未实现解密。",
-            error="Encrypted event decryption is reserved for next pass.",
-            data={"encrypted": True},
-        )
+        if not settings.feishu_encrypt_key:
+            return ToolResult(
+                ok=False,
+                tool="feishu_handle_event_callback",
+                summary="收到加密飞书事件，但未配置 FEISHU_ENCRYPT_KEY。",
+                error="Set FEISHU_ENCRYPT_KEY in .env to decrypt events.",
+                data={"encrypted": True},
+            )
+        try:
+            payload = _decrypt_feishu_event(settings.feishu_encrypt_key, payload["encrypt"])
+        except Exception as exc:  # noqa: BLE001
+            return ToolResult(
+                ok=False,
+                tool="feishu_handle_event_callback",
+                summary="飞书加密事件解密失败，请检查 Encrypt Key 是否正确。",
+                error=f"decrypt_failed: {exc}",
+                data={"encrypted": True},
+            )
     token = payload.get("token") or payload.get("header", {}).get("token")
     if settings.feishu_verification_token and token and token != settings.feishu_verification_token:
         return ToolResult(ok=False, tool="feishu_handle_event_callback", summary="飞书事件 token 校验失败。", error="invalid verification token")
     if payload.get("type") == "url_verification" and payload.get("challenge"):
-        return ToolResult(ok=True, tool="feishu_handle_event_callback", summary="飞书 URL 验证 challenge。", data={"challenge": payload["challenge"], "response": {"challenge": payload["challenge"]}})
+        return ToolResult(ok=True, tool="feishu_handle_event_callback", summary="飞书 URL 验证 challenge。", data={"challenge": payload["challenge"], "response": {"challenge": payload["challenge"]}, "payload": payload})
     event_type = payload.get("header", {}).get("event_type") or payload.get("event", {}).get("type") or payload.get("type") or "unknown"
     archived = feishu_archive_event(FeishuEventArchiveRequest(event_type=event_type, payload=payload))
-    return ToolResult(ok=True, tool="feishu_handle_event_callback", summary=f"已处理飞书事件 {event_type}。", data={"event_type": event_type, "archive": archived.data})
+    return ToolResult(ok=True, tool="feishu_handle_event_callback", summary=f"已处理飞书事件 {event_type}。", data={"event_type": event_type, "archive": archived.data, "payload": payload})
 
 
 def feishu_list_chats(req: FeishuChatListRequest) -> ToolResult:

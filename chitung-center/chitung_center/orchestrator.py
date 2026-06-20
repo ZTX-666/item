@@ -5,6 +5,7 @@ from typing import Any
 from chitung_center.audit import audit_logger
 from chitung_center.intent_router import route_intent
 from chitung_center.models import ActionCard, ChatMessageRequest, ChatMessageResponse
+from chitung_center.skill_service import enhance_with_skill
 from chitung_center.workflow_engine import workflow_engine
 from chitung_center.workflow_templates import workflow_for_intent
 
@@ -18,12 +19,21 @@ class ChitungOrchestrator:
             run = await workflow_engine.run_for_intent(intent.intent, request)
             if run.get("ok"):
                 cards = [ActionCard.model_validate(card) for card in (run.get("cards") or [])]
+                reply = str(run.get("reply") or "")
+                applied_skill = None
+                try:
+                    applied_skill = await enhance_with_skill(intent.intent, request.message, run)
+                except Exception:  # noqa: BLE001 — skill layer must never block workflow output
+                    applied_skill = None
+                if applied_skill and applied_skill.get("reply"):
+                    reply = applied_skill["reply"]
                 return ChatMessageResponse(
-                    reply=str(run.get("reply") or ""),
+                    reply=reply,
                     intent=intent,
                     cards=cards,
                     tool_results=run.get("tool_results") or [],
                     audit_id=str(run.get("audit_id") or ""),
+                    applied_skill=applied_skill,
                 )
 
         audit_id = audit_logger.write(

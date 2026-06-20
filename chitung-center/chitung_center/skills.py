@@ -41,5 +41,22 @@ class SkillLoader:
             return None
         return path.read_text(encoding="utf-8", errors="ignore")
 
+    def skill_for_intent(self, intent: str) -> SkillInfo | None:
+        name = INTENT_TO_SKILL.get(intent)
+        if not name:
+            return None
+        for skill in self.list_skills():
+            if skill.name == name:
+                return skill
+        return None
+
+
+# Maps router intents to the SKILL.md directory that governs that flow.
+INTENT_TO_SKILL: dict[str, str] = {
+    "hazard_intake": "hazard-intake",
+    "weather_news_risk": "daily-risk-briefing",
+    "document_form": "shanshan-doc",
+}
+
 
 skill_loader = SkillLoader()
