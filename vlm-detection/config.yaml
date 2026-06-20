@@ -1,8 +1,8 @@
 # VLM-Detection 推理配置（仅检测，不训练）
 
 models:
-  worker: "E:/China Oversea  Final/VLM Detection/weights/worker/yolo26x_worker.pt"
-  machinery: "E:/China Oversea  Final/VLM Detection/weights/machinery/yolo26l_machinery.pt"
+  worker: "weights/worker/yolo26x_worker.pt"
+  machinery: "weights/machinery/yolo26l_machinery.pt"
 
 inference:
   imgsz: 640

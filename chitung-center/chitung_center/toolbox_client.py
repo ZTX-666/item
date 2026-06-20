@@ -9,8 +9,9 @@ from chitung_center.config import settings
 
 
 class ToolboxClient:
-    def __init__(self, base_url: str | None = None) -> None:
+    def __init__(self, base_url: str | None = None, timeout_seconds: float | None = None) -> None:
         self.base_url = (base_url or settings.agent_toolbox_base_url).rstrip("/")
+        self.timeout_seconds = timeout_seconds or settings.agent_toolbox_timeout_seconds
 
     async def health(self) -> dict[str, Any]:
         try:
@@ -35,7 +36,7 @@ class ToolboxClient:
             "tool_call_requested",
             audit_payload,
         )
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
             response = await client.post(f"{self.base_url}/tools/{tool_name}", json=payload)
             response.raise_for_status()
             result = response.json()

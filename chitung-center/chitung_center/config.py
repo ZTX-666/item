@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     port: int = 8999
 
     agent_toolbox_base_url: str = "http://127.0.0.1:8899"
+    agent_toolbox_timeout_seconds: float = 900.0
 
     llm_base_url: str = ""
     llm_api_key: str = ""

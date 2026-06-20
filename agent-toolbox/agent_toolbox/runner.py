@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -14,16 +15,17 @@ class CommandError(RuntimeError):
 
 
 def run_command(command: list[str], cwd: Path | None = None, timeout: int = 300) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(
-        command,
-        cwd=str(cwd) if cwd else None,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        encoding="utf-8",
-        errors="replace",
-        windows_hide=True,
-    )
+    kwargs = {
+        "cwd": str(cwd) if cwd else None,
+        "capture_output": True,
+        "text": True,
+        "timeout": timeout,
+        "encoding": "utf-8",
+        "errors": "replace",
+    }
+    if os.name == "nt":
+        kwargs["windows_hide"] = True
+    result = subprocess.run(command, **kwargs)
     if result.returncode != 0:
         raise CommandError(command, result.returncode, result.stdout, result.stderr)
     return result
