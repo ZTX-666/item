@@ -11,7 +11,7 @@ param(
   [string]$RepoRoot = 'J:\China Oversea  Final\FinalAgentSuite',
   [string]$ParentRoot = 'J:\China Oversea  Final',
   [string]$Remote = 'https://github.com/ZTX-666/item.git',
-  [string]$CommitMessage = 'Full sync: code, docs, fixtures, YOLO weights (LFS)'
+  [string]$CommitMessage = 'Add Yaoyao RapidOCR models and sync full repo assets'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,8 +51,36 @@ function Resolve-WeightSource {
   return $null
 }
 
+function Prepare-YaoyaoModels {
+  $modelDst = Join-Path $RepoRoot 'models\yaoyao\rapidocr'
+  New-Item -ItemType Directory -Force -Path $modelDst | Out-Null
+
+  # Prefer existing workspace copy if user already ran OCR locally.
+  $workspaceModels = Join-Path $RepoRoot 'agent-toolbox\workspace\yaoyao\models'
+  if (Test-Path $workspaceModels) {
+    Copy-Tree $workspaceModels $modelDst @()
+    Write-Host '  OK copied from agent-toolbox/workspace/yaoyao/models'
+    return
+  }
+
+  $required = @{
+    'ch_PP-OCRv4_det_infer.onnx' = 'https://huggingface.co/SWHL/RapidOCR/resolve/main/PP-OCRv4/ch_PP-OCRv4_det_infer.onnx'
+    'ch_PP-OCRv4_rec_infer.onnx' = 'https://huggingface.co/SWHL/RapidOCR/resolve/main/PP-OCRv4/ch_PP-OCRv4_rec_infer.onnx'
+    'ch_ppocr_mobile_v2.0_cls_infer.onnx' = 'https://huggingface.co/SWHL/RapidOCR/resolve/main/PP-OCRv1/ch_ppocr_mobile_v2.0_cls_infer.onnx'
+  }
+  foreach ($name in $required.Keys) {
+    $out = Join-Path $modelDst $name
+    if (-not (Test-Path $out)) {
+      Write-Host "  Downloading $name ..."
+      Invoke-WebRequest -Uri $required[$name] -OutFile $out -UseBasicParsing
+    }
+    $mb = [math]::Round((Get-Item $out).Length / 1MB, 2)
+    Write-Host "  OK $name (${mb} MB)"
+  }
+}
+
 Set-Location $RepoRoot
-Write-Host '==> [1/8] YOLO weights -> vlm-detection/weights/ (Git LFS)' -ForegroundColor Cyan
+Write-Host '==> [1/9] YOLO weights -> vlm-detection/weights/ (Git LFS)' -ForegroundColor Cyan
 $weightSrc = Resolve-WeightSource
 if (-not $weightSrc) { throw 'Cannot find YOLO weights under VLM Detection or VLMDetection' }
 
@@ -70,7 +98,10 @@ foreach ($pair in @(
   Write-Host "  OK $($pair.Name) (${mb} MB)"
 }
 
-Write-Host '==> [2/8] Visual test images -> fixtures/visual-samples/' -ForegroundColor Cyan
+Write-Host '==> [2/9] Yaoyao RapidOCR models -> models/yaoyao/rapidocr/ (Git LFS)' -ForegroundColor Cyan
+Prepare-YaoyaoModels
+
+Write-Host '==> [3/9] Visual test images -> fixtures/visual-samples/' -ForegroundColor Cyan
 $sampleSrc = Join-Path $ParentRoot '3311 AI'
 $sampleDst = Join-Path $RepoRoot 'fixtures\visual-samples'
 New-Item -ItemType Directory -Force -Path $sampleDst | Out-Null
@@ -82,7 +113,7 @@ if (Test-Path $sampleSrc) {
   Write-Warning '3311 AI folder not found — skip sample images'
 }
 
-Write-Host '==> [3/8] Product docs -> docs/product/' -ForegroundColor Cyan
+Write-Host '==> [4/9] Product docs -> docs/product/' -ForegroundColor Cyan
 $productDir = Join-Path $RepoRoot 'docs\product'
 New-Item -ItemType Directory -Force -Path $productDir | Out-Null
 Get-ChildItem $RepoRoot -File -Include *.md, *.html | ForEach-Object {
@@ -97,7 +128,7 @@ foreach ($f in $rtmpCandidates) {
   Set-Content $out -Value $text -Encoding UTF8
 }
 
-Write-Host '==> [4/8] External dependencies -> external/' -ForegroundColor Cyan
+Write-Host '==> [5/9] External dependencies -> external/' -ForegroundColor Cyan
 $external = Join-Path $RepoRoot 'external'
 Copy-Tree (Join-Path $ParentRoot '02-depth-VLM-Pipeline') (Join-Path $external '02-depth-VLM-Pipeline') @('weights', 'output', '.venv')
 Copy-Tree (Join-Path $ParentRoot '03-site-memorandum-standard') (Join-Path $external 'site-memorandum-standard') @()
@@ -105,19 +136,19 @@ Copy-Tree (Join-Path $ParentRoot 'ChinaOverseas Final\docx_translate') (Join-Pat
 $paddleDst = Join-Path $external 'paddle-ocr-sharp'
 Copy-Tree (Join-Path $ParentRoot '01-PaddleOCRSharp\PaddleOCRSharp') (Join-Path $paddleDst 'PaddleOCRSharp') @('bin', 'obj')
 Copy-Tree (Join-Path $ParentRoot '01-PaddleOCRSharp\PaddlePdfOcrApp') (Join-Path $paddleDst 'PaddlePdfOcrApp') @('bin', 'obj', 'dist')
+Copy-Tree (Join-Path $ParentRoot '01-PaddleOCRSharp\CctvMonitorSnapshots') (Join-Path $paddleDst 'CctvMonitorSnapshots') @('dist', 'build', '__pycache__')
 
-Write-Host '==> [5/8] Open-source references (slim)' -ForegroundColor Cyan
+Write-Host '==> [6/9] Open-source references (slim)' -ForegroundColor Cyan
 Copy-Tree (Join-Path $ParentRoot 'open-source-references') (Join-Path $RepoRoot 'open-source-references') @(
   'mlruns', 'weights', 'dist', 'node_modules', '.git', '__pycache__', '.venv'
 )
 
-Write-Host '==> [6/8] Git LFS for .pt weights' -ForegroundColor Cyan
+Write-Host '==> [7/9] Git LFS for weights and OCR models' -ForegroundColor Cyan
 git lfs install | Out-Null
-if (-not (Test-Path (Join-Path $RepoRoot '.gitattributes'))) {
-  Set-Content (Join-Path $RepoRoot '.gitattributes') "vlm-detection/weights/**/*.pt filter=lfs diff=lfs merge=lfs -text`n" -Encoding UTF8
-}
+git lfs track 'vlm-detection/weights/**/*.pt' | Out-Null
+git lfs track 'models/yaoyao/**/*.onnx' | Out-Null
 
-Write-Host '==> [7/8] Stage all (directory-based, no Chinese pathspec)' -ForegroundColor Cyan
+Write-Host '==> [8/9] Stage all (directory-based, no Chinese pathspec)' -ForegroundColor Cyan
 Invoke-RepoGit remote set-url origin $Remote
 Invoke-RepoGit fetch origin main
 
@@ -127,13 +158,14 @@ $addPaths = @(
   'chitong-lingxun', 'docmate-shanshan', 'report-generators',
   'rtmp-tools', 'vlm-detection', 'scripts', 'safety-policy-templates-20241025',
   'whatsapp-archive', 'frontend-ui-prototype',
-  'docs', 'external', 'fixtures', 'open-source-references'
+  'docs', 'external', 'fixtures', 'models', 'open-source-references'
 )
 foreach ($p in $addPaths) {
   if (Test-Path (Join-Path $RepoRoot $p)) {
     Invoke-RepoGit add -- $p
   }
 }
+Invoke-RepoGit add -- .gitattributes
 
 # Block secrets / wrong docs
 $blocked = Invoke-RepoGit diff --cached --name-only --diff-filter=A |
@@ -148,7 +180,7 @@ Write-Host "  Staged $($staged.Count) file(s)"
 if ($staged.Count -eq 0) {
   Write-Host '==> Nothing new to commit.' -ForegroundColor Yellow
 } else {
-  Write-Host '==> [8/8] Commit & push' -ForegroundColor Cyan
+  Write-Host '==> [9/9] Commit & push' -ForegroundColor Cyan
   $env:GIT_AUTHOR_NAME = 'ZTX-666'
   $env:GIT_AUTHOR_EMAIL = 'ZTX-666@users.noreply.github.com'
   $env:GIT_COMMITTER_NAME = 'ZTX-666'
@@ -162,4 +194,4 @@ Invoke-RepoGit push origin main
 Write-Host ''
 Write-Host 'DONE. Verify: https://github.com/ZTX-666/item' -ForegroundColor Green
 Write-Host 'Weights: vlm-detection/weights/worker/ + machinery/ (via Git LFS)' -ForegroundColor Green
-Write-Host 'Handoff: docs/COLLABORATION_HANDOFF.md + docs/UPLOAD_MANIFEST.md' -ForegroundColor Green
+Write-Host 'Yaoyao OCR: models/yaoyao/rapidocr/*.onnx (Git LFS)' -ForegroundColor Green

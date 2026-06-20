@@ -113,6 +113,13 @@ class OcrEngineService:
             and self._stdout is not None
         )
 
+    def _worker_env(self) -> dict[str, str]:
+        env = os.environ.copy()
+        model_dir = settings.yaoyao_model_dir
+        if model_dir:
+            env["YAOYAO_MODEL_DIR"] = str(model_dir)
+        return env
+
     def _start_worker(self) -> None:
         if not self._python_bin or not Path(self._python_bin).exists():
             # Fall back to current Python if the configured binary is missing.
@@ -126,6 +133,7 @@ class OcrEngineService:
             text=True,
             encoding="utf-8",
             bufsize=1,
+            env=self._worker_env(),
         )
         self._stdin = self._proc.stdin
         self._stdout = self._proc.stdout

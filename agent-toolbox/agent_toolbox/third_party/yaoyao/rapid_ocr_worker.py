@@ -1,11 +1,29 @@
 import argparse
 import json
+import os
 import tempfile
 import sys
 from pathlib import Path
 
 from PIL import Image, ImageFilter, ImageOps
 from rapidocr_onnxruntime import RapidOCR
+
+
+def _create_engine() -> RapidOCR:
+    """Use bundled repo models when YAOYAO_MODEL_DIR is set."""
+    model_dir = os.environ.get("YAOYAO_MODEL_DIR", "").strip()
+    if model_dir:
+        root = Path(model_dir)
+        det = root / "ch_PP-OCRv4_det_infer.onnx"
+        rec = root / "ch_PP-OCRv4_rec_infer.onnx"
+        cls = root / "ch_ppocr_mobile_v2.0_cls_infer.onnx"
+        if det.exists() and rec.exists() and cls.exists():
+            return RapidOCR(
+                det_model_path=str(det),
+                rec_model_path=str(rec),
+                cls_model_path=str(cls),
+            )
+    return RapidOCR()
 
 
 def _collect_text_and_score(result) -> tuple[str, float]:
@@ -80,7 +98,7 @@ def _recognize_best(engine: RapidOCR, image_path: Path, fast_mode: bool) -> str:
 
 
 def run_server() -> int:
-    engine = RapidOCR()
+    engine = _create_engine()
     print("READY", flush=True)
 
     for line in sys.stdin:
@@ -131,7 +149,7 @@ def main() -> int:
         return 2
 
     try:
-        engine = RapidOCR()
+        engine = _create_engine()
         best_text = _recognize_best(engine, image_path, False)
         if not best_text:
             out_path.write_text("", encoding="utf-8")

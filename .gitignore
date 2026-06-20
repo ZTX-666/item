@@ -42,6 +42,9 @@ logs/
 # Models & large binaries (vlm-detection/weights tracked via Git LFS — see .gitattributes)
 *.pth
 *.onnx
+!models/yaoyao/
+!models/yaoyao/**
+!models/yaoyao/**/*.onnx
 *.zip
 *.7z
 *.rar

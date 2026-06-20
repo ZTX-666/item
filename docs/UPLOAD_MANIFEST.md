@@ -69,7 +69,16 @@
 
 ---
 
-## YOLO 权重（已纳入 Git LFS）
+## 耀耀慧读 RapidOCR 模型（已纳入 Git LFS）
+
+```text
+models/yaoyao/rapidocr/
+  ch_PP-OCRv4_det_infer.onnx
+  ch_PP-OCRv4_rec_infer.onnx
+  ch_ppocr_mobile_v2.0_cls_infer.onnx
+```
+
+`agent-toolbox/.env.example` 中 `YAOYAO_MODEL_DIR` 已指向此目录。
 
 权重位于仓库内：
 
