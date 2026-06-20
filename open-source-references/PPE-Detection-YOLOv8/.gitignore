@@ -1,0 +1,14 @@
+# Ignore YOLO weights
+*.pt
+
+# Ignore videos
+*.mp4
+
+# Ignore logs
+*.txt
+
+# Ignore outputs
+output/
+
+# Python cache
+__pycache__/

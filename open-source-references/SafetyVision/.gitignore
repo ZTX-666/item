@@ -1,0 +1,88 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Env / secrets
+.env
+.env.local
+*.pem
+kaggle.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ML artifacts — push weights to HF Hub, not Git
+*.pt
+*.onnx
+!model/datasets/*.yaml
+runs/
+wandb/
+# Note: mlruns/ IS committed on purpose (per brief — model registry transparency)
+
+# Raw datasets
+*.zip
+*.tar.gz
+data/raw/
+data/interim/
+model/datasets/raw/
+model/datasets/merged/
+
+# Logs / caches
+*.log
+logs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Terraform
+infra/aws/.terraform/
+infra/aws/*.tfstate
+infra/aws/*.tfstate.backup
+infra/aws/.terraform.lock.hcl
+infra/aws/terraform.tfvars
+
+# Local debug artifacts (explainer / detector smoke tests)
+/_debug_*.jpg
+/_debug_*.png
+/test.jpg
+/test.png
+/annotations.png
+/gradcam.png
+/shap.png
+
+# v2 dataset (kept on VM disk, never in git)
+data/
+
+
+# v2 training outputs (chat 10)
+runs/
+logs/
+yolo*.pt
+mlruns/**/artifacts/weights/
+artifacts/onnx/
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+.hf_space_build/

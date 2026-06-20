@@ -1,0 +1,50 @@
+# ===================================================================
+# Dashboard Service Dockerfile
+# Purpose: Web-based camera management dashboard
+# Components: Flask, REST API, Real-time monitoring
+# Target: AWS EC2/ECS
+# ===================================================================
+
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies for dashboard
+RUN pip install --no-cache-dir \
+    flask>=3.0.0 \
+    flask-cors>=4.0.0 \
+    boto3>=1.28.0 \
+    sqlalchemy>=2.0.0 \
+    psycopg2-binary>=2.9.0 \
+    python-dotenv>=1.0.0
+
+# Copy application files
+COPY dashboard.py .
+COPY database.py .
+COPY config.py .
+COPY templates/ ./templates/
+COPY static/ ./static/
+COPY cameras.json .
+
+# Environment variables
+ENV FLASK_APP=dashboard.py
+ENV DASHBOARD_PORT=5000
+ENV PYTHONUNBUFFERED=1
+
+# Expose dashboard port
+EXPOSE 5000
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD python -c "import requests; requests.get('http://localhost:5000/api/system/health')" || exit 1
+
+# Run dashboard
+CMD ["python", "dashboard.py"]

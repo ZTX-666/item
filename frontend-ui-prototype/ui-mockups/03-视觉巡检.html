@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>視覺巡檢 | 赤瞳安全智能平台 · 中國建築(香港)</title>
+<style>
+  :root {
+    --brand-red: #E70012; --brand-red-dark: #C4000F; --brand-red-glow: rgba(231,0,18,0.2);
+    --brand-navy: #0E2841; --brand-navy-deep: #091B2D;
+    --brand-navy-mid: #142538; --brand-navy-light: #1A3652;
+    --brand-cyan: #0F9ED5; --brand-cyan-glow: rgba(15,158,213,0.12);
+    --brand-green: #4EA72E; --brand-orange: #E97132; --brand-purple: #A02B93;
+    --bg-primary: #0a1521; --bg-secondary: #0F1D2E;
+    --bg-card: #152638; --bg-input: #0C1826;
+    --border-color: #1E3550; --border-hover: #2A5075;
+    --text-primary: #E4E9EF; --text-secondary: #889BB0; --text-muted: #546B82;
+    --radius-sm: 6px; --radius-md: 10px;
+    --font-sans: 'Inter','Noto Sans SC',system-ui,sans-serif; --font-mono: 'JetBrains Mono',monospace;
+    t-fast: 150ms ease; t-norm: 250ms ease;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font-sans);background:var(--bg-primary);color:var(--text-primary);min-height:100vh;}
+
+  .top-bar{height:56px;background:linear-gradient(135deg,var(--brand-navy),var(--brand-navy-deep));border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:100;}
+  .top-bar__logo{display:flex;align-items:center;gap:12px;}
+  .top-bar__logo-img{height:32px;width:auto;}
+  .top-bar__brand-text h1{font-size:15px;font-weight:700;color:white;letter-spacing:1px;line-height:1.2;}
+  .top-bar__brand-text span{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;}
+  .top-bar__right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+  .live-badge{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--brand-green);font-weight:600;}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--brand-green);animation:pulse 2s infinite;box-shadow:0 0 6px var(--brand-green);}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  .avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--brand-navy-light),var(--brand-cyan));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;border:2px solid var(--border-color);}
+
+  .app-body{display:flex;height:calc(100vh - 56px);}
+  .sidebar{width:64px;background:var(--bg-secondary);border-right:1px solid var(--border-color);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;}
+  .nav-item{width:46px;height:46px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;transition:all var(--t-fast);font-size:18px;border:1px solid transparent;}
+  .nav-item:hover{background:var(--bg-card);color:var(--text-primary);border-color:var(--border-color);}
+  .nav-item--active{background:var(--brand-red-glow);color:var(--brand-red);border-color:rgba(231,0,18,0.2);}
+  .nav-divider{width:28px;height:1px;background:var(--border-color);margin:8px 0;}
+
+  .main-content{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;}
+
+  /* Page Header */
+  .page-header{display:flex;align-items:flex-start;justify-content:space-between;}
+  .page-header__left h1{font-size:22px;font-weight:800;color:white;display:flex;align-items:center;gap:10px;letter-spacing:-0.3px;}
+  .page-header__left p{font-size:13px;color:var(--text-secondary);margin-top:4px;}
+  .page-header__actions{display:flex;gap:8px;}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all var(--t-fast);white-space:nowrap;font-family:var(--font-sans);}
+  .btn--primary{background:linear-gradient(135deg,var(--brand-red),var(--brand-red-dark));color:white;box-shadow:0 2px 8px rgba(231,0,18,0.25);}
+  .btn--primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(231,0,18,0.35);}
+  .btn--secondary{background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color);}
+  .btn--secondary:hover{border-color:var(--brand-cyan);color:var(--brand-cyan);}
+
+  /* Control Panel */
+  .control-panel{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+  .control-label{font-size:11px;color:var(--text-muted);white-space:nowrap;font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+  .select-box{height:34px;background:var(--bg-input);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:0 30px 0 10px;font-size:12px;color:var(--text-primary);outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%23546B82'%3E%3Cpath d='M5 7L1 3h8z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;}
+  .select-box:focus{border-color:var(--brand-cyan);}
+  .toggle-group{display:flex;background:var(--bg-input);border-radius:var(--radius-sm);padding:2px;}
+  .toggle-btn{padding:5px 14px;font-size:12px;color:var(--text-muted);cursor:pointer;border:none;background:transparent;border-radius:4px;transition:all var(--t-fast);font-family:var(--font-sans);}
+  .toggle-btn--active{background:var(--brand-cyan-glow);color:var(--brand-cyan);font-weight:600;}
+  .status-indicators{display:flex;gap:12px;margin-left:auto;}
+  .si-item{display:flex;align-items:center;gap:5px;font-size:11px;}
+  .si-dot{width:8px;height:8px;border-radius:50%;}
+
+  /* Camera Grid */
+  .cam-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex:1;min-height:0;}
+  .cam-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;transition:all var(--t-norm);cursor:pointer;position:relative;}
+  .cam-card:hover{border-color:var(--brand-cyan);transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,0.35);}
+  .cam-card--alert{border-color:var(--brand-red);box-shadow:0 0 16px rgba(231,0,18,0.15);}
+  .cam-preview{aspect-ratio:16/10;background:linear-gradient(145deg,#0a1628,#162038);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+  .cam-preview__grid{position:absolute;inset:0;background-image:linear-gradient(rgba(15,158,213,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(15,158,213,0.04) 1px,transparent 1px);background-size:28px 28px;}
+
+  /* Detection Box */
+  .detection-box{position:absolute;border:2px solid var(--brand-green);border-radius:3px;background:rgba(78,167,46,0.06);}
+  .detection-box--alert{border-color:var(--brand-red);background:rgba(231,0,18,0.06);}
+  .detection-label{position:absolute;top:-17px;left:0;font-size:9px;font-weight:700;padding:1px 5px;border-radius:2px;white-space:nowrap;}
+  .detection-box:not(.detection-box--alert) .detection-label{background:var(--brand-green);color:white;}
+  .detection-box--alert .detection-label{background:var(--brand-red);color:white;}
+
+  .cam-info{padding:10px 12px;}
+  .cam-name{font-size:13px;font-weight:600;color:white;margin-bottom:3px;}
+  .cam-meta{font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:8px;}
+  .cam-status{position:absolute;top:8px;right:8px;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;color:white;}
+  .cam-status--live{background:var(--brand-red);animation:pulse 2s infinite;}
+  .cam-status--ok{background:var(--brand-green);}
+  .cam-status--alert{background:var(--brand-red);box-shadow:0 0 8px var(--brand-red);}
+  .cam-tags{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;}
+  .cam-tag{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:500;}
+  .cam-tag--safe{background:rgba(78,167,46,0.1);color:var(--brand-green);border:1px solid rgba(78,167,46,0.25);}
+  .cam-tag--warn{background:rgba(233,113,50,0.1);color:var(--brand-orange);border:1px solid rgba(233,113,50,0.25);}
+  .cam-tag--danger{background:rgba(231,0,18,0.1);color:var(--brand-red);border:1px solid rgba(231,0,18,0.25);}
+
+  /* Detection List */
+  .detection-panel{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;max-height:260px;}
+  .dp-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border-color);}
+  .dp-title{font-size:13px;font-weight:600;color:white;}
+  .dp-count{font-size:11px;padding:2px 8px;background:rgba(231,0,18,0.12);color:var(--brand-red);border-radius:10px;font-weight:600;}
+  .dp-list{max-height:200px;overflow-y:auto;}
+  .dp-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid rgba(30,53,80,0.4);font-size:12px;transition:background var(--t-fast);cursor:pointer;}
+  .dp-item:hover{background:var(--bg-secondary);}
+  .dp-time{font-size:10px;color:var(--text-muted);font-family:var(--font-mono);min-width:48px;}
+  .dp-desc{flex:1;color:var(--text-primary);}
+  .dp-camera{font-size:10px;color:var(--text-secondary);}
+  .dp-action{padding:3px 10px;font-size:10px;color:var(--brand-cyan);background:var(--brand-cyan-glow);border:1px solid rgba(15,158,213,0.25);border-radius:4px;cursor:pointer;transition:all var(--t-fast);}
+  .dp-action:hover{background:rgba(15,158,213,0.22);}
+
+  /* Footer */
+  .skyline-footer{margin-top:auto;flex-shrink:0;position:relative;height:60px;overflow:hidden;border-top:1px solid var(--border-color);background:linear-gradient(to top,var(--bg-secondary),transparent);}
+  .skyline-img{width:100%;height:100%;object-fit:cover;object-position:bottom center;opacity:0.2;mask-image:linear-gradient(to top,black 40%,transparent 100%);-webkit-mask-image:linear-gradient(to top,black 40%,transparent 100%);}
+  .footer-info{position:absolute;bottom:6px;left:24px;right:24px;display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);z-index:1;}
+  ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <img src="assets/logo-cscec.png" alt="CSCEC" class="top-bar__logo-img" onerror="this.outerHTML='<div style=\'width:32px;height:32px;background:var(--brand-red);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:8px;font-weight:800\'>CSCEC</div>'">
+    <div class="top-bar__brand-text"><h1>赤瞳守護者</h1><span>VLM 視覺巡檢</span></div>
+  </div>
+  <div class="top-bar__right">
+    <div class="live-badge"><div class="live-dot"></div>實時巡檢中</div>
+    <div class="avatar">陳</div>
+  </div>
+</header>
+
+<div class="app-body">
+  <aside class="sidebar">
+    <div class="nav-item" title="工作台">📊</div><div class="nav-item" title="隱患台账">🚨</div>
+    <div class="nav-item nav-item--active" title="視覺巡檢">📷</div>
+    <div class="nav-item" title="WhatsApp">💬</div>
+    <div class="nav-item" title="智能填表">📝</div>
+    <div class="nav-divider"></div>
+    <div class="nav-item" title="AI 助手">🤖</div>
+  </aside>
+
+  <main class="main-content">
+    <!-- Header -->
+    <section class="page-header">
+      <div class="page-header__left">
+        <h1>📷 視覺巡檢</h1>
+        <p>VLM 多模態檢測 · 實時監控 · 自動識別風險</p>
+      </div>
+      <div class="page-header__actions">
+        <button class="btn btn--primary">▶ 開始全面巡檢</button>
+        <button class="btn btn--secondary">⚙ 巡檢設置</button>
+      </div>
+    </section>
+
+    <!-- Control Panel -->
+    <section class="control-panel">
+      <span class="control-label">頻率</span>
+      <select class="select-box"><option>每 30 秒</option><option>每分鐘</option><option>每 5 分鐘</option></select>
+      <span class="control-label">模型</span>
+      <select class="select-box"><option>YOLOv8 + VLM</option><option>YOLOv8 僅目標</option><option>VLM 僅語義</option></select>
+      <span class="control-label">靈敏度</span>
+      <div class="toggle-group">
+        <button class="toggle-btn">低</button>
+        <button class="toggle-btn toggle-btn--active">中</button>
+        <button class="toggle-btn">高</button>
+      </div>
+      <div class="status-indicators">
+        <div class="si-item"><div class="si-dot" style="background:var(--brand-red);"></div><b style="color:var(--brand-red)">1</b> 預警</div>
+        <div class="si-item"><div class="si-dot" style="background:var(--brand-orange);"></div><b style="color:var(--brand-orange)">2</b> 警告</div>
+        <div class="si-item"><div class="si-dot" style="background:var(--brand-green);"></div><b style="color:var(--brand-green)">5</b> 正常</div>
+      </div>
+    </section>
+
+    <!-- Camera Grid -->
+    <section class="cam-grid">
+      <!-- Camera 1 - ALERT -->
+      <article class="cam-card cam-card--alert">
+        <div class="cam-preview">
+          <div class="cam-preview__grid"></div>
+          <div class="detection-box detection-box--alert" style="left:22%;top:28%;width:42px;height:68px;">
+            <span class="detection-label">無安全帽 ⚠</span>
+          </div>
+          <span class="cam-status cam-status--alert">預警</span>
+        </div>
+        <div class="cam-info">
+          <div class="cam-name">A1 吊運區</div>
+          <div class="cam-meta">RTMP Stream · 1920×1080 · 15fps</div>
+          <div class="cam-tags">
+            <span class="cam-tag cam-tag--danger">PPE 違規</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Camera 2 - SAFE with detections -->
+      <article class="cam-card">
+        <div class="cam-preview">
+          <div class="cam-preview__grid"></div>
+          <div class="detection-box" style="left:28%;top:25%;width:44px;height:70px;"><span class="detection-label">人員 ✓</span></div>
+          <div class="detection-box" style="left:58%;top:35%;width:36px;height:62px;"><span class="detection-label">人員 ✓</span></div>
+          <span class="cam-status cam-status--live">LIVE</span>
+        </div>
+        <div class="cam-info">
+          <div class="cam-name">B2 臨邊</div>
+          <div class="cam-meta">RTMP Stream · 1920×1080 · 15fps</div>
+          <div class="cam-tags">
+            <span class="cam-tag cam-tag--safe">安全帽 ✓</span>
+            <span class="cam-tag cam-tag--safe">反光衣 ✓</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Camera 3 - Normal -->
+      <article class="cam-card">
+        <div class="cam-preview">
+          <div class="cam-preview__grid"></div>
+          <span class="cam-status cam-status--ok">正常</span>
+        </div>
+        <div class="cam-info">
+          <div class="cam-name">C3 出入口</div>
+          <div class="cam-meta">RTMP Stream · 1280×720 · 15fps</div>
+          <div class="cam-tags"><span class="cam-tag cam-tag--safe">暫無異常</span></div>
+        </div>
+      </article>
+
+      <!-- Camera 4 -->
+      <article class="cam-card">
+        <div class="cam-preview">
+          <div class="cam-preview__grid"></div>
+          <span class="cam-status cam-status--ok">正常</span>
+        </div>
+        <div class="cam-info">
+          <div class="cam-name">D1 材料區</div>
+          <div class="cam-meta">靜態截圖 · 每 60s</div>
+          <div class="cam-tags"><span class="cam-tag cam-tag--safe">暫無異常</span></div>
+        </div>
+      </article>
+
+      <!-- Camera 5 -->
+      <article class="cam-card">
+        <div class="cam-preview">
+          <div class="cam-preview__grid"></div>
+          <span class="cam-status cam-status--ok">正常</span>
+        </div>
+        <div class="cam-info">
+          <div class="cam-name">E2 高空作業</div>
+          <div class="cam-meta">Body Cam · 即時上傳</div>
+          <div class="cam-tags"><span class="cam-tag cam-tag--safe">暫無異常</span></div>
+        </div>
+      </article>
+
+      <!-- Camera 6 - Warning -->
+      <article class="cam-card">
+        <div class="cam-preview">
+          <div class="cam-preview__grid"></div>
+          <div class="detection-box" style="left:45%;top:40%;width:80px;height:30px;border-color:var(--brand-orange);">
+            <span class="detection-label" style="background:var(--brand-orange);">人員靠近 ⚡</span>
+          </div>
+          <span class="cam-status cam-status--ok">正常</span>
+        </div>
+        <div class="cam-info">
+          <div class="cam-name">F1 機械操作區</div>
+          <div class="cam-meta">RTMP Stream · 1920×1080</div>
+          <div class="cam-tags">
+            <span class="cam-tag cam-tag--warn">機械靠近警告</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- Detection Results Panel -->
+    <section class="detection-panel">
+      <div class="dp-header">
+        <div class="dp-title">🔍 最新檢測結果</div>
+        <div class="dp-count">3 項需關注</div>
+      </div>
+      <div class="dp-list">
+        <div class="dp-item">
+          <span class="dp-time">10:23:41</span>
+          <span class="dp-desc" style="color:var(--brand-red);font-weight:600;">⛔ A1吊運區 — 人員未佩戴安全帽（置信度 94%）</span>
+          <span class="dp-camera">A1</span>
+          <button class="dp-action">生成隱患</button>
+        </div>
+        <div class="dp-item">
+          <span class="dp-time">10:18:05</span>
+          <span class="dp-desc" style="color:var(--brand-orange);font-weight:600;">⚡ F1機械區 — 人員與起重機距離過近（置信度 87%）</span>
+          <span class="dp-camera">F1</span>
+          <button class="dp-action">生成隱患</button>
+        </div>
+        <div class="dp-item">
+          <span class="dp-time">10:02:33</span>
+          <span class="dp-desc">✓ B2臨邊 — 所有可見人員均佩戴完整 PPE（置信度 96%）</span>
+          <span class="dp-camera">B2</span>
+          <button class="dp-action">記錄</button>
+        </div>
+        <div class="dp-item">
+          <span class="dp-time">09:55:12</span>
+          <span class="dp-desc">✓ C3出入口 — 未檢測到異常行為</span>
+          <span class="dp-camera">C3</span>
+          <button class="dp-action">記錄</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="skyline-footer">
+      <img src="assets/hk-skyline-wide.jpg" alt="" class="skyline-img" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;background:linear-gradient(90deg,transparent,var(--brand-red),transparent);opacity:0.08;\'></div>'">
+      <div class="footer-info"><span>中國建築工程(香港)有限公司 · 基礎公司</span><span>赤瞳安全智能平台 © 2025</span></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

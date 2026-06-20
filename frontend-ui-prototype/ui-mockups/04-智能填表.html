@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能填表 | 赤瞳安全智能平台 · 中國建築(香港)</title>
+<style>
+:root{
+  --brand-red:#E70012;--brand-red-dark:#C4000F;--brand-red-glow:rgba(231,0,18,0.15);
+  --brand-navy:#0E2841;--brand-navy-deep:#091B2D;--brand-navy-mid:#142538;--brand-navy-light:#1A3652;
+  --brand-cyan:#0F9ED5;--brand-cyan-glow:rgba(15,158,213,0.15);
+  --brand-green:#4EA72E;--brand-orange:#E97132;--brand-purple:#A02B93;
+  --bg-primary:#0a1521;--bg-secondary:#0F1D2E;--bg-card:#152638;--bg-input:#0C1826;
+  --border-color:#1E3550;--text-primary:#E4E9EF;--text-secondary:#889BB0;--text-muted:#546B82;
+  --radius-sm:6px;--radius-md:10px;--font-sans:'Inter','Noto Sans SC',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-sans);background:var(--bg-primary);color:var(--text-primary);min-height:100vh;}
+
+.top-bar{height:56px;background:linear-gradient(135deg,var(--brand-navy),var(--brand-navy-deep));border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:100;}
+.top-bar__logo{display:flex;align-items:center;gap:12px;}
+.top-bar__logo-img{height:32px;width:auto;}
+.top-bar__brand-text h1{font-size:15px;font-weight:700;color:white;letter-spacing:1px;line-height:1.2;}
+.top-bar__brand-text span{font-size:9px;color:var(--text-muted);text-transform:uppercase;}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--brand-navy-light),var(--brand-cyan));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;border:2px solid var(--border-color);}
+.top-bar__right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+
+.app-body{display:flex;height:calc(100vh-56px);}
+.sidebar{width:64px;background:var(--bg-secondary);border-right:1px solid var(--border-color);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;}
+.nav-item{width:46px;height:46px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;transition:all .15s;font-size:18px;border:1px solid transparent;}
+.nav-item:hover{background:var(--bg-card);color:var(--text-primary);border-color:var(--border-color);}
+.nav-item--active{background:var(--brand-red-glow);color:var(--brand-red);border-color:rgba(231,0,18,0.2);}
+.nav-divider{width:28px;height:1px;background:var(--border-color);margin:8px 0;}
+
+.main-content{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px;}
+
+.page-header h1{font-size:22px;font-weight:800;color:white;display:flex;align-items:center;gap:10px;}
+.page-header p{font-size:13px;color:var(--text-secondary);margin-top:4px;}
+
+/* Stepper */
+.stepper{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:8px;}
+.step{display:flex;align-items:center;gap:10px;position:relative;z-index:1;}
+.step-num{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid var(--border-color);color:var(--text-muted);background:var(--bg-secondary);transition:all .25s;}
+.step-label{font-size:12px;color:var(--text-muted);white-space:nowrap;}
+.step--active .step-num{background:var(--brand-red);border-color:var(--brand-red);color:white;box-shadow:0 0 12px rgba(231,0,18,0.3);}
+.step--active .step-label{color:white;font-weight:600;}
+.step--done .step-num{background:var(--brand-green);border-color:var(--brand-green);color:white;}
+.step--done .step-label{color:var(--brand-green);}
+.step-line{width:60px;height:2px;background:var(--border-color);margin:0 -6px;}
+.step--done+.step-line,.step--active+.step-line{background:var(--brand-green);}
+
+/* Template Selection */
+.template-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+.template-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:18px;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;}
+.template-card:hover{border-color:var(--brand-cyan);transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,0.3);}
+.template-card--selected{border-color:var(--brand-red);box-shadow:0 0 0 3px rgba(231,0,18,0.15);}
+.template-card__icon{font-size:28px;margin-bottom:10px;}
+.template-card__name{font-size:14px;font-weight:600;color:white;margin-bottom:4px;}
+.template-card__desc{font-size:11px;color:var(--text-muted);line-height:1.4;}
+.template-card__check{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;background:var(--brand-red);color:white;display:none;align-items:center;justify-content:center;font-size:11px;}
+.template-card--selected .template-card__check{display:flex;}
+
+/* Data Source */
+.datasource-panel{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.ds-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s;}
+.ds-card:hover{border-color:var(--brand-cyan);background:var(--brand-navy-mid);}
+.ds-icon{width:40px;height:40px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.ds-info h4{font-size:13px;font-weight:600;color:white;} .ds-info p{font-size:11px;color:var(--text-muted);}
+.ds-check{margin-left:auto;width:18px;height:18px;border-radius:50%;border:2px solid var(--border-color);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.ds-card--selected{border-color:var(--brand-cyan);} .ds-card--selected .ds-check{background:var(--brand-cyan);border-color:var(--brand-cyan);}
+
+/* Preview Panel */
+.preview-panel{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;display:flex;flex-direction:column;flex:1;}
+.preview-toolbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border-color);}
+.preview-title{font-size:13px;font-weight:600;color:white;display:flex;align-items:center;gap:8px;}
+.preview-actions{display:flex;gap:6px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;font-family:var(--font-sans);}
+.btn--primary{background:linear-gradient(135deg,var(--brand-red),var(--brand-red-dark));color:white;}
+.btn--secondary{background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color);}
+.btn--secondary:hover{border-color:var(--brand-cyan);color:var(--brand-cyan);}
+
+.preview-body{padding:20px 24px;background:white;flex:1;overflow-y:auto;color:#1a1a1a;position:relative;}
+/* Simulated Word document */
+.doc-preview{max-width:800px;margin:0 auto;font-family:'Noto Serif SC',serif;line-height:1.8;font-size:14px;}
+.doc-preview h1{text-align:center;font-size:22px;font-weight:800;color:#000;margin-bottom:4px;}
+.doc-preview h2{text-align:center;font-size:13px;color:#444;font-weight:400;margin-bottom:20px;border-bottom:1px solid #ccc;padding-bottom:10px;}
+.doc-preview table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;}
+.doc-preview th,.doc-preview td{border:1px solid #333;padding:6px 10px;text-align:left;}
+.doc-preview th{background:#f0f0f0;font-weight:600;}
+.doc-ai-filled{background:rgba(78,167,46,0.08);border-left:3px solid var(--brand-green);padding:2px 6px;border-radius:2px;}
+.doc-ai-highlight{background:rgba(15,158,213,0.1);border-bottom:1px dashed var(--brand-cyan);cursor:help;position:relative;}
+.doc-ai-tag{font-size:9px;background:var(--brand-cyan);color:white;padding:1px 5px;border-radius:3px;margin-left:4px;font-family:var(--font-sans);vertical-align:middle;}
+
+/* Footer */
+.skyline-footer{margin-top:auto;flex-shrink:0;position:relative;height:55px;overflow:hidden;border-top:1px solid var(--border-color);background:linear-gradient(to top,var(--bg-secondary),transparent);}
+.skyline-img{width:100%;height:100%;object-fit:cover;object-position:bottom center;opacity:0.2;mask-image:linear-gradient(to top,black 35%,transparent 100%);-webkit-mask-image:linear-gradient(to top,black 35%,transparent 100%);}
+.footer-info{position:absolute;bottom:5px;left:24px;right:24px;display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);z-index:1;}
+::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <img src="assets/logo-cscec.png" alt="CSCEC" class="top-bar__logo-img" onerror="this.outerHTML='<div style=\'width:32px;height:32px;background:var(--brand-red);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:8px;font-weight:800\'>CSCEC</div>'">
+    <div class="top-bar__brand-text"><h1>赤瞳守護者</h1><span>智能填表系統</span></div>
+  </div>
+  <div class="top-bar__right"><div class="avatar">陳</div></div>
+</header>
+
+<div class="app-body">
+  <aside class="sidebar">
+    <div class="nav-item">📊</div><div class="nav-item">🚨</div><div class="nav-item">📷</div><div class="nav-item">💬</div>
+    <div class="nav-item nav-item--active" title="智能填表">📝</div><div class="nav-divider"></div>
+    <div class="nav-item">🤖</div>
+  </aside>
+
+  <main class="main-content">
+    <section class="page-header">
+      <h1>📝 智能填表</h1>
+      <p>AI 自動預填安全表格 · 減少重複文書工作 · 一鍵生成 Word 文檔</p>
+    </section>
+
+    <!-- Step 1: Template -->
+    <div style="font-size:12px;font-weight:700;color:var(--brand-red);margin-bottom:8px;">步驟 1 / 3 — 選擇表格模板</div>
+    <section class="template-grid">
+      <div class="template-card template-card--selected">
+        <span class="template-card__check">✓</span>
+        <div class="template-card__icon">🏗️</div>
+        <div class="template-card__name">吊運檢查表 (T032)</div>
+        <div class="template-card__desc">起重機吊運前檢查，含機械狀態、操作員證件、現場環境等項目</div>
+      </div>
+      <div class="template-card">
+        <div class="template-card__icon">⚡</div>
+        <div class="template-card__name">電力安全檢查表 (T051)</div>
+        <div class="template-card__desc">臨時用電、電纜佈線、接地保護、漏電開關等電力設施檢查</div>
+      </div>
+      <div class="template-card">
+        <div class="template-card__icon">🔥</div>
+        <div class="template-card__name">熱工序許可證 (T061)</div>
+        <div class="template-card__desc">焊接/切割等熱工序作業申請，含防火措施、監察安排</div>
+      </div>
+      <div class="template-card">
+        <div class="template-card__icon">👷</div>
+        <div class="template-card__name">健康聲明 (T001)</div>
+        <div class="template-card__desc">工人每日健康聲明，含體溫、症狀、接觸史等記錄</div>
+      </div>
+      <div class="template-card">
+        <div class="template-card__icon">🚧</div>
+        <div class="template-card__name">棚架檢查表 (T041)</div>
+        <div class="template-card__desc">腳手架/棚架搭建後檢查，含結構穩定性、安全網、通道等</div>
+      </div>
+      <div class="template-card">
+        <div class="template-card__icon">📋</div>
+        <div class="template-card__name">Plant Summary List</div>
+        <div class="template-card__desc">機械設備總覽，含牌照、檢驗證書、LALG 等資料彙總</div>
+      </div>
+    </section>
+
+    <!-- Step 2: Data Source -->
+    <div style="font-size:12px;font-weight:700;color:var(--brand-cyan);margin-top:4px;">步驟 2 / 3 — 選擇數據來源（可多選）</div>
+    <section class="datasource-panel">
+      <div class="ds-card ds-card--selected">
+        <div class="ds-icon" style="background:rgba(15,158,213,0.1);color:var(--brand-cyan);">🤖</div>
+        <div class="ds-info"><h4>AI 智能預填</h4><p>基於歷史數據和制度規範自動填充標準字段</p></div>
+        <div class="ds-check">✓</div>
+      </div>
+      <div class="ds-card ds-card--selected">
+        <div class="ds-icon" style="background:rgba(231,0,18,0.1);color:var(--brand-red);">📄</div>
+        <div class="ds-info"><h4>機械資料庫</h4><p>從 Plant List 自動提取牌照號、證書編號、到期日</p></div>
+        <div class="ds-check">✓</div>
+      </div>
+      <div class="ds-card ds-card--selected">
+        <div class="ds-icon" style="background:rgba(160,43,147,0.1);color:var(--brand-purple);">💬</div>
+        <div class="ds-info"><h4>WhatsApp 通報</h4><p>從群組消息中提取事件描述、地點、時間信息</p></div>
+        <div class="ds-check">✓</div>
+      </div>
+      <div class="ds-card">
+        <div class="ds-icon" style="background:rgba(78,167,46,0.1);color:var(--brand-green);">📷</div>
+        <div class="ds-info"><h4>VLM 檢測結果</h4><p>自動填入視覺識別的違規類型和檢測置信度</p></div>
+        <div class="ds-check"></div>
+      </div>
+      <div class="ds-card">
+        <div class="ds-icon" style="background:rgba(136,155,176,0.1);color:var(--text-secondary);">✍️</div>
+        <div class="ds-info"><h4>手動輸入</h4><p>補充 AI 未覆蓋的特殊字段和備注說明</p></div>
+        <div class="ds-check"></div>
+      </div>
+    </section>
+
+    <!-- Step 3: Preview & Generate -->
+    <div style="font-size:12px;font-weight:700;color:var(--brand-green);margin-top:4px;">步驟 3 / 3 — 預覽與生成</div>
+    <section class="preview-panel">
+      <div class="preview-toolbar">
+        <div class="preview-title">📄 吊運作業前檢查表 — AI 預覽</div>
+        <div class="preview-actions">
+          <button class="btn btn--secondary">🔄 重新生成</button>
+          <button class="btn btn--primary">💾 下載 Word</button>
+          <button class="btn btn--secondary">🖨️ 列印</button>
+        </div>
+      </div>
+      <div class="preview-body">
+        <div class="doc-preview">
+          <h1>吊運作業前檢查表</h1>
+          <h2>Lifting Operation Pre-Lift Checklist (T032)</h2>
+          
+          <table>
+            <tr><th colspan="2">基本資訊</th></tr>
+            <tr><td width="30%">工程名稱</td><td><span class="doc-ai-filled">XX 地盤建造工程</span> <span class="doc-ai-tag">AI 填入</span></td></tr>
+            <tr><td>日期</td><td><span class="doc-ai-filled">2025 年 06 月 17 日</span> <span class="doc-ai-tag">今日</span></td></tr>
+            <tr><td>地盤編號</td><td><span class="doc-ai-filled">HK-2025-C01-B2</span> <span class="doc-ai-tag">自動</span></td></tr>
+            <tr><td>安全主任</td><td><span class="doc-ai-filled">陳志明</span> <span class="doc-ai-tag">登錄信息</span></td></tr>
+          </table>
+
+          <table>
+            <tr><th colspan="2">起重機械信息 <span class="doc-ai-tag">來源: Plant DB</span></th></tr>
+            <tr><td>機械類型</td><td><span class="doc-ai-filled">塔式起重機</span></td></tr>
+            <tr><td>牌照號碼</td><td><span class="doc-ai-filled">TL-2024-00892</span> <span class="doc-ai-tag">DB 匹配</span></td></tr>
+            <tr><td>檢驗證書到期</td><td><span class="doc-ai-filled" style="color:var(--brand-orange);">2025-07-15 ⚠ 即將到期</span></td></tr>
+            <tr><td>操作員姓名</td><td><span class="doc-ai-filled">張偉強</span> <span class="doc-ai-tag">LALG</span></td></tr>
+            <tr><td>操作員證書號</td><td><span class="doc-ai-filled">OP-HK-2023-1456</span> <span class="doc-ai-tag">有效至 2026-03</span></td></tr>
+          </table>
+
+          <table>
+            <tr><th>序號</th><th>檢測項目</th><th>結果</th><th>備註</th></tr>
+            <tr><td>1</td><td>起重機限位裝置是否正常</td><td><span class="doc-ai-filled">☑ 合格</span></td><td><span class="doc-ai-highlight" title="根據最近巡檢記錄">上次檢測正常</span></td></tr>
+            <tr><td>2</td><td>吊鉤及索具是否完好無損</td><td><span class="doc-ai-filled">☑ 合格</span></td><td></td></tr>
+            <tr><td>3</td><td>吊運區域是否已清場隔離</td><td><span class="doc-ai-filled" style="color:var(--brand-orange);">☐ 待確認</span></td><td><b style="color:var(--brand-red)">需人工確認</b></td></tr>
+            <tr><td>4</td><td>信號工是否在位並持有証書</td><td><span class="doc-ai-filled">☑ 合格</span></td><td><span class="doc-ai-tag">LALG 有效</span></td></tr>
+            <tr><td>5</td><td>天氣條件是否適合吊運作業</td><td><span class="doc-ai-filled" style="color:var(--brand-orange);">⚠ 有風力警告</span></td><td><span class="doc-ai-tag">天文台數據</span></td></tr>
+          </table>
+
+          <p style="margin-top:16px;font-size:12px;color:#888;">
+            <b>AI 整改建議：</b><br>
+            <span style="color:var(--brand-orange);">• 第 3 項「吊運區域清場」需要現場確認，建議拍照記錄。</span><br>
+            <span style="color:var(--brand-orange);">• 天文台發布強風預警，建議暫緩高空吊運作業，或加強防風措施。</span>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="skyline-footer">
+      <img src="assets/hk-skyline-wide.jpg" alt="" class="skyline-img" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;background:linear-gradient(90deg,transparent,var(--brand-red),transparent);opacity:0.08;\'></div>'">
+      <div class="footer-info"><span>中國建築工程(香港)有限公司 · 基礎公司</span><span>赤瞳安全智能平台 © 2025</span></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

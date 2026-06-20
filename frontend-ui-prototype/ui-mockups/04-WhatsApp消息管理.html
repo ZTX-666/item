@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤瞳安全智能平台 - WhatsApp 消息管理</title>
+<style>
+  :root {
+    --bg-primary: #0f1923;
+    --bg-secondary: #1a2332;
+    --bg-card: #1e2d3d;
+    --bg-hover: #253545;
+    --bg-input: #15202b;
+    --border-color: #2a3f52;
+    --accent-red: #e94560;
+    --accent-orange: #f59e0b;
+    --accent-green: #10b981;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --text-primary: #e8edf2;
+    --text-secondary: #8899aa;
+    --text-muted: #5a6a7a;
+    --font-family: 'Inter', 'Noto Sans SC', sans-serif;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-family); background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+
+  .top-bar { height: 52px; background: linear-gradient(180deg, #1a2332 0%, #15202b 100%); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 20px; position: sticky; top: 0; z-index: 100; }
+  .top-bar__logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; color: var(--accent-red); letter-spacing: 1px; }
+  .top-bar__logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent-red), #ff6b6b); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .top-bar__nav { display: flex; gap: 2px; margin-left: 40px; }
+  .top-bar__nav-item { padding: 6px 14px; border-radius: var(--radius-sm); font-size: 13px; color: var(--text-secondary); cursor: pointer; transition: all 0.15s; }
+  .top-bar__nav-item:hover { color: var(--text-primary); background: var(--bg-hover); }
+  .top-bar__nav-item--active { color: var(--text-white); background: rgba(233, 69, 96, 0.15); font-weight: 600; }
+  .top-bar__right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; }
+
+  .main-layout { display: flex; height: calc(100vh - 52px); }
+
+  /* === 三栏布局：群组列表 | 消息列表 | 消息详情 === */
+  .wa-groups { width: 220px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); overflow-y: auto; flex-shrink: 0; }
+  .wa-groups__header { padding: 12px 14px; border-bottom: 1px solid var(--border-color); font-size: 13px; font-weight: 600; color: var(--text-white); display: flex; align-items: center; justify-content: space-between; }
+  .wa-group-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background 0.12s; border-left: 3px solid transparent;
+  }
+  .wa-group-item:hover { background: var(--bg-hover); }
+  .wa-group-item--active { background: var(--bg-hover); border-left-color: var(--accent-green); }
+  .wa-group-avatar {
+    width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+  }
+  .wa-group-avatar--safety { background: rgba(233, 69, 96, 0.2); }
+  .wa-group-avatar--site { background: rgba(59, 130, 246, 0.2); }
+  .wa-group-avatar--mgmt { background: rgba(245, 158, 11, 0.2); }
+  .wa-group-info { flex: 1; min-width: 0; }
+  .wa-group-name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wa-group-last { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .wa-group-badge {
+    background: var(--accent-red); color: white; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center; flex-shrink: 0;
+  }
+
+  .wa-messages { width: 340px; background: var(--bg-card); border-right: 1px solid var(--border-color); overflow-y: auto; flex-shrink: 0; }
+  .wa-messages__header { padding: 12px 14px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; }
+  .wa-messages__search { flex: 1; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 12px; outline: none; }
+  .wa-msg-item {
+    display: flex; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background 0.12s; border-left: 3px solid transparent;
+  }
+  .wa-msg-item:hover { background: var(--bg-hover); }
+  .wa-msg-item--active { background: var(--bg-hover); border-left-color: var(--accent-cyan); }
+  .wa-msg-item--hazard { border-left-color: var(--accent-red); }
+  .wa-msg-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--bg-input); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .wa-msg-content { flex: 1; min-width: 0; }
+  .wa-msg-sender { font-size: 12px; font-weight: 600; color: var(--text-white); }
+  .wa-msg-time { font-size: 10px; color: var(--text-muted); float: right; }
+  .wa-msg-preview { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .wa-msg-hazard-tag {
+    display: inline-block; margin-top: 4px; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;
+  }
+  .wa-msg-hazard-tag--new { background: rgba(233, 69, 96, 0.2); color: var(--accent-red); }
+  .wa-msg-hazard-tag--imported { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+
+  /* === 消息详情（右侧）=== */
+  .wa-detail { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .wa-detail__header {
+    padding: 12px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;
+  }
+  .wa-detail__sender { font-size: 14px; font-weight: 600; color: var(--text-white); }
+  .wa-detail__time { font-size: 12px; color: var(--text-muted); }
+  .wa-detail__actions { display: flex; gap: 6px; }
+  .wa-detail__body { flex: 1; overflow-y: auto; padding: 20px; }
+
+  .msg-bubble {
+    max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; margin-bottom: 12px; position: relative;
+  }
+  .msg-bubble--received {
+    background: var(--bg-card); border: 1px solid var(--border-color); border-bottom-left-radius: 4px;
+  }
+  .msg-bubble--ai {
+    background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.3); border-bottom-left-radius: 4px;
+  }
+  .msg-bubble__meta { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+  .msg-bubble__text { color: var(--text-primary); }
+  .msg-bubble__image {
+    max-width: 100%; border-radius: var(--radius-sm); margin-top: 8px; border: 1px solid var(--border-color);
+  }
+  .msg-bubble__hazard-detected {
+    margin-top: 8px; padding: 8px 10px; background: rgba(233, 69, 96, 0.1); border: 1px solid rgba(233, 69, 96, 0.3); border-radius: var(--radius-sm); font-size: 12px;
+  }
+
+  /* === AI 提取面板 === */
+  .ai-extract-panel {
+    background: var(--bg-card); border: 1px solid rgba(6, 182, 212, 0.3); border-radius: var(--radius-md); margin: 12px 20px; padding: 14px 16px;
+  }
+  .ai-extract-panel__header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .ai-extract-panel__title { font-size: 13px; font-weight: 600; color: var(--accent-cyan); }
+  .ai-extract-panel__conf { font-size: 11px; color: var(--accent-cyan); background: rgba(6, 182, 212, 0.15); padding: 2px 6px; border-radius: 4px; }
+  .extract-field { display: flex; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+  .extract-field__label { color: var(--text-muted); min-width: 80px; }
+  .extract-field__value { color: var(--text-primary); }
+  .extract-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn--primary { background: linear-gradient(135deg, var(--accent-red), #ff6b6b); color: white; }
+  .btn--secondary { background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color); }
+  .btn--ai { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); border: 1px solid rgba(6, 182, 212, 0.3); }
+
+  /* 消息输入栏 */
+  .msg-input-bar {
+    display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-top: 1px solid var(--border-color); background: var(--bg-secondary);
+  }
+  .msg-input-bar__input { flex: 1; padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 20px; color: var(--text-primary); font-size: 13px; outline: none; }
+  .msg-input-bar__send { width: 36px; height: 36px; border-radius: 50%; background: var(--accent-green); border: none; color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+  .page-title-bar { padding: 16px 20px 8px; }
+  .page-title-bar h1 { font-size: 18px; font-weight: 700; color: var(--text-white); }
+  .page-title-bar p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <div class="top-bar__logo-icon">👁</div>
+    <span>赤瞳安全智能平台</span>
+  </div>
+  <nav class="top-bar__nav">
+    <div class="top-bar__nav-item">📊 工作台</div>
+    <div class="top-bar__nav-item">📋 隐患台账</div>
+    <div class="top-bar__nav-item top-bar__nav-item--active">💬 WhatsApp 消息</div>
+  </nav>
+  <div class="top-bar__right"><div class="avatar">陈</div></div>
+</header>
+
+<div class="main-layout">
+
+  <!-- 左：群组列表 -->
+  <div class="wa-groups">
+    <div class="wa-groups__header">
+      <span>📱 群组列表</span>
+      <span style="font-size:11px;color:var(--accent-green);">🟢 已连接</span>
+    </div>
+
+    <div class="wa-group-item wa-group-item--active">
+      <div class="wa-group-avatar wa-group-avatar--safety">⚠️</div>
+      <div class="wa-group-info">
+        <div class="wa-group-name">安全主任巡查群</div>
+        <div class="wa-group-last">李s：B区护栏已修复</div>
+      </div>
+      <span class="wa-group-badge">3</span>
+    </div>
+
+    <div class="wa-group-item">
+      <div class="wa-group-avatar wa-group-avatar--site">🏗️</div>
+      <div class="wa-group-info">
+        <div class="wa-group-name">A区施工协调群</div>
+        <div class="wa-group-last">今日吊运计划已发</div>
+      </div>
+    </div>
+
+    <div class="wa-group-item">
+      <div class="wa-group-avatar wa-group-avatar--safety">⚠️</div>
+      <div class="wa-group-info">
+        <div class="wa-group-name">分判商安全群</div>
+        <div class="wa-group-last">宏基：已安排整改</div>
+      </div>
+      <span class="wa-group-badge">2</span>
+    </div>
+
+    <div class="wa-group-item">
+      <div class="wa-group-avatar wa-group-avatar--mgmt">📋</div>
+      <div class="wa-group-info">
+        <div class="wa-group-name">管理层汇报群</div>
+        <div class="wa-group-last">周报已提交</div>
+      </div>
+    </div>
+
+    <div style="padding:12px 14px;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-top:8px;">AI 智能归档</div>
+    <div style="padding:6px 14px;font-size:12px;color:var(--text-secondary);line-height:1.5;">
+      🤖 本周已自动归档 <span style="color:var(--accent-cyan);font-weight:600;">147</span> 条消息<br/>
+      <span style="color:var(--accent-red);">12</span> 条标记为隐患<br/>
+      <span style="color:var(--accent-orange);">8</span> 条待确认
+    </div>
+  </div>
+
+  <!-- 中：消息列表 -->
+  <div class="wa-messages">
+    <div class="wa-messages__header">
+      <input class="wa-messages__search" placeholder="搜索消息内容..." />
+      <button style="background:none;border:none;font-size:16px;cursor:pointer;">🔍</button>
+    </div>
+
+    <!-- 消息项：AI 提取隐患 -->
+    <div class="wa-msg-item wa-msg-item--active wa-msg-item--hazard">
+      <div class="wa-msg-avatar">📷</div>
+      <div class="wa-msg-content">
+        <div class="wa-msg-sender">李国强 <span class="wa-msg-time">14:28</span></div>
+        <div class="wa-msg-preview">[图片] B区3楼临边护栏拆除后未恢复，请跟进</div>
+        <span class="wa-msg-hazard-tag wa-msg-hazard-tag--new">🚨 AI 提取隐患</span>
+      </div>
+    </div>
+
+    <!-- 消息项：已导入 -->
+    <div class="wa-msg-item wa-msg-item--hazard">
+      <div class="wa-msg-avatar">👤</div>
+      <div class="wa-msg-content">
+        <div class="wa-msg-sender">陈志明 <span class="wa-msg-time">12:15</span></div>
+        <div class="wa-msg-preview">D区电箱门未关闭，有积水，请分判商处理</div>
+        <span class="wa-msg-hazard-tag wa-msg-hazard-tag--imported">✅ 已导入台账</span>
+      </div>
+    </div>
+
+    <!-- 消息项：普通消息 -->
+    <div class="wa-msg-item">
+      <div class="wa-msg-avatar">👷</div>
+      <div class="wa-msg-content">
+        <div class="wa-msg-sender">张伟 <span class="wa-msg-time">10:42</span></div>
+        <div class="wa-msg-preview">今日 A 区吊装作业已完成，无人受伤</div>
+      </div>
+    </div>
+
+    <!-- 消息项：AI 分析 -->
+    <div class="wa-msg-item">
+      <div class="wa-msg-avatar" style="background:rgba(6,182,212,0.2);">🤖</div>
+      <div class="wa-msg-content">
+        <div class="wa-msg-sender">AI 自动分析 <span class="wa-msg-time">09:30</span></div>
+        <div class="wa-msg-preview">本周隐患趋势：吊装区域违规占比上升，建议加强...</div>
+      </div>
+    </div>
+
+    <!-- 消息项：系统通知 -->
+    <div class="wa-msg-item">
+      <div class="wa-msg-avatar" style="background:rgba(245,158,11,0.2);">🔔</div>
+      <div class="wa-msg-content">
+        <div class="wa-msg-sender">系统通知 <span class="wa-msg-time">昨天</span></div>
+        <div class="wa-msg-preview">HZ-20250612-001 整改期限已超期 3 天</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右：消息详情 -->
+  <div class="wa-detail">
+    <div class="page-title-bar">
+      <h1>💬 消息详情</h1>
+      <p>WhatsApp 消息归档与 AI 隐患提取</p>
+    </div>
+
+    <div class="wa-detail__body">
+
+      <!-- 原始消息 -->
+      <div class="msg-bubble msg-bubble--received">
+        <div class="msg-bubble__meta">
+          <span style="font-weight:600;color:var(--accent-blue);">李国强</span>
+          <span>· 分判商现场负责人</span>
+          <span style="margin-left:auto;">2025-06-16 14:28</span>
+        </div>
+        <div class="msg-bubble__text">
+          @陈s 请看，B区3楼临边护栏今日上午被钢筋工拆除后未恢复，宽度约2米，已用警示带临时围封，但工人有穿越情况，请安排处理。
+        </div>
+        <div style="margin-top:8px;padding:8px;background:var(--bg-input);border-radius:var(--radius-sm);display:flex;gap:8px;align-items:center;">
+          <span style="font-size:24px;">📷</span>
+          <div>
+            <div style="font-size:12px;color:var(--text-primary);">IMG_20250616_142805.jpg</div>
+            <div style="font-size:11px;color:var(--text-muted);">1920×1080 · 2.3 MB</div>
+          </div>
+          <button style="margin-left:auto;background:var(--bg-card);border:1px solid var(--border-color);color:var(--accent-cyan);padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;">预览</button>
+        </div>
+      </div>
+
+      <!-- AI 提取结果 -->
+      <div class="ai-extract-panel">
+        <div class="ai-extract-panel__header">
+          <span style="font-size:16px;">🤖</span>
+          <span class="ai-extract-panel__title">AI 隐患提取结果</span>
+          <span class="ai-extract-panel__conf">置信度 91%</span>
+        </div>
+        <div class="extract-field">
+          <span class="extract-field__label">隐患类型</span>
+          <span class="extract-field__value" style="color:var(--accent-red);">临边围封缺失</span>
+        </div>
+        <div class="extract-field">
+          <span class="extract-field__label">地点</span>
+          <span class="extract-field__value">B区3楼</span>
+        </div>
+        <div class="extract-field">
+          <span class="extract-field__label">风险级别</span>
+          <span class="extract-field__value" style="color:var(--accent-orange);">高风险 🟡</span>
+        </div>
+        <div class="extract-field">
+          <span class="extract-field__label">责任方</span>
+          <span class="extract-field__value">钢筋工（分判商：宏基建筑）</span>
+        </div>
+        <div class="extract-field">
+          <span class="extract-field__label">建议措施</span>
+          <span class="extract-field__value">立即恢复护栏；安排人员现场监督</span>
+        </div>
+        <div class="extract-actions">
+          <button class="btn btn--primary" style="font-size:12px;">✅ 确认并导入隐患台账</button>
+          <button class="btn btn--secondary" style="font-size:12px;">✏️ 手动编辑</button>
+          <button class="btn btn--ai" style="font-size:12px;">🤖 AI 优化提取</button>
+        </div>
+      </div>
+
+      <!-- 系统回复消息 -->
+      <div class="msg-bubble msg-bubble--ai" style="margin-top:16px;">
+        <div class="msg-bubble__meta">
+          <span style="font-weight:600;color:var(--accent-cyan);">🤖 赤瞳 AI</span>
+          <span>· 自动回复</span>
+        </div>
+        <div class="msg-bubble__text">
+          已收到隐患报告，已自动生成隐患编号 <strong>HZ-20250616-009</strong>，并通知责任分判商「宏基建筑有限公司」。整改期限：2025-06-18，请及时跟进。
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 输入栏 -->
+    <div class="msg-input-bar">
+      <button style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);">📎</button>
+      <button style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);">📷</button>
+      <input class="msg-input-bar__input" placeholder="输入回复消息..." />
+      <button class="msg-input-bar__send">➤</button>
+    </div>
+  </div>
+
+</div>
+
+<div style="position:fixed;bottom:12px;left:12px;background:rgba(0,0,0,0.8);color:#aaa;font-size:10px;padding:6px 10px;border-radius:6px;font-family:monospace;pointer-events:none;">
+  🎨 UI 设计稿 v2.0 — WhatsApp 消息管理模块 | 赤瞳安全智能平台
+</div>
+
+</body>
+</html>

@@ -1,0 +1,87 @@
+{
+  "name": "Transcribe Audio - Gemini STT",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "transcribe-audio",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-audio",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "transcribe-audio"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "audio_id",
+              "name": "audio_id",
+              "value": "={{ $json.body.audio_id }}",
+              "type": "string"
+            },
+            {
+              "id": "audio_base64",
+              "name": "audio_base64",
+              "value": "={{ $json.body.audio_base64 }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-audio-data",
+      "name": "Extract Audio Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const audioId = $json.audio_id;\n\n// Mock transcription (replace with actual Gemini STT API call)\nconst transcription = `Hoje realizamos os seguintes trabalhos na obra:\n\nConcluímos a concretagem da laje do segundo pavimento. A equipe trabalhou das 7h às 17h com intervalo para almoço.\n\nForam utilizados aproximadamente 15m³ de concreto usinado, conforme especificado no projeto estrutural.\n\nIdentificamos uma pequena irregularidade no prumo de uma das paredes do primeiro pavimento, que será corrigida antes do início do revestimento.\n\nA previsão é de que na próxima semana possamos iniciar a alvenaria do terceiro pavimento.\n\nO clima permaneceu favorável durante todo o dia, sem intercorrências relacionadas a chuva.`;\n\nreturn {\n  audio_id: audioId,\n  transcription: transcription\n};"
+      },
+      "id": "transcribe-audio-node",
+      "name": "Transcribe Audio (Mock)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-webhook-audio",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Extract Audio Data", "type": "main", "index": 0 }]]
+    },
+    "Extract Audio Data": {
+      "main": [[{ "node": "Transcribe Audio (Mock)", "type": "main", "index": 0 }]]
+    },
+    "Transcribe Audio (Mock)": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-10T00:00:00.000Z",
+  "versionId": "1"
+}

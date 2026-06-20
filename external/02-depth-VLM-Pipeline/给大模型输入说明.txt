@@ -1,0 +1,15 @@
+【给大模型 few-shot 的标准输入 — 一页纸】
+
+每张工地现场图，云部署后建议固定提供：
+
+  图1  检测合并图   YOLO26x 绿框=人  橙框=机械/车  （只要这一张检测图，不要人/机械分两张）
+  图2  深度可视化   Depth Anything V2 Small 伪彩色相对深度
+  文本  JSON        检测框列表 + box_depth_stats（框内深度排序/中值）
+  可选  GPS 字段    米制距离、围栏（与深度分工，深度不输出米）
+
+两个算法同包：depth.zip
+  检测 API  :8080   hiagent_api.py
+  深度 API  :8090   depth_api.py
+  本地合并  pipeline_vlm.py  → output/pipeline/
+
+检测权重路径：weights/unified/yolo26x_unified.pt（即 YOLO26x）

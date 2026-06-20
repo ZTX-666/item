@@ -1,0 +1,59 @@
+# ===================================================================
+# Agent Service Dockerfile
+# Purpose: AI report generation and notification service
+# Components: LangChain, OpenAI GPT-4, ReportLab, SMTP
+# Target: AWS EC2/Lambda
+# ===================================================================
+
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies for agent service
+RUN pip install --no-cache-dir \
+    langchain>=0.1.0 \
+    langchain-openai>=0.0.5 \
+    langchain-core>=0.1.0 \
+    langsmith>=0.1.0 \
+    openai>=1.0.0 \
+    reportlab>=4.0.0 \
+    Pillow>=10.0.0 \
+    python-dotenv>=1.0.0 \
+    boto3>=1.28.0 \
+    sqlalchemy>=2.0.0 \
+    psycopg2-binary>=2.9.0 \
+    python-dateutil>=2.8.0 \
+    pytz>=2023.3
+
+# Copy application files
+COPY compliance_agent.py .
+COPY pdf_generator.py .
+COPY email_sender.py .
+COPY config.py .
+COPY database.py .
+
+# Create necessary directories
+RUN mkdir -p reports violations
+
+# Environment variables (override these in deployment)
+ENV OPENAI_API_KEY=""
+ENV AWS_REGION=us-east-1
+ENV SQS_QUEUE_URL=""
+ENV S3_BUCKET_NAME=""
+ENV PYTHONUNBUFFERED=1
+ENV EMAIL_ENABLED=true
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD python -c "import langchain; print('OK')" || exit 1
+
+# Run agent service (SQS consumer)
+CMD ["python", "agent_service.py"]

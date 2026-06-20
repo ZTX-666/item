@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Management Dashboard - AI Safety Compliance</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-card .label {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .panel-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .camera-grid {
+            display: grid;
+            gap: 15px;
+        }
+
+        .camera-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .camera-card.offline {
+            border-left-color: #dc3545;
+            opacity: 0.7;
+        }
+
+        .camera-info h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .camera-info p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .camera-status {
+            text-align: right;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .status-badge.online {
+            background: #28a745;
+            color: white;
+        }
+
+        .status-badge.offline {
+            background: #dc3545;
+            color: white;
+        }
+
+        .violation-count {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .violations-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .violation-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid #dc3545;
+        }
+
+        .violation-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .violation-type {
+            font-weight: bold;
+            color: #dc3545;
+        }
+
+        .violation-time {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .violation-details {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .confidence {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+
+        .alerts-panel {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .alert-icon {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+
+        .alert-message {
+            color: #856404;
+        }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: #5568d3;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Auto-refresh indicator */
+        .refresh-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .refresh-indicator.active::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background: #28a745;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎥 Camera Management Dashboard</h1>
+            <p>AI Safety Compliance Officer - Real-time Monitoring System</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Cameras</h3>
+                <div class="value" id="total-cameras">-</div>
+                <div class="label">Registered</div>
+            </div>
+            <div class="stat-card">
+                <h3>Online Cameras</h3>
+                <div class="value" id="online-cameras">-</div>
+                <div class="label">Active</div>
+            </div>
+            <div class="stat-card">
+                <h3>Violations Today</h3>
+                <div class="value" id="violations-today">-</div>
+                <div class="label">Detected</div>
+            </div>
+            <div class="stat-card">
+                <h3>Queue Status</h3>
+                <div class="value" id="queue-messages">-</div>
+                <div class="label">Pending Messages</div>
+            </div>
+        </div>
+
+        <div id="alerts-container"></div>
+
+        <div class="main-content">
+            <div class="panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 class="panel-title" style="margin: 0;">Camera Status</h2>
+                    <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+                </div>
+                <div class="camera-grid" id="cameras-grid">
+                    <div class="loading">Loading cameras...</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2 class="panel-title">Recent Violations</h2>
+                <div class="violations-list" id="violations-list">
+                    <div class="loading">Loading violations...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="refresh-indicator active">
+            <span>Auto-refresh: ON (30s)</span>
+        </div>
+    </div>
+
+    <script>
+        // API base URL
+        const API_BASE = '';
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                await Promise.all([
+                    loadCameras(),
+                    loadViolations(),
+                    loadStats(),
+                    loadAlerts()
+                ]);
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        // Load cameras
+        async function loadCameras() {
+            const response = await fetch(`${API_BASE}/api/cameras`);
+            const data = await response.json();
+
+            document.getElementById('total-cameras').textContent = data.total;
+            document.getElementById('online-cameras').textContent = data.active;
+
+            const camerasGrid = document.getElementById('cameras-grid');
+            camerasGrid.innerHTML = '';
+
+            if (data.cameras.length === 0) {
+                camerasGrid.innerHTML = '<p style="text-align: center; color: #666;">No cameras configured. See cameras.json configuration.</p>';
+                return;
+            }
+
+            data.cameras.forEach(camera => {
+                const cameraCard = document.createElement('div');
+                cameraCard.className = `camera-card ${camera.enabled ? 'online' : 'offline'}`;
+                cameraCard.innerHTML = `
+                    <div class="camera-info">
+                        <h4>${camera.name || camera.id}</h4>
+                        <p>${camera.location || 'N/A'}</p>
+                        <p style="font-size: 0.85em; margin-top: 5px;">ID: ${camera.id}</p>
+                    </div>
+                    <div class="camera-status">
+                        <span class="status-badge ${camera.enabled ? 'online' : 'offline'}">
+                            ${camera.enabled ? 'Online' : 'Offline'}
+                        </span>
+                        <div class="violation-count">${camera.violation_count_today || 0}</div>
+                        <div style="font-size: 0.85em; color: #666;">violations today</div>
+                    </div>
+                `;
+                camerasGrid.appendChild(cameraCard);
+            });
+        }
+
+        // Load violations
+        async function loadViolations() {
+            const response = await fetch(`${API_BASE}/api/violations/recent?limit=10`);
+            const data = await response.json();
+
+            const violationsList = document.getElementById('violations-list');
+            violationsList.innerHTML = '';
+
+            if (data.violations.length === 0) {
+                violationsList.innerHTML = '<p style="text-align: center; color: #666;">No recent violations</p>';
+                return;
+            }
+
+            data.violations.forEach(violation => {
+                const violationItem = document.createElement('div');
+                violationItem.className = 'violation-item';
+                
+                const timestamp = new Date(violation.timestamp);
+                const timeAgo = getTimeAgo(timestamp);
+                
+                violationItem.innerHTML = `
+                    <div class="violation-header">
+                        <span class="violation-type">${violation.class_name.replace(/_/g, ' ').toUpperCase()}</span>
+                        <span class="violation-time">${timeAgo}</span>
+                    </div>
+                    <div class="violation-details">
+                        ${violation.description}
+                        <span class="confidence">${(violation.confidence * 100).toFixed(1)}%</span>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 0.85em; color: #999;">
+                        ${violation.osha_regulation}
+                    </div>
+                `;
+                violationsList.appendChild(violationItem);
+            });
+        }
+
+        // Load statistics
+        async function loadStats() {
+            try {
+                const [violationsResponse, queueResponse] = await Promise.all([
+                    fetch(`${API_BASE}/api/violations/stats`),
+                    fetch(`${API_BASE}/api/queue/stats`)
+                ]);
+
+                const violationsData = await violationsResponse.json();
+                const queueData = await queueResponse.json();
+
+                document.getElementById('violations-today').textContent = violationsData.today || 0;
+                document.getElementById('queue-messages').textContent = queueData.messages_available || 0;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Load alerts
+        async function loadAlerts() {
+            try {
+                const response = await fetch(`${API_BASE}/api/alerts/active`);
+                const data = await response.json();
+
+                const alertsContainer = document.getElementById('alerts-container');
+                alertsContainer.innerHTML = '';
+
+                if (data.alerts.length > 0) {
+                    const alertsPanel = document.createElement('div');
+                    alertsPanel.className = 'alerts-panel';
+                    alertsPanel.innerHTML = '<h3 style="margin-bottom: 10px;">⚠️ Active Alerts</h3>';
+
+                    data.alerts.forEach(alert => {
+                        const alertItem = document.createElement('div');
+                        alertItem.className = 'alert-item';
+                        alertItem.innerHTML = `
+                            <span class="alert-icon">${alert.severity === 'error' ? '🔴' : '🟡'}</span>
+                            <span class="alert-message">${alert.message}</span>
+                        `;
+                        alertsPanel.appendChild(alertItem);
+                    });
+
+                    alertsContainer.appendChild(alertsPanel);
+                }
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+            }
+        }
+
+        // Helper function to format time ago
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            
+            if (seconds < 60) return `${seconds}s ago`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            return `${Math.floor(seconds / 86400)}d ago`;
+        }
+
+        // Refresh data
+        function refreshData() {
+            loadDashboard();
+        }
+
+        // Initialize dashboard
+        loadDashboard();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadDashboard, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+train: 
+  - PPE/images/train
+  - machines/images/train
+
+val: 
+  - PPE/images/val
+  - machines/images/val
+
+test: 
+  - PPE/images/test
+  - machines/images/test
+
+nc: 5
+names:
+  0: person
+  1: helmet
+  2: vest
+  3: gloves
+  4: machine

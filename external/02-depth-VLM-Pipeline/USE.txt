@@ -1,0 +1,45 @@
+depth — 工地检测 + 单目相对深度（解压即用）
+==========================================
+
+包含
+  1) 目标检测：YOLO26x 单模型，人+机械，一张合并标注图（省大模型 token）
+  2) 深度估计：Depth Anything V2 Small，相对深度（非米制）
+
+解压路径请用英文目录（如 D:\depth），避免 PyTorch DLL 问题。
+
+Windows 首次使用
+----------------
+  1. 双击「一键安装.bat」→ 创建 .venv、安装依赖、校验权重
+  2. 图片放入 input/
+  3. 任选：
+     启动检测.bat      → output/detect/
+     启动深度.bat      → output/depth/
+     启动流水线.bat    → output/pipeline/（检测+深度 JSON，推荐接大模型）
+     启动检测API.bat   → http://127.0.0.1:8080/docs
+     启动深度API.bat   → http://127.0.0.1:8090/docs
+
+Linux
+-----
+  chmod +x setup.sh run_detect_api.sh run_depth_api.sh
+  bash setup.sh
+  source .venv/bin/activate
+  python detect.py --source input --save-img
+  python depth_detect.py --source input --save-vis
+  python pipeline_vlm.py --source input
+
+权重（约 113MB + 95MB，包内已含则跳过下载）
+------------------------------------------
+  weights/unified/yolo26x_unified.pt
+  weights/depth/depth_anything_v2_vits.pth
+  重新下载: .venv\Scripts\python.exe scripts\download_all_weights.py
+
+配置文件
+--------
+  config.yaml        检测（mode: unified, vlm_image: combined）
+  config_depth.yaml  深度
+
+打包说明（发给其他环境）
+----------------------
+  - 可整夹复制或 zip；建议含 weights/*.pt 以便离线
+  - 不要打包 .venv（目标机重新「一键安装」）
+  - 目标机需 Python 3.10+（安装脚本可自动创建 venv）

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤瞳安全智能平台 - 智能填表</title>
+<style>
+  :root {
+    --bg-page:#f5f6f7; --bg-white:#ffffff; --bg-subtle:#f5f6f7; --bg-hover:#f0f1f2; --bg-active-cscec:#fef1f3;
+    --brand-red:#E70012; --brand-red-dark:#c60010; --brand-red-light:#fef1f3;
+    --brand-navy:#0E2841; --brand-cyan:#0F9ED5; --brand-green:#4EA72E; --brand-orange:#E97132;
+    --text-primary:#1f2329; --text-secondary:#646a73; --text-muted:#a8adb8; --text-white:#ffffff;
+    --border-light:#e5e6eb; --border-normal:#dcddde; --border-strong:#c9cacb;
+    --color-success:#4EA72E; --color-warning:#E97132; --color-error:#E70012; --color-info:#0F9ED5; --color-link:#0F9ED5;
+    --shadow-sm:0 1px 4px rgba(0,0,0,0.06); --shadow-md:0 4px 12px rgba(0,0,0,0.08); --shadow-lg:0 8px 24px rgba(0,0,0,0.12);
+    --radius-xs:4px; --radius-sm:6px; --radius-md:8px; --radius-lg:10px; --radius-xl:12px; --radius-round:999px;
+    --font-family:'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;
+    --font-mono:'SF Mono','Fira Code','Consolas',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font-family);background:var(--bg-page);color:var(--text-primary);line-height:1.6;font-size:14px;}
+  ::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--border-normal);border-radius:3px;}
+
+  /* 顶部栏 */
+  .top-bar{height:52px;background:var(--bg-white);border-bottom:1px solid var(--border-light);display:flex;align-items:center;padding:0 20px;position:sticky;top:0;z-index:100;}
+  .top-bar__logo-group{display:flex;align-items:center;gap:12px;margin-right:32px;}
+  .top-bar__logo-icon{width:32px;height:32px;background:var(--brand-navy);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:14px;color:white;font-weight:700;}
+  .top-bar__brand-text{display:flex;flex-direction:column;line-height:1.2;}
+  .top-bar__brand-cn{font-size:14px;font-weight:600;color:var(--text-primary);}
+  .top-bar__brand-en{font-size:10px;color:var(--text-secondary);}
+  .top-bar__nav{display:flex;gap:4px;height:100%;align-items:stretch;}
+  .top-bar__nav-item{display:flex;align-items:center;gap:6px;padding:0 14px;font-size:13px;color:var(--text-secondary);cursor:pointer;position:relative;transition:color 0.15s;border-bottom:2px solid transparent;}
+  .top-bar__nav-item:hover{color:var(--text-primary);}
+  .top-bar__nav-item--active{color:var(--brand-red);font-weight:600;border-bottom-color:var(--brand-red);}
+  .top-bar__right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+  .top-bar__icon-btn{width:32px;height:32px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.12s;font-size:16px;color:var(--text-secondary);background:none;border:none;}
+  .top-bar__icon-btn:hover{background:var(--bg-hover);color:var(--text-primary);}
+  .top-bar__avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--brand-cyan),var(--brand-green));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;cursor:pointer;}
+
+  /* 主布局 */
+  .main-layout{display:flex;height:calc(100vh - 52px);}
+  .sidebar{width:220px;background:var(--bg-white);border-right:1px solid var(--border-light);padding:12px 0;overflow-y:auto;flex-shrink:0;}
+  .sidebar__section-title{font-size:11px;font-weight:600;color:var(--text-muted);padding:8px 18px 4px;text-transform:uppercase;letter-spacing:0.5px;}
+  .sidebar__item{display:flex;align-items:center;gap:10px;padding:8px 18px;font-size:13px;color:var(--text-secondary);cursor:pointer;transition:all 0.12s;margin:1px 8px;border-radius:var(--radius-md);}
+  .sidebar__item:hover{background:var(--bg-hover);color:var(--text-primary);}
+  .sidebar__item--active{background:var(--bg-active-cscec);color:var(--brand-red);font-weight:600;}
+  .sidebar__item-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+  .sidebar__badge{margin-left:auto;background:var(--brand-red);color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:var(--radius-round);min-width:18px;text-align:center;}
+  .main-content{flex:1;overflow-y:auto;padding:24px;}
+
+  /* 页面头部 */
+  .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;}
+  .page-header__title{font-size:20px;font-weight:700;color:var(--text-primary);margin-bottom:4px;}
+  .page-header__subtitle{font-size:13px;color:var(--text-secondary);}
+  .page-header__actions{display:flex;gap:8px;}
+
+  /* 按钮 */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:var(--radius-md);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all 0.15s;white-space:nowrap;font-family:var(--font-family);line-height:1.4;}
+  .btn--primary{background:var(--brand-red);color:white;border-color:var(--brand-red);}
+  .btn--primary:hover{background:var(--brand-red-dark);border-color:var(--brand-red-dark);box-shadow:var(--shadow-sm);}
+  .btn--secondary{background:var(--bg-white);color:var(--text-primary);border-color:var(--border-normal);}
+  .btn--secondary:hover{border-color:var(--brand-cyan);color:var(--brand-cyan);}
+  .btn--ghost{background:none;color:var(--text-secondary);border:none;}
+  .btn--ghost:hover{background:var(--bg-hover);color:var(--text-primary);}
+
+  /* 步骤指示器（飞书风格）*/
+  .steps-bar{display:flex;align-items:center;gap:0;margin-bottom:24px;background:var(--bg-white);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:16px 24px;box-shadow:var(--shadow-sm);}
+  .step-item{display:flex;align-items:center;gap:8px;padding:4px 12px;font-size:13px;color:var(--text-muted);font-weight:500;position:relative;cursor:pointer;transition:all 0.15s;}
+  .step-item--done{color:var(--brand-green);}
+  .step-item--active{color:var(--brand-red);font-weight:600;}
+  .step-item__num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;border:2px solid var(--border-normal);background:var(--bg-white);color:var(--text-muted);transition:all 0.15s;}
+  .step-item--done .step-item__num{background:var(--brand-green);border-color:var(--brand-green);color:white;}
+  .step-item--active .step-item__num{background:var(--brand-red);border-color:var(--brand-red);color:white;box-shadow:0 0 0 3px rgba(231,0,18,0.15);}
+  .step-connector{width:32px;height:2px;background:var(--border-light);flex-shrink:0;}
+  .step-connector--done{background:var(--brand-green);}
+
+  /* 模板选择网格 */
+  .template-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+  .template-card{background:var(--bg-white);border:2px solid var(--border-light);border-radius:var(--radius-lg);padding:20px 16px;text-align:center;cursor:pointer;transition:all 0.2s;box-shadow:var(--shadow-sm);}
+  .template-card:hover{border-color:var(--brand-cyan);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+  .template-card--selected{border-color:var(--brand-red);background:var(--brand-red-light);box-shadow:0 0 0 3px rgba(231,0,18,0.1);}
+  .template-card__icon{font-size:32px;margin-bottom:8px;}
+  .template-card__name{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:4px;}
+  .template-card__desc{font-size:11px;color:var(--text-secondary);line-height:1.4;}
+
+  /* 数据源芯片 */
+  .source-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+  .source-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:var(--radius-round);font-size:12px;cursor:pointer;border:1px solid var(--border-normal);background:var(--bg-white);color:var(--text-secondary);transition:all 0.12s;}
+  .source-chip:hover{border-color:var(--brand-cyan);color:var(--brand-cyan);}
+  .source-chip--active{border-color:var(--brand-red);background:var(--brand-red-light);color:var(--brand-red);font-weight:600;}
+
+  /* 文档预览区 */
+  .doc-preview{background:var(--bg-white);border:1px solid var(--border-light);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);}
+  .doc-preview__toolbar{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border-light);background:var(--bg-subtle);}
+  .doc-preview__toolbar-btn{width:28px;height:28px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--text-secondary);background:none;border:1px solid transparent;transition:all 0.12s;}
+  .doc-preview__toolbar-btn:hover{background:var(--bg-hover);border-color:var(--border-light);}
+  .doc-preview__body{padding:32px 48px;min-height:400px;background:linear-gradient(180deg,#ffffff 0%,#fafbfc 100%);}
+  .doc-preview__title{font-size:18px;font-weight:700;text-align:center;color:var(--text-primary);margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid var(--brand-navy);}
+  .doc-preview__section{margin-bottom:16px;}
+  .doc-preview__section-title{font-size:13px;font-weight:600;color:var(--brand-navy);margin-bottom:6px;}
+  .doc-preview__field{display:flex;align-items:flex-start;gap:8px;padding:4px 0;font-size:12px;}
+  .doc-preview__field-label{color:var(--text-secondary);min-width:80px;flex-shrink:0;}
+  .doc-preview__field-value{color:var(--text-primary);font-weight:500;}
+  .doc-preview__field-value--ai{background:rgba(15,158,213,0.08);color:var(--brand-cyan);padding:1px 4px;border-radius:3px;border:1px dashed rgba(15,158,213,0.3);}
+  .doc-preview__field-value--highlight{background:var(--brand-red-light);color:var(--brand-red);padding:1px 4px;border-radius:3px;font-weight:600;}
+
+  /* 底部操作栏 */
+  .action-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 0;margin-top:16px;}
+  .action-bar__left{display:flex;gap:8px;}
+  .action-bar__right{display:flex;gap:8px;}
+
+  .hk-skyline{height:40px;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 60'><path d='M0 60 L0 45 L20 45 L20 30 L35 30 L35 45 L50 45 L50 25 L60 25 L60 45 L75 45 L75 35 L90 35 L90 45 L110 45 L110 20 L120 20 L120 45 L140 45 L140 30 L155 30 L155 45 L175 45 L175 15 L180 15 L180 10 L185 10 L185 15 L190 15 L190 45 L210 45 L210 32 L225 32 L225 45 L245 45 L245 28 L260 28 L260 45 L280 45 L280 38 L300 38 L300 45 L320 45 L320 42 L340 42 L340 45 L360 45 L360 48 L380 48 L380 45 L400 45 L400 50 L420 50 L420 45 L440 45 L440 52 L460 52 L460 45 L480 45 L480 40 L500 40 L500 45 L520 45 L520 35 L540 35 L540 45 L560 45 L560 30 L575 30 L575 45 L600 45 L600 25 L615 25 L615 45 L640 45 L640 38 L660 38 L660 45 L680 45 L680 42 L700 42 L700 45 L720 45 L720 48 L740 48 L740 45 L760 45 L760 50 L780 50 L780 45 L800 45 L800 60 Z' fill='%230E2841' opacity='0.06'/></svg>") repeat-x center;background-size:800px 40px;opacity:0.7;margin-top:8px;}
+  .page-footer{text-align:center;padding:20px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border-light);margin-top:24px;}
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo-group">
+    <div class="top-bar__logo-icon">中建</div>
+    <div class="top-bar__brand-text">
+      <span class="top-bar__brand-cn">赤瞳守护者</span>
+      <span class="top-bar__brand-en">CSCEC Safety Intelligence</span>
+    </div>
+  </div>
+  <nav class="top-bar__nav">
+    <div class="top-bar__nav-item">📊 工作台</div>
+    <div class="top-bar__nav-item">📋 隐患台账</div>
+    <div class="top-bar__nav-item">📷 视觉巡检</div>
+    <div class="top-bar__nav-item">🤖 AI 助手</div>
+    <div class="top-bar__nav-item top-bar__nav-item--active">📄 智能填表</div>
+    <div class="top-bar__nav-item">⚙️ 系统</div>
+  </nav>
+  <div class="top-bar__right">
+    <button class="top-bar__icon-btn" title="通知">🔔</button>
+    <div class="top-bar__avatar">陈</div>
+  </div>
+</header>
+
+<div class="main-layout">
+  <aside class="sidebar">
+    <div class="sidebar__section-title">填表类型</div>
+    <div class="sidebar__item sidebar__item--active">
+      <span class="sidebar__item-icon">📋</span><span>安全检查表</span>
+    </div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">📝</span><span>整改通知</span>
+    </div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">📄</span><span>每日简报</span>
+    </div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">📑</span><span>机械证书</span>
+    </div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">📊</span><span>月报汇总</span>
+    </div>
+    <div class="sidebar__section-title" style="margin-top:8px;">历史记录</div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">📁</span><span>已生成文档</span>
+      <span class="sidebar__badge">12</span>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <div class="page-header__title">智能填表</div>
+        <div class="page-header__subtitle">AI 自动识别 · 一键生成安全文档 · 支持 159 种表格模板</div>
+      </div>
+      <div class="page-header__actions">
+        <button class="btn btn--ghost">📥 导入模板</button>
+        <button class="btn btn--secondary">🤖 AI 批量生成</button>
+      </div>
+    </div>
+
+    <!-- 步骤指示器 -->
+    <div class="steps-bar">
+      <div class="step-item step-item--done">
+        <span class="step-item__num">✓</span>
+        <span>选择模板</span>
+      </div>
+      <div class="step-connector step-connector--done"></div>
+      <div class="step-item step-item--active">
+        <span class="step-item__num">2</span>
+        <span>选择数据源</span>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step-item">
+        <span class="step-item__num">3</span>
+        <span>AI 预填</span>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step-item">
+        <span class="step-item__num">4</span>
+        <span>确认生成</span>
+      </div>
+    </div>
+
+    <!-- 数据源选择 -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">📌 选择数据源（可多选）</div>
+      <div class="source-chips">
+        <span class="source-chip source-chip--active">📷 视觉巡检结果</span>
+        <span class="source-chip">📱 WhatsApp 消息</span>
+        <span class="source-chip">📋 隐患台账</span>
+        <span class="source-chip">📄 已有安全表</span>
+        <span class="source-chip">✏️ 手动输入</span>
+      </div>
+    </div>
+
+    <!-- 模板选择（步骤1结果展示）-->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">📋 已选模板</div>
+      <div class="template-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="template-card template-card--selected">
+          <div class="template-card__icon">🏗️</div>
+          <div class="template-card__name">T032 安全管理规定检查表</div>
+          <div class="template-card__desc">一般安全检查 · 适用全部区域</div>
+        </div>
+        <div class="template-card" style="opacity:0.5;cursor:default;">
+          <div class="template-card__icon">🔥</div>
+          <div class="template-card__name">T045 热工序安全检查</div>
+          <div class="template-card__desc">焊接/切割 · 需联动天气</div>
+        </div>
+        <div class="template-card" style="opacity:0.5;cursor:default;">
+          <div class="template-card__icon">⚡</div>
+          <div class="template-card__name">T061 电力安全检查</div>
+          <div class="template-card__desc">临电/配电 · 每周例行</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 文档预览（步骤3的AI预填结果）-->
+    <div style="margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">👁️ AI 预填预览 <span style="font-size:11px;color:var(--brand-cyan);font-weight:500;">（品牌色标注 = AI 自动填入字段）</span></div>
+      <div class="doc-preview">
+        <div class="doc-preview__toolbar">
+          <button class="doc-preview__toolbar-btn" title="加粗">𝐁</button>
+          <button class="doc-preview__toolbar-btn" title="下划线">𝐔</button>
+          <span style="color:var(--border-light);">|</span>
+          <button class="doc-preview__toolbar-btn" title="AI 重新生成">🤖 重新生成</button>
+          <button class="doc-preview__toolbar-btn" title="导出Word">📥 导出 Word</button>
+        </div>
+        <div class="doc-preview__body">
+          <div class="doc-preview__title">安全管理规定检查表（T032）</div>
+          <div class="doc-preview__section">
+            <div class="doc-preview__section-title">📍 基本信息</div>
+            <div class="doc-preview__field">
+              <span class="doc-preview__field-label">检查日期：</span>
+              <span class="doc-preview__field-value doc-preview__field-value--ai">2026年6月16日</span>
+            </div>
+            <div class="doc-preview__field">
+              <span class="doc-preview__field-label">检查区域：</span>
+              <span class="doc-preview__field-value doc-preview__field-value--ai">B2 区（临建）</span>
+            </div>
+            <div class="doc-preview__field">
+              <span class="doc-preview__field-label">检查人：</span>
+              <span class="doc-preview__field-value">陈安全主任</span>
+            </div>
+            <div class="doc-preview__field">
+              <span class="doc-preview__field-label">分判商：</span>
+              <span class="doc-preview__field-value doc-preview__field-value--ai">建业建筑工程有限公司</span>
+            </div>
+          </div>
+          <div class="doc-preview__section">
+            <div class="doc-preview__section-title">⚠️ 检测项（AI 自动填充）</div>
+            <div class="doc-preview__field">
+              <span class="doc-preview__field-label">1. 临边围封：</span>
+              <span class="doc-preview__field-value doc-preview__field-value--highlight">⚠️ 不合格 — B2 区西侧围封被拆除约 3 米</span>
+            </div>
+            <div class="doc-preview__field">
+              <span class="doc-preview__field-label">2. 安全帽佩戴：</span>
+              <span class="doc-preview__field-value doc-preview__field-value--ai">⚠️ 不合格 — 检测到 1 名人员未佩戴</span>
+            </div>
+            <div class="doc-preview__field">
+              <span class="doc-preview__field-label">3. 反光衣穿着：</span>
+              <span class="doc-preview__field-value">✅ 合格</span>
+            </div>
+          </div>
+          <div class="doc-preview__section">
+            <div class="doc-preview__section-title">🤖 AI 整改建议</div>
+            <div style="background:rgba(15,158,213,0.05);border:1px solid rgba(15,158,213,0.2);border-radius:var(--radius-md);padding:10px 12px;font-size:12px;color:var(--brand-cyan);line-height:1.6;">
+              💡 <strong>建议优先处理：</strong><br>
+              1. 立即安排人员修复 B2 区西侧围封（预计耗时 30 分钟）<br>
+              2. 对未戴安全帽人员（视频截图已归档）进行安全教育<br>
+              3. 建议增加该区域巡检频率至每 15 分钟一次
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部操作栏 -->
+    <div class="action-bar">
+      <div class="action-bar__left">
+        <button class="btn btn--ghost">← 上一步</button>
+      </div>
+      <div class="action-bar__right">
+        <button class="btn btn--secondary">🤖 AI 重新生成</button>
+        <button class="btn btn--primary">下一步 → 确认生成</button>
+      </div>
+    </div>
+
+    <div class="hk-skyline"></div>
+    <div class="page-footer">
+      中国建筑工程（香港）有限公司 · 基建公司 &nbsp;|&nbsp; 赤瞳守护者 v1.0 &nbsp;|&nbsp; CSCEC Safety Intelligence Platform
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>赤瞳平台五大功能板块</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --panel: #ffffff;
+        --ink: #172033;
+        --muted: #667085;
+        --line: #d7dfec;
+        --guardian: #e60012;
+        --lingxun: #0f9ed5;
+        --docmate: #7c3aed;
+        --yaoyao: #f59e0b;
+        --center: #16a34a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background:
+          radial-gradient(circle at top left, rgba(15, 158, 213, 0.18), transparent 32rem),
+          radial-gradient(circle at bottom right, rgba(230, 0, 18, 0.12), transparent 28rem),
+          var(--bg);
+        color: var(--ink);
+        font-family:
+          "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans CJK SC",
+          Arial,
+          sans-serif;
+        margin: 0;
+        padding: 42px;
+      }
+
+      .page {
+        margin: 0 auto;
+        max-width: 1440px;
+      }
+
+      .hero {
+        align-items: flex-end;
+        display: flex;
+        gap: 28px;
+        justify-content: space-between;
+        margin-bottom: 28px;
+      }
+
+      .eyebrow {
+        color: var(--guardian);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        margin: 0 0 8px;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        font-size: 40px;
+        letter-spacing: -0.04em;
+        line-height: 1.1;
+        margin: 0;
+      }
+
+      .hero p:last-child {
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.65;
+        margin: 14px 0 0;
+        max-width: 760px;
+      }
+
+      .legend {
+        background: rgba(255, 255, 255, 0.76);
+        border: 1px solid rgba(215, 223, 236, 0.88);
+        border-radius: 20px;
+        box-shadow: 0 18px 48px rgba(23, 32, 51, 0.08);
+        min-width: 310px;
+        padding: 16px 18px;
+      }
+
+      .legend strong {
+        display: block;
+        margin-bottom: 10px;
+      }
+
+      .legend span {
+        align-items: center;
+        color: var(--muted);
+        display: flex;
+        font-size: 13px;
+        gap: 8px;
+        margin: 7px 0;
+      }
+
+      .dot {
+        border-radius: 999px;
+        display: inline-block;
+        height: 10px;
+        width: 10px;
+      }
+
+      .map {
+        display: grid;
+        gap: 22px;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        position: relative;
+      }
+
+      .center-card {
+        background:
+          linear-gradient(145deg, rgba(22, 163, 74, 0.96), rgba(15, 158, 213, 0.9)),
+          var(--center);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 28px;
+        box-shadow: 0 26px 80px rgba(22, 163, 74, 0.24);
+        color: #fff;
+        grid-column: 2 / 6;
+        padding: 28px;
+        position: relative;
+        text-align: center;
+      }
+
+      .center-card h2 {
+        font-size: 30px;
+        margin: 0 0 8px;
+      }
+
+      .center-card p {
+        color: rgba(255, 255, 255, 0.86);
+        line-height: 1.7;
+        margin: 0 auto;
+        max-width: 820px;
+      }
+
+      .cards {
+        display: grid;
+        gap: 22px;
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .card {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid var(--line);
+        border-radius: 26px;
+        box-shadow: 0 18px 60px rgba(23, 32, 51, 0.08);
+        min-height: 610px;
+        overflow: hidden;
+      }
+
+      .card__top {
+        border-top: 6px solid var(--accent);
+        padding: 22px 22px 12px;
+      }
+
+      .card h2 {
+        font-size: 25px;
+        margin: 0;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+        margin: 8px 0 0;
+      }
+
+      .tag {
+        background: color-mix(in srgb, var(--accent), white 86%);
+        border: 1px solid color-mix(in srgb, var(--accent), white 62%);
+        border-radius: 999px;
+        color: color-mix(in srgb, var(--accent), black 20%);
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 800;
+        margin-bottom: 12px;
+        padding: 5px 10px;
+      }
+
+      .section {
+        border-top: 1px solid #eef2f8;
+        padding: 16px 22px;
+      }
+
+      .section h3 {
+        font-size: 14px;
+        margin: 0 0 10px;
+      }
+
+      ul {
+        margin: 0;
+        padding: 0;
+      }
+
+      li {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+        list-style: none;
+        margin: 8px 0;
+        padding-left: 18px;
+        position: relative;
+      }
+
+      li::before {
+        background: var(--accent);
+        border-radius: 99px;
+        content: "";
+        height: 6px;
+        left: 0;
+        position: absolute;
+        top: 8px;
+        width: 6px;
+      }
+
+      .flow {
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        box-shadow: 0 18px 60px rgba(23, 32, 51, 0.08);
+        margin-top: 22px;
+        padding: 24px;
+      }
+
+      .flow h2 {
+        margin: 0 0 16px;
+      }
+
+      .flow-line {
+        align-items: center;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .step {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        min-height: 108px;
+        padding: 14px;
+      }
+
+      .step strong {
+        color: var(--accent);
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .step p {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+        margin: 0;
+      }
+
+      .footer {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 18px;
+        text-align: right;
+      }
+
+      @media print {
+        body {
+          padding: 20px;
+        }
+
+        .card {
+          break-inside: avoid;
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Akame Safety Intelligence Platform</p>
+          <h1>赤瞳平台五大功能板块</h1>
+          <p>
+            平台按“视觉安全、消息协同、文档生成、知识结构化、中台调度”拆分职责。
+            四个业务系统负责具体场景，赤瞳中台负责统一大模型 API、多智能体编排、飞书/Chatbot/技能加载和跨系统打通。
+          </p>
+        </div>
+        <aside class="legend">
+          <strong>架构原则</strong>
+          <span><i class="dot" style="background: var(--guardian)"></i>业务闭环必须人工确认</span>
+          <span><i class="dot" style="background: var(--center)"></i>所有 LLM 调用统一走中台</span>
+          <span><i class="dot" style="background: var(--line)"></i>文件、证据、消息均可追溯</span>
+        </aside>
+      </section>
+
+      <section class="map">
+        <article class="center-card">
+          <h2>赤瞳中台</h2>
+          <p>
+            统一 LLM Gateway、多智能体协作、FastAPI 聚合接口、飞书机器人与 Chatbot 入口、技能加载、运行状态监控、桌面服务托管。
+            它不是替代四个业务系统，而是作为“调度层与信任层”把数据、工具、人工确认和输出文件串起来。
+          </p>
+        </article>
+
+        <div class="cards">
+          <article class="card" style="--accent: var(--guardian)">
+            <div class="card__top">
+              <span class="tag">视觉安全闭环</span>
+              <h2>赤瞳守护者</h2>
+              <p class="subtitle">VLM 视觉识别、RTMP 巡检、隐患候选、台账和整改闭环。</p>
+            </div>
+            <section class="section">
+              <h3>核心功能</h3>
+              <ul>
+                <li>RTMP 摄像头截图、选择已配置摄像头运行巡检。</li>
+                <li>VLM 检测 PPE、机械、临边、高风险目标。</li>
+                <li>生成隐患候选，人工确认后写入 safety_cases。</li>
+                <li>隐患台账查询、筛选、状态操作。</li>
+                <li>整改通知、分包商确认、复查、关闭。</li>
+              </ul>
+            </section>
+            <section class="section">
+              <h3>已接入输出</h3>
+              <ul>
+                <li>巡检截图、VLM 结果、证据文件可打开。</li>
+                <li>最近生成文件历史记录证据路径。</li>
+                <li>整改报告可从台账生成。</li>
+              </ul>
+            </section>
+            <section class="section">
+              <h3>归属边界</h3>
+              <ul>
+                <li>负责“看见风险、形成案件、推动闭环”。</li>
+                <li>不直接负责大模型配置和跨系统编排。</li>
+              </ul>
+            </section>
+          </article>
+
+          <article class="card" style="--accent: var(--lingxun)">
+            <div class="card__top">
+              <span class="tag">消息与协同</span>
+              <h2>赤瞳灵讯</h2>
+              <p class="subtitle">WhatsApp 消息收集、分析、发送确认，以及 SQLite 消息数据库。</p>
+            </div>
+            <section class="section">
+              <h3>核心功能</h3>
+              <ul>
+                <li>WhatsApp 归档服务健康检查与连接器配置。</li>
+                <li>消息搜索、附件下载、施工群信息沉淀。</li>
+                <li>消息入库到 SQLite，形成 source_messages。</li>
+                <li>从消息文本提取区域、分包商、隐患线索。</li>
+                <li>通知草稿生成、人工确认、发送结果回写。</li>
+              </ul>
+            </section>
+            <section class="section">
+              <h3>当前状态</h3>
+              <ul>
+                <li>WhatsApp 搜索/下载依赖本地 archive app-server。</li>
+                <li>发送底层目前是 confirmed_pending_sender，不伪装成真实已发送。</li>
+                <li>飞书 webhook 已可真实发送并回写状态。</li>
+              </ul>
+            </section>
+            <section class="section">
+              <h3>归属边界</h3>
+              <ul>
+                <li>负责“消息收集、消息数据库、群组协同”。</li>
+                <li>隐患判断结果交给守护者和中台编排。</li>
+              </ul>
+            </section>
+          </article>
+
+          <article class="card" style="--accent: var(--docmate)">
+            <div class="card__top">
+              <span class="tag">人机协同文档</span>
+              <h2>闪闪文档</h2>
+              <p class="subtitle">文档生成、表格、信件、Diff 审阅、人工采纳。</p>
+            </div>
+            <section class="section">
+              <h3>核心功能</h3>
+              <ul>
+                <li>AI 文档改写预览，红绿 Diff 展示 +N/-N。</li>
+                <li>表格模板搜索、字段预填、DOCX 草稿生成。</li>
+                <li>人工采纳后才写入表单记录。</li>
+                <li>整改通知、信件、日报、报告草稿生成。</li>
+                <li>DOCX、payload、Markdown 输出可打开定位。</li>
+              </ul>
+            </section>
+            <section class="section">
+              <h3>文档类型</h3>
+              <ul>
+                <li>安全表格：T006 等模板。</li>
+                <li>整改信件：正式通知、分包确认、关闭意见。</li>
+                <li>报告：安全日报、整改报告、社区报告 DOCX。</li>
+              </ul>
+            </section>
+            <section class="section">
+              <h3>归属边界</h3>
+              <ul>
+                <li>负责“写、改、审、采纳”。</li>
+                <li>OCR 和知识库更新归耀耀慧读，中台只负责调度。</li>
+              </ul>
+            </section>
+          </article>
+
+          <article class="card" style="--accent: var(--yaoyao)">
+            <div class="card__top">
+              <span class="tag">知识结构化</span>
+              <h2>耀耀慧读</h2>
+              <p class="subtitle">OCR、文档结构化、舆情天气抓取、安全文档更新与内部 RAG。</p>
+            </div>
+            <section class="section">
+              <h3>核心功能</h3>
+              <ul>
+                <li>OCR 识别 PDF、图片、扫描文档。</li>
+                <li>文档表格抽取、字段结构化、政策条款切片。</li>
+                <li>天气、酷热、新闻、安全公告外部风险抓取。</li>
+                <li>安全制度与表格模板库更新。</li>
+                <li>内部 RAG 数据库与知识查询。</li>
+              </ul>
+            </section>
+            <section class="section">
+              <h3>已接入基础</h3>
+              <ul>
+                <li>香港天气与安全新闻风险简报入口。</li>
+                <li>安全政策模板库与表格索引。</li>
+                <li>文档结构化/OCR 工具预留在工具层。</li>
+              </ul>
+            </section>
+            <section class="section">
+              <h3>归属边界</h3>
+              <ul>
+                <li>负责“读懂资料、更新知识、提供检索”。</li>
+                <li>生成正式文件交给闪闪文档，人机工作流交给中台编排。</li>
+              </ul>
+            </section>
+          </article>
+        </div>
+      </section>
+
+      <section class="flow">
+        <h2>典型协作链路</h2>
+        <div class="flow-line">
+          <div class="step" style="--accent: var(--lingxun)">
+            <strong>1. 消息进入</strong>
+            <p>赤瞳灵讯收集 WhatsApp / 飞书线索，沉淀到 SQLite。</p>
+          </div>
+          <div class="step" style="--accent: var(--yaoyao)">
+            <strong>2. 知识增强</strong>
+            <p>耀耀慧读补充 OCR、天气、新闻、制度条款和 RAG 上下文。</p>
+          </div>
+          <div class="step" style="--accent: var(--guardian)">
+            <strong>3. 视觉核验</strong>
+            <p>赤瞳守护者通过 RTMP/VLM 形成隐患候选和证据文件。</p>
+          </div>
+          <div class="step" style="--accent: var(--docmate)">
+            <strong>4. 文档生成</strong>
+            <p>闪闪文档生成表格、整改通知和报告，人工 Diff 采纳。</p>
+          </div>
+          <div class="step" style="--accent: var(--center)">
+            <strong>5. 中台闭环</strong>
+            <p>赤瞳中台统一调用 LLM、工具、飞书/Chatbot，并回写状态。</p>
+          </div>
+        </div>
+      </section>
+
+      <p class="footer">生成文件：chitung_function_map.html · 可作为演示页、路演图或 README 插图基础。</p>
+    </main>
+  </body>
+</html>

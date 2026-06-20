@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日简报 - 赤瞳守护者</title>
+<style>
+:root {
+  --bg-page:#f5f6f7; --bg-white:#ffffff; --bg-subtle:#f5f6f7; --bg-hover:#f0f1f2; --bg-active-cscec:#fef1f3;
+  --brand-red:#E70012; --brand-red-dark:#c60010; --brand-red-light:#fef1f3;
+  --brand-navy:#0E2841; --brand-cyan:#0F9ED5; --brand-green:#4EA72E; --brand-orange:#E97132;
+  --text-primary:#1f2329; --text-secondary:#646a73; --text-muted:#a8adb8; --text-white:#ffffff;
+  --border-light:#e5e6eb; --border-normal:#dcddde;
+  --shadow-sm:0 1px 4px rgba(0,0,0,0.06); --shadow-md:0 4px 12px rgba(0,0,0,0.08);
+  --radius-xs:4px; --radius-sm:6px; --radius-md:8px; --radius-lg:10px; --radius-round:999px;
+  --font-family:'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;
+  --font-mono:'SF Mono','Fira Code','Consolas',monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg-page); font-family:var(--font-family); color:var(--text-primary); min-height:100vh; display:flex; flex-direction:column; }
+
+/* Top Bar */
+.topbar { background:var(--bg-white); border-bottom:1px solid var(--border-light); padding:0 24px; height:56px; display:flex; align-items:center; position:sticky; top:0; z-index:100; }
+.topbar-logo { width:36px; height:36px; background:var(--brand-navy); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; color:var(--text-white); font-size:13px; font-weight:700; letter-spacing:1px; margin-right:12px; flex-shrink:0; }
+.topbar-brand { display:flex; flex-direction:column; margin-right:32px; }
+.topbar-brand h1 { font-size:15px; font-weight:600; color:var(--text-primary); line-height:1.2; }
+.topbar-brand span { font-size:11px; color:var(--text-secondary); line-height:1.2; }
+.topbar-nav { display:flex; gap:4px; height:100%; align-items:stretch; }
+.topbar-nav a { display:flex; align-items:center; padding:0 16px; font-size:14px; color:var(--text-secondary); text-decoration:none; position:relative; transition:color 0.2s; }
+.topbar-nav a:hover { color:var(--text-primary); }
+.topbar-nav a.active { color:var(--brand-red); font-weight:500; }
+.topbar-nav a.active::after { content:''; position:absolute; bottom:0; left:16px; right:16px; height:2px; background:var(--brand-red); border-radius:1px; }
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:16px; }
+.topbar-icon { width:36px; height:36px; border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background 0.2s; color:var(--text-secondary); position:relative; }
+.topbar-icon:hover { background:var(--bg-hover); }
+.topbar-icon .badge { position:absolute; top:6px; right:6px; width:8px; height:8px; background:var(--brand-red); border-radius:50%; border:2px solid var(--bg-white); }
+.topbar-avatar { width:32px; height:32px; border-radius:50%; background:var(--brand-navy); display:flex; align-items:center; justify-content:center; color:var(--text-white); font-size:12px; font-weight:600; cursor:pointer; }
+
+/* Page Content */
+.page-content { flex:1; padding:20px 24px 40px; max-width:960px; margin:0 auto; width:100%; }
+.page-title { font-size:20px; font-weight:600; color:var(--text-primary); margin-bottom:4px; }
+.page-date { font-size:13px; color:var(--text-secondary); margin-bottom:20px; }
+
+/* Weather Warning Bar */
+.weather-bar { background:var(--brand-orange); border-radius:var(--radius-md); padding:10px 16px; display:flex; align-items:center; gap:12px; margin-bottom:20px; color:var(--text-white); }
+.weather-bar svg { flex-shrink:0; }
+.weather-bar-text { font-size:14px; font-weight:500; }
+.weather-bar-sub { font-size:12px; opacity:0.9; margin-top:2px; }
+
+/* Stat Cards */
+.stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+.stat-card { background:var(--bg-white); border:1px solid var(--border-light); border-radius:var(--radius-md); padding:16px; text-align:center; transition:box-shadow 0.2s; }
+.stat-card:hover { box-shadow:var(--shadow-sm); }
+.stat-card .num { font-size:28px; font-weight:700; line-height:1.2; }
+.stat-card .label { font-size:12px; color:var(--text-secondary); margin-top:4px; }
+.stat-card.red .num { color:var(--brand-red); }
+.stat-card.green .num { color:var(--brand-green); }
+.stat-card.orange .num { color:var(--brand-orange); }
+.stat-card.navy .num { color:var(--brand-navy); }
+
+/* Card */
+.card { background:var(--bg-white); border:1px solid var(--border-light); border-radius:var(--radius-md); margin-bottom:16px; overflow:hidden; }
+.card-header { padding:14px 16px; border-bottom:1px solid var(--border-light); display:flex; align-items:center; justify-content:space-between; }
+.card-header h3 { font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px; }
+.card-header h3 .dot { width:6px; height:6px; border-radius:50%; }
+.card-body { padding:16px; }
+
+/* Hazard List */
+.hazard-item { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--bg-subtle); }
+.hazard-item:last-child { border-bottom:none; }
+.hazard-severity { font-size:11px; font-weight:600; padding:2px 8px; border-radius:var(--radius-round); flex-shrink:0; }
+.hazard-severity.high { background:#fef1f3; color:var(--brand-red); }
+.hazard-severity.medium { background:#fff3e0; color:#e65100; }
+.hazard-severity.low { background:#e8f5e9; color:var(--brand-green); }
+.hazard-info { flex:1; }
+.hazard-info .title { font-size:13px; font-weight:500; }
+.hazard-info .meta { font-size:12px; color:var(--text-secondary); margin-top:2px; }
+.hazard-time { font-size:12px; color:var(--text-muted); }
+
+/* Progress Bar */
+.progress-item { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--bg-subtle); }
+.progress-item:last-child { border-bottom:none; }
+.progress-info { flex:1; }
+.progress-info .title { font-size:13px; font-weight:500; }
+.progress-info .person { font-size:12px; color:var(--text-secondary); margin-top:2px; display:flex; align-items:center; gap:4px; }
+.progress-track { width:120px; height:6px; background:var(--bg-subtle); border-radius:3px; overflow:hidden; flex-shrink:0; }
+.progress-fill { height:100%; border-radius:3px; transition:width 0.6s ease; }
+.progress-fill.red { background:var(--brand-red); }
+.progress-fill.orange { background:var(--brand-orange); }
+.progress-fill.green { background:var(--brand-green); }
+.progress-pct { font-size:13px; font-weight:600; width:40px; text-align:right; flex-shrink:0; }
+
+/* Tomorrow Focus */
+.focus-item { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid var(--bg-subtle); }
+.focus-item:last-child { border-bottom:none; }
+.focus-icon { width:32px; height:32px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:16px; }
+.focus-icon.lift { background:#fff3e0; }
+.focus-icon.heat { background:var(--brand-red-light); }
+.focus-icon.elec { background:#e3f2fd; }
+.focus-info { flex:1; }
+.focus-info .title { font-size:13px; font-weight:500; }
+.focus-info .detail { font-size:12px; color:var(--text-secondary); margin-top:3px; line-height:1.5; }
+.focus-tag { font-size:11px; padding:2px 8px; border-radius:var(--radius-round); background:var(--brand-red-light); color:var(--brand-red); flex-shrink:0; margin-top:2px; }
+
+/* AI Insight Card */
+.ai-card { background:linear-gradient(135deg,#f0faff 0%,#e8f6fc 100%); border:1px solid #c8eef8; border-radius:var(--radius-md); padding:16px; display:flex; gap:12px; }
+.ai-card .ai-badge { width:32px; height:32px; background:var(--brand-cyan); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; color:var(--text-white); font-size:14px; font-weight:700; flex-shrink:0; }
+.ai-card .ai-text { font-size:13px; color:var(--text-primary); line-height:1.7; }
+.ai-card .ai-text strong { color:var(--brand-cyan); }
+
+/* Bottom Actions */
+.bottom-actions { display:flex; gap:12px; margin-top:20px; }
+.btn { display:inline-flex; align-items:center; gap:6px; padding:8px 20px; border-radius:var(--radius-sm); font-size:14px; font-weight:500; cursor:pointer; transition:all 0.2s; border:none; font-family:var(--font-family); }
+.btn-primary { background:var(--brand-red); color:var(--text-white); }
+.btn-primary:hover { background:var(--brand-red-dark); }
+.btn-outline { background:var(--bg-white); color:var(--text-primary); border:1px solid var(--border-normal); }
+.btn-outline:hover { background:var(--bg-hover); }
+
+/* Footer */
+.footer { background:var(--bg-white); border-top:1px solid var(--border-light); padding:20px 24px; text-align:center; }
+.skyline { height:40px; background:var(--brand-navy); border-radius:var(--radius-md) var(--radius-md) 0 0; margin:0 auto 12px; max-width:960px; position:relative; overflow:hidden; }
+.skyline::before { content:''; position:absolute; bottom:0; left:0; right:0; height:40px; background:repeating-linear-gradient(90deg,transparent,transparent 18px,var(--brand-navy) 18px,var(--brand-navy) 20px); opacity:0.3; }
+/* Building silhouettes */
+.skyline-inner { position:relative; height:100%; }
+.skyline-inner::after { content:''; position:absolute; bottom:0; left:10%; width:30px; height:28px; background:var(--brand-navy); border-radius:2px 2px 0 0; box-shadow:40px 4px 0 0 var(--brand-navy),80px 8px 0 0 var(--brand-navy),130px 0px 0 0 var(--brand-navy),180px 6px 0 0 var(--brand-navy),220px 2px 0 0 var(--brand-navy),260px 10px 0 0 var(--brand-navy),300px 0px 0 0 var(--brand-navy),340px 4px 0 0 var(--brand-navy),390px 8px 0 0 var(--brand-navy),440px 0px 0 0 var(--brand-navy),500px 6px 0 0 var(--brand-navy),560px 2px 0 0 var(--brand-navy),620px 4px 0 0 var(--brand-navy),680px 0px 0 0 var(--brand-navy),740px 8px 0 0 var(--brand-navy),800px 0px 0 0 var(--brand-navy); }
+.footer-links { display:flex; justify-content:center; gap:16px; margin-bottom:8px; }
+.footer-links a { font-size:12px; color:var(--text-secondary); text-decoration:none; }
+.footer-links a:hover { color:var(--brand-red); }
+.footer-copy { font-size:11px; color:var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-logo">中建</div>
+  <div class="topbar-brand">
+    <h1>赤瞳守护者</h1>
+    <span>CSCEC Safety Intelligence</span>
+  </div>
+  <nav class="topbar-nav">
+    <a href="01-工作台主页.html">工作台</a>
+    <a href="02-隐患台账.html">隐患台账</a>
+    <a href="03-视觉巡检.html">视觉巡检</a>
+    <a href="04-智能填表.html">智能填表</a>
+    <a href="07-每日简报.html" class="active">每日简报</a>
+    <a href="08-风险雷达.html">风险雷达</a>
+  </nav>
+  <div class="topbar-right">
+    <div class="topbar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9z"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+      <span class="badge"></span>
+    </div>
+    <div class="topbar-avatar">陈</div>
+  </div>
+</div>
+
+<!-- Page Content -->
+<div class="page-content">
+  <div class="page-title">📊 每日安全简报</div>
+  <div class="page-date">2026年6月16日 · 星期一 · 第25周</div>
+
+  <!-- Weather Warning Bar -->
+  <div class="weather-bar">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M5.07 19H19a2 2 0 001.96-2.36A7.99 7.99 0 0012 4a7.99 7.99 0 00-8.96 8.64A2 2 0 005.07 19z"/></svg>
+    <div>
+      <div class="weather-bar-text">⚠️ 天气预警：今日最高气温34°C，热应激风险「高」</div>
+      <div class="weather-bar-sub">天文台已发出酷热天气警告 · 建议调整户外作业时间 10:00-16:00</div>
+    </div>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="stat-row">
+    <div class="stat-card red">
+      <div class="num">12</div>
+      <div class="label">今日新增隐患</div>
+    </div>
+    <div class="stat-card green">
+      <div class="num">8</div>
+      <div class="label">已整改</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="num">3</div>
+      <div class="label">待整改</div>
+    </div>
+    <div class="stat-card navy">
+      <div class="num">2</div>
+      <div class="label">已超期</div>
+    </div>
+  </div>
+
+  <!-- Today's New Hazards -->
+  <div class="card">
+    <div class="card-header">
+      <h3><span class="dot" style="background:var(--brand-red)"></span> 今日新增隐患摘要</h3>
+      <span style="font-size:12px;color:var(--text-secondary)">共12条，显示前3条</span>
+    </div>
+    <div class="card-body">
+      <div class="hazard-item">
+        <span class="hazard-severity high">高</span>
+        <div class="hazard-info">
+          <div class="title">B2区西侧围封设施缺失约2米</div>
+          <div class="meta">B2区 · 围封缺失 · 09:32 发现</div>
+        </div>
+        <span class="hazard-time">09:32</span>
+      </div>
+      <div class="hazard-item">
+        <span class="hazard-severity medium">中</span>
+        <div class="hazard-info">
+          <div class="title">吊运区未授权人员闯入</div>
+          <div class="meta">A区吊运区 · 闯入预警 · 11:05 发现</div>
+        </div>
+        <span class="hazard-time">11:05</span>
+      </div>
+      <div class="hazard-item">
+        <span class="hazard-severity high">高</span>
+        <div class="hazard-info">
+          <div class="title">C区料场灭火器过期（3组）</div>
+          <div class="meta">C区料场 · 消防设施 · 14:20 发现</div>
+        </div>
+        <span class="hazard-time">14:20</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rectification Progress -->
+  <div class="card">
+    <div class="card-header">
+      <h3><span class="dot" style="background:var(--brand-orange)"></span> 整改进展</h3>
+      <span style="font-size:12px;color:var(--text-secondary)">3条整改中</span>
+    </div>
+    <div class="card-body">
+      <div class="progress-item">
+        <div class="progress-info">
+          <div class="title">A区楼梯护栏松动（2026-06-14派单）</div>
+          <div class="person">👷 整改人：李国强 · 截止：今日 18:00</div>
+        </div>
+        <div class="progress-track"><div class="progress-fill orange" style="width:70%"></div></div>
+        <span class="progress-pct" style="color:var(--brand-orange)">70%</span>
+      </div>
+      <div class="progress-item">
+        <div class="progress-info">
+          <div class="title">B1区配电箱警示标识脱落</div>
+          <div class="person">👷 整改人：王志明 · 截止：明日 12:00</div>
+        </div>
+        <div class="progress-track"><div class="progress-fill red" style="width:40%"></div></div>
+        <span class="progress-pct" style="color:var(--brand-red)">40%</span>
+      </div>
+      <div class="progress-item">
+        <div class="progress-info">
+          <div class="title">D区通道杂物堆积约5㎡</div>
+          <div class="person">👷 整改人：陈耀华 · 截止：今日 20:00</div>
+        </div>
+        <div class="progress-track"><div class="progress-fill green" style="width:90%"></div></div>
+        <span class="progress-pct" style="color:var(--brand-green)">90%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tomorrow Focus -->
+  <div class="card">
+    <div class="card-header">
+      <h3><span class="dot" style="background:var(--brand-cyan)"></span> 明日重点关注</h3>
+    </div>
+    <div class="card-body">
+      <div class="focus-item">
+        <div class="focus-icon lift">🏗️</div>
+        <div class="focus-info">
+          <div class="title">C区料场 10:00-16:00 吊运作业</div>
+          <div class="detail">关联天气：明日风力4-5级 ⚠️ 接近警戒值<br>建议：安排专职安全员现场监督，扩大警戒范围</div>
+        </div>
+        <span class="focus-tag">高风险</span>
+      </div>
+      <div class="focus-item">
+        <div class="focus-icon heat">🌡️</div>
+        <div class="focus-info">
+          <div class="title">B区外围结构焊接作业（高温时段）</div>
+          <div class="detail">关联热应激预警：明日最高气温33°C<br>建议：每作业45分钟休息15分钟，配备防暑用品</div>
+        </div>
+        <span class="focus-tag">中风险</span>
+      </div>
+      <div class="focus-item">
+        <div class="focus-icon elec">⚡</div>
+        <div class="focus-info">
+          <div class="title">A区临时用电线路检修</div>
+          <div class="detail">关联制度：《香港临时电力装置规例》第12条<br>建议：由注册电工执行，完成后提交检验证明</div>
+        </div>
+        <span class="focus-tag">中风险</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Insight -->
+  <div class="ai-card">
+    <div class="ai-badge">AI</div>
+    <div class="ai-text">
+      <strong>🤖 AI 洞察摘要</strong><br>
+      本周B区隐患密度较上周上升<strong>30%</strong>，主要集中在围封设施（4条）和消防通道（3条）。建议加强B区每2小时巡检频率，并安排专项围封检查。<br><br>
+      另外，近3日吊运区闯入事件频率上升，建议检查警戒线设置是否合规，考虑增加<strong>声光报警器</strong>。<br><br>
+      📈 趋势预测：未来3日隐患数量预计维持高位，主要风险点为高温天气下的热应激和吊运作业。
+    </div>
+  </div>
+
+  <!-- Bottom Actions -->
+  <div class="bottom-actions">
+    <button class="btn btn-primary">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      导出 PDF 报告
+    </button>
+    <button class="btn btn-outline">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      发送至 WhatsApp 群
+    </button>
+    <button class="btn btn-outline">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+      分享至飞书
+    </button>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="skyline"><div class="skyline-inner"></div></div>
+  <div class="footer-links">
+    <a href="#">关于赤瞳守护者</a>
+    <a href="#">使用帮助</a>
+    <a href="#">隐私政策</a>
+    <a href="#">联系我们</a>
+  </div>
+  <div class="footer-copy">© 2026 中建香港 · 赤瞳守护者 CSCEC Safety Intelligence · v2.1</div>
+</div>
+
+</body>
+</html>

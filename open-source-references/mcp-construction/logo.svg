@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#d97706"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#fbbf24"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="400" height="400" rx="48" ry="48" fill="url(#bg)"/>
+
+  <!-- Construction crane arm -->
+  <!-- Vertical mast -->
+  <rect x="100" y="70" width="14" height="200" rx="3" fill="url(#accent)"/>
+  <!-- Horizontal jib -->
+  <rect x="100" y="70" width="200" height="14" rx="3" fill="url(#beam)"/>
+  <!-- Diagonal support cable -->
+  <line x1="114" y1="84" x2="260" y2="84" stroke="#fbbf24" stroke-width="2" opacity="0.6"/>
+  <line x1="114" y1="120" x2="200" y2="84" stroke="#fbbf24" stroke-width="2" opacity="0.4"/>
+  <!-- Hook cable -->
+  <line x1="270" y1="84" x2="270" y2="145" stroke="#f59e0b" stroke-width="3"/>
+  <!-- Hook -->
+  <path d="M260,145 Q260,160 270,160 Q280,160 280,145" fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Digital circuit nodes (representing MCP/AI) -->
+  <circle cx="180" cy="160" r="4" fill="#3b82f6" opacity="0.7"/>
+  <circle cx="220" cy="140" r="3" fill="#3b82f6" opacity="0.5"/>
+  <circle cx="160" cy="180" r="3" fill="#3b82f6" opacity="0.5"/>
+  <line x1="180" y1="160" x2="220" y2="140" stroke="#3b82f6" stroke-width="1.5" opacity="0.4"/>
+  <line x1="180" y1="160" x2="160" y2="180" stroke="#3b82f6" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- CMCP text -->
+  <text x="200" y="260" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="88" font-weight="800" fill="white" text-anchor="middle" letter-spacing="-2">CMCP</text>
+
+  <!-- Tagline -->
+  <text x="200" y="300" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="20" font-weight="400" fill="#94a3b8" text-anchor="middle" letter-spacing="4">CONSTRUCTION AI</text>
+
+  <!-- Subtle bottom accent line -->
+  <rect x="120" y="325" width="160" height="3" rx="1.5" fill="url(#accent)" opacity="0.6"/>
+</svg>

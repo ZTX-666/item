@@ -1,0 +1,20 @@
+Store one e-signature image file per person (PNG or JPG recommended).
+
+Suggested filenames (examples):
+  xsy.png
+  hwk.png
+
+In data/contacts.json, set "signature_image" for that contact to a path **relative to the skill folder**, e.g.:
+  "signature_image": "assets/signatures/xsy.png"
+
+Or use an absolute Windows path if you prefer.
+
+CLI examples:
+  python scripts/contacts_tool.py set --abbrev xsy --signature-image "assets/signatures/xsy.png"
+  python scripts/contacts_tool.py set --abbrev xsy --clear-signature
+
+Generate Word with the same person's printed name + e-sig from the DB row:
+  python scripts/generate_site_memo_docx.py --signatory-contact xsy ...
+
+Optional width:
+  python scripts/generate_site_memo_docx.py --signatory-contact xsy --signature-width-inches 2.5 ...

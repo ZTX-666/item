@@ -1,0 +1,1 @@
+CREATE DATABASE defect_tracker_test;

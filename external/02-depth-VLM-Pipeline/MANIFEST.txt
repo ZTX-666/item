@@ -1,0 +1,34 @@
+depth 包清单
+============
+
+检测
+  detect_core.py  detect.py  hiagent_api.py  config.yaml  openapi.yaml
+  verify_weights.py
+
+深度
+  depth_core.py  depth_detect.py  depth_api.py  config_depth.yaml
+  depth_anything_v2/  verify_depth_weights.py
+
+流水线（检测+深度）
+  pipeline_vlm.py
+
+环境
+  一键安装.bat  setup.ps1  setup.sh  requirements.txt
+  verify_env.py  scripts/download_all_weights.py
+  scripts/download_detect_weights.py  scripts/download_depth_weights.py
+
+启动
+  启动检测.bat / run_detect.ps1
+  启动深度.bat / run_depth.ps1
+  启动检测API.bat / run_detect_api.ps1 / run_detect_api.sh
+  启动深度API.bat / run_depth_api.ps1 / run_depth_api.sh
+  启动流水线.bat / run_pipeline.ps1
+
+权重
+  weights/unified/yolo26x_unified.pt
+  weights/depth/depth_anything_v2_vits.pth
+
+目录
+  input/  output/detect/  output/depth/  output/pipeline/
+
+文档 USE.txt

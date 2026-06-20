@@ -1,0 +1,185 @@
+{
+  "ppt_colors": {
+    "PPT模板16-9_中建香港VIS手冊2024版(NEW).pptx": {
+      "theme_colors": {},
+      "shape_colors": [],
+      "font_colors": []
+    },
+    "PPT模板4-3_中建香港VIS手冊2024版(NEW).pptx": {
+      "theme_colors": {},
+      "shape_colors": [],
+      "font_colors": []
+    }
+  },
+  "pdf_colors": {},
+  "detailed_infos": [
+    {
+      "filename": "PPT模板16-9_中建香港VIS手冊2024版(NEW).pptx",
+      "slides": [
+        {
+          "slide_num": 1,
+          "shapes": []
+        },
+        {
+          "slide_num": 2,
+          "shapes": [
+            {
+              "name": "標題 5",
+              "type": 14,
+              "has_text": true,
+              "has_image": false,
+              "position": {
+                "left": 42.0,
+                "top": 36.7,
+                "width": 254.0,
+                "height": 34.6
+              },
+              "text": "主標題"
+            },
+            {
+              "name": "副標題 6",
+              "type": 14,
+              "has_text": true,
+              "has_image": false,
+              "position": {
+                "left": 42.0,
+                "top": 72.8,
+                "width": 254.0,
+                "height": 21.0
+              },
+              "text": "副標題"
+            },
+            {
+              "name": "副標題 6",
+              "type": 17,
+              "has_text": true,
+              "has_image": false,
+              "position": {
+                "left": 42.0,
+                "top": 115.7,
+                "width": 254.0,
+                "height": 21.0
+              },
+              "text": "YYYY-MM-DD"
+            }
+          ]
+        },
+        {
+          "slide_num": 3,
+          "shapes": [
+            {
+              "name": "標題 1",
+              "type": 1,
+              "has_text": true,
+              "has_image": false,
+              "position": {
+                "left": 41.7,
+                "top": 26.8,
+                "width": 245.3,
+                "height": 19.2
+              },
+              "text": "內文標題"
+            },
+            {
+              "name": "內容版面配置區 2",
+              "type": 1,
+              "has_text": true,
+              "has_image": false,
+              "position": {
+                "left": 28.6,
+                "top": 54.6,
+                "width": 271.7,
+                "height": 107.1
+              },
+              "text": "副標題\n內文\n內文\n內文\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "PPT模板4-3_中建香港VIS手冊2024版(NEW).pptx",
+      "slides": [
+        {
+          "slide_num": 1,
+          "shapes": []
+        },
+        {
+          "slide_num": 2,
+          "shapes": [
+            {
+              "name": "標題 5",
+              "type": 14,
+              "has_text": true,
+              "has_image": false,
+              "position": {
+                "left": -2.4,
+                "top": 39.0,
+                "width": 254.0,
+                "height": 34.6
+              },
+              "text": "主標題"
+            },
+            {
+              "name": "副標題 6",
+              "type": 14,
+              "has_text": true,
+              "has_image": false,
+              "position": {
+                "left": -2.4,
+                "top": 75.1,
+                "width": 254.0,
+                "height": 21.0
+              },
+              "text": "副標題"
+            },
+            {
+              "name": "副標題 6",
+              "type": 17,
+              "has_text": true,
+              "has_image": false,
+              "position": {
+                "left": -2.4,
+                "top": 117.9,
+                "width": 254.0,
+                "height": 21.0
+              },
+              "text": "YYYY-MM-DD"
+            }
+          ]
+        },
+        {
+          "slide_num": 3,
+          "shapes": [
+            {
+              "name": "標題 1",
+              "type": 1,
+              "has_text": true,
+              "has_image": false,
+              "position": {
+                "left": 4.3,
+                "top": 40.3,
+                "width": 245.3,
+                "height": 19.2
+              },
+              "text": "內文標題"
+            },
+            {
+              "name": "內容版面配置區 2",
+              "type": 1,
+              "has_text": true,
+              "has_image": false,
+              "position": {
+                "left": 16.3,
+                "top": 66.5,
+                "width": 271.7,
+                "height": 107.1
+              },
+              "text": "副標題\n內文\n內文\n內文\n"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,177 @@
+<Window x:Class="PaddlePdfOcrApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="地盤票據識別助手"
+        Icon="pack://application:,,,/Assets/app_icon.ico"
+        Height="760"
+        Width="1300"
+        MinHeight="650"
+        MinWidth="1100"
+        Background="#FFF4F6FA">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="MinWidth" Value="96" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="Background" Value="#FFFFFFFF" />
+            <Setter Property="Foreground" Value="#FF1D2B45" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderBrush" Value="#FFBFCBE0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FFE9F0FF" />
+                    <Setter Property="BorderBrush" Value="#FF8BA7D8" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.55" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Background="#FFFFFFFF" BorderBrush="#FFD8E1EE" BorderThickness="1" CornerRadius="10" Padding="8,6" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="地盤票據識別助手" FontSize="44" FontWeight="Bold" Foreground="#FF1D2B45" />
+                        <TextBlock Text="OCR Document Assistant" FontSize="18" Foreground="#FF6B7893" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="34,0,0,0">
+                        <TextBlock VerticalAlignment="Center" Text="當前狀態：" FontSize="16" FontWeight="SemiBold" Foreground="#FF344563" />
+                        <TextBlock x:Name="StatusText" VerticalAlignment="Center" FontSize="16" Margin="8,0,0,0" Foreground="#FF1D2B45" Text="未載入 PDF" />
+                    </StackPanel>
+                </Grid>
+
+                <Border Grid.Column="1" Width="340" Height="120" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <Image Source="pack://application:,,,/Assets/cscec_logo.png" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Background="#FFFFFFFF" BorderBrush="#FFD8E1EE" BorderThickness="1" CornerRadius="10" Padding="8" Margin="0,0,0,10">
+        <WrapPanel Margin="0">
+            <Button x:Name="ImportPdfButton" Content="導入 PDF" Click="ImportPdf_OnClick" />
+            <Button x:Name="UsageGuideButton" Content="使用教學" Click="UsageGuide_OnClick" />
+            <Button x:Name="AddRegionButton" Content="新增識別框" Click="AddRegion_OnClick" />
+            <Button x:Name="PreviewCropButton" Content="裁剪預覽" Click="PreviewCrop_OnClick" />
+            <Button x:Name="RecognizePageButton" Content="識別當前頁" Click="RecognizePage_OnClick" />
+            <Button x:Name="RecognizeAllButton" Content="批量識別" Click="RecognizeAll_OnClick" />
+            <Button x:Name="CancelBatchButton" Content="取消批量" Click="CancelBatch_OnClick" IsEnabled="False" />
+            <Button x:Name="SaveTemplateButton" Content="儲存模板" Click="SaveTemplate_OnClick" />
+            <Button x:Name="LoadTemplateButton" Content="載入模板" Click="LoadTemplate_OnClick" />
+            <Button x:Name="ExportExcelButton" Content="導出 Excel" Click="ExportExcel_OnClick" />
+            <Button x:Name="EnvironmentSetupButton" Content="一鍵配置環境" Click="EnvironmentSetup_OnClick" />
+        </WrapPanel>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2.1*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="2.2*" />
+            </Grid.ColumnDefinitions>
+
+            <Border BorderThickness="1" BorderBrush="#FFC8D1E0" CornerRadius="8" Background="#FFF8FAFF">
+                <Grid x:Name="PdfViewport"
+                      MouseLeftButtonDown="PdfViewport_MouseLeftButtonDown"
+                      MouseMove="PdfViewport_MouseMove"
+                      MouseLeftButtonUp="PdfViewport_MouseLeftButtonUp">
+                    <Viewbox x:Name="PdfViewbox" Stretch="Uniform" Margin="10" RenderTransformOrigin="0.5,0.5">
+                        <Viewbox.RenderTransform>
+                            <TransformGroup>
+                                <ScaleTransform x:Name="PdfZoomTransform" ScaleX="1" ScaleY="1" />
+                                <TranslateTransform x:Name="PdfPanTransform" X="0" Y="0" />
+                            </TransformGroup>
+                        </Viewbox.RenderTransform>
+                        <Grid Width="900" Height="1200">
+                            <Image x:Name="PdfPageImage" Stretch="Uniform" />
+                            <Canvas x:Name="RegionCanvas" Background="#01000000" />
+                        </Grid>
+                    </Viewbox>
+
+                    <Border HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Margin="0,0,12,12"
+                            CornerRadius="8"
+                            Background="#CCFFFFFF"
+                            BorderBrush="#FFBFCBE0"
+                            BorderThickness="1"
+                            Padding="6">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Width="36" Height="28" Margin="0,0,6,0" Content="-" Click="ZoomOut_OnClick" />
+                            <Button Width="44" Height="28" Margin="0,0,6,0" Content="1:1" Click="ZoomReset_OnClick" />
+                            <Button Width="36" Height="28" Content="+" Click="ZoomIn_OnClick" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" BorderThickness="1" BorderBrush="#FFC8D1E0" CornerRadius="8" Background="#FF2F3640" Padding="8">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <DataGrid x:Name="ResultGrid"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              IsReadOnly="False"
+                              CanUserSortColumns="False"
+                              MouseDoubleClick="ResultGrid_MouseDoubleClick"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="All"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                              ColumnWidth="180"
+                              MinColumnWidth="100" />
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="3" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Width="80" Height="30" Margin="0,0,8,0" Content="上一頁" Click="PrevPage_OnClick" />
+                <TextBlock VerticalAlignment="Center" Text="頁碼：" />
+                <TextBox x:Name="PageIndexBox" Width="70" Margin="6,0,6,0" VerticalContentAlignment="Center" />
+                <TextBlock x:Name="PageInfoText" VerticalAlignment="Center" Text="/ 0" />
+                <Button Width="80" Height="30" Margin="8,0,8,0" Content="跳轉" Click="JumpPage_OnClick" />
+                <Button Width="80" Height="30" Content="下一頁" Click="NextPage_OnClick" />
+            </StackPanel>
+
+            <TextBlock Grid.Column="2"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center"
+                       Foreground="#FF6B7893"
+                       FontSize="12"
+                       Text="開發者：Sean Xu（大埔頌雅路西基礎工程）" />
+        </Grid>
+    </Grid>
+</Window>

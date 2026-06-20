@@ -1,0 +1,11 @@
+Place your company letterhead image here as:
+
+  letterhead.png
+
+How to obtain (one-time):
+- Open your original Word template, double-click the header, select the logo + text block, copy, paste into Paint or Snipping Tool, save as PNG; or
+- Export from your official letterhead PDF / design file.
+
+Recommended: width 1600–2400 px, transparent or white background, PNG.
+
+The generator script (see ../scripts/) inserts this file into the Word document header on every run. Without this file, Word output will miss the logo until you add it.

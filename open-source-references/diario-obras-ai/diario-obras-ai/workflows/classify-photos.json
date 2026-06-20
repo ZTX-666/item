@@ -1,0 +1,137 @@
+{
+  "name": "Classify Photos - Gemini Vision",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "classify-photos",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "classify-photos"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "photo_ids",
+              "name": "photo_ids",
+              "value": "={{ $json.body.photo_ids }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-photo-ids",
+      "name": "Extract Photo IDs",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-photos",
+      "name": "Split Photos",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const photoId = $json.photo_ids[$('Split Photos').index];\nconst categories = [\n  'Fundação',\n  'Estrutura', \n  'Alvenaria',\n  'Instalações Elétricas',\n  'Instalações Hidráulicas',\n  'Revestimento',\n  'Pintura',\n  'Acabamento',\n  'Área Externa',\n  'Segurança'\n];\n\n// Simulated classification (replace with actual Gemini API call)\nconst randomCategory = categories[Math.floor(Math.random() * categories.length)];\nconst confidence = 0.85 + Math.random() * 0.15;\n\nreturn {\n  photo_id: photoId,\n  classification: randomCategory,\n  confidence: confidence\n};"
+      },
+      "id": "classify-photo",
+      "name": "Classify Photo (Mock)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "aggregate-results",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "classifications",
+              "name": "classifications",
+              "value": "={{ $json }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Extract Photo IDs", "type": "main", "index": 0 }]]
+    },
+    "Extract Photo IDs": {
+      "main": [[{ "node": "Split Photos", "type": "main", "index": 0 }]]
+    },
+    "Split Photos": {
+      "main": [[{ "node": "Classify Photo (Mock)", "type": "main", "index": 0 }]]
+    },
+    "Classify Photo (Mock)": {
+      "main": [[{ "node": "Split Photos", "type": "main", "index": 0 }]]
+    },
+    "Split Photos": {
+      "main": [
+        null,
+        [{ "node": "Aggregate Results", "type": "main", "index": 0 }]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]]
+    },
+    "Format Response": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-10T00:00:00.000Z",
+  "versionId": "1"
+}

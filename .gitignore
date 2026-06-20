@@ -59,6 +59,28 @@ Thumbs.db
 # Migration backups & non-core
 _migration_backup_*/
 Chitong Final/
+.workbuddy/
+
+# Build outputs & packaged apps
+**/dist/
+**/build/
+**/mlruns/
+**/CctvMonitorSnapshots/dist/
+**/MonitorStarter/
+**/MonitorConsole/
+publish4/
+
+# Weights & large media (keep README/fixtures docs only)
+**/weights/**/*.pt
+**/weights/**/*.pth
+external/**/weights/
+fixtures/visual-samples/*.jpg
+fixtures/visual-samples/*.png
+
+# Secrets in docs (use redacted copies under docs/product/)
+docs/RTMP赤瞳守护者_迁移交接文档_2026-06-20.md
+RTMP赤瞳守护者_迁移交接文档_2026-06-20.md
+**/auth.json
 
 # Temp
 *.tmp

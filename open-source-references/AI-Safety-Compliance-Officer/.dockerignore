@@ -1,0 +1,53 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Test files
+test_*.py
+demo_*.py
+speed_test.py
+
+# Local data (don't copy to container)
+violations.db
+test_violations.db
+*.log
+
+# Reports (generated at runtime)
+reports/*.pdf
+reports/*.txt
+violations/*.jpg
+violations/*.png
+
+# Environment files (use env vars instead)
+.env
+.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore

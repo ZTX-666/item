@@ -1,0 +1,41 @@
+<Window x:Class="PaddlePdfOcrApp.EnvironmentSetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="一鍵配置環境"
+        Height="480"
+        Width="640"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        Background="#FFF4F6FA">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,12"
+                   Foreground="#FF344563"
+                   FontSize="13"
+                   Text="將依網路下載元件：若為「框架依賴」發佈版，會安裝 .NET 8 Windows Desktop Runtime（需管理員 UAC）；接著於程式目錄建立 python_portable 並安裝 rapidocr-onnxruntime。請勿關閉視窗直至完成。" />
+
+        <TextBox x:Name="LogTextBox"
+                 Grid.Row="1"
+                 IsReadOnly="True"
+                 VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Auto"
+                 TextWrapping="Wrap"
+                 FontFamily="Consolas"
+                 FontSize="12"
+                 Background="#FFFFFFFF"
+                 BorderBrush="#FFBFCBE0"
+                 BorderThickness="1" />
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="StartButton" Content="開始配置" Width="120" Height="32" Margin="0,0,8,0" Click="StartButton_OnClick" />
+            <Button x:Name="CloseButton" Content="關閉" Width="96" Height="32" IsCancel="True" Click="CloseButton_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

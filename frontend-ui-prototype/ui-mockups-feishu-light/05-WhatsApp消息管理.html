@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>赤瞳守护者 - WhatsApp消息管理</title>
+  <style>
+    :root {
+      --bg-page:#f5f6f7; --bg-white:#ffffff; --bg-subtle:#f5f6f7; --bg-hover:#f0f1f2; --bg-active-cscec:#fef1f3;
+      --brand-red:#E70012; --brand-red-dark:#c60010; --brand-red-light:#fef1f3;
+      --brand-navy:#0E2841; --brand-cyan:#0F9ED5; --brand-green:#4EA72E; --brand-orange:#E97132;
+      --text-primary:#1f2329; --text-secondary:#646a73; --text-muted:#a8adb8; --text-white:#ffffff;
+      --border-light:#e5e6eb; --border-normal:#dcddde;
+      --shadow-sm:0 1px 4px rgba(0,0,0,0.06); --shadow-md:0 4px 12px rgba(0,0,0,0.08);
+      --radius-xs:4px; --radius-sm:6px; --radius-md:8px; --radius-lg:10px; --radius-round:999px;
+      --font-family:'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;
+      --font-mono:'SF Mono','Fira Code','Consolas',monospace;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:var(--font-family); background:var(--bg-page); color:var(--text-primary); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+    
+    /* 顶部栏 */
+    .topbar { background:var(--bg-white); border-bottom:1px solid var(--border-light); padding:0 20px; height:56px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+    .topbar-left { display:flex; align-items:center; gap:16px; }
+    .logo { width:36px; height:36px; background:var(--brand-red); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; color:var(--text-white); font-weight:700; font-size:14px; }
+    .brand-name { font-size:16px; font-weight:600; color:var(--text-primary); }
+    .brand-sub { font-size:11px; color:var(--text-secondary); margin-top:2px; }
+    .topbar-nav { display:flex; gap:32px; margin-left:48px; }
+    .topbar-nav a { text-decoration:none; color:var(--text-secondary); font-size:14px; padding:18px 0; border-bottom:2px solid transparent; transition:all 0.2s; }
+    .topbar-nav a:hover { color:var(--text-primary); }
+    .topbar-nav a.active { color:var(--brand-red); border-bottom-color:var(--brand-red); font-weight:500; }
+    .topbar-right { display:flex; align-items:center; gap:16px; }
+    .avatar { width:32px; height:32px; border-radius:50%; background:var(--brand-navy); color:var(--text-white); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; }
+    
+    /* 主布局 */
+    .main { display:flex; flex:1; overflow:hidden; }
+    
+    /* 侧边栏 */
+    .sidebar { width:200px; background:var(--bg-white); border-right:1px solid var(--border-light); padding:16px 0; flex-shrink:0; overflow-y:auto; }
+    .sidebar-item { padding:10px 20px; font-size:13px; color:var(--text-secondary); cursor:pointer; transition:all 0.15s; display:flex; align-items:center; gap:10px; }
+    .sidebar-item:hover { background:var(--bg-hover); color:var(--text-primary); }
+    .sidebar-item.active { background:var(--bg-active-cscec); color:var(--brand-red); font-weight:500; }
+    .sidebar-item svg { width:18px; height:18px; flex-shrink:0; }
+    
+    /* 三栏布局 */
+    .three-col { display:flex; flex:1; overflow:hidden; }
+    
+    /* 左栏 - 群组列表 */
+    .col-groups { width:240px; background:var(--bg-white); border-right:1px solid var(--border-light); display:flex; flex-direction:column; flex-shrink:0; }
+    .col-header { padding:16px; border-bottom:1px solid var(--border-light); font-size:14px; font-weight:600; color:var(--text-primary); display:flex; align-items:center; justify-content:space-between; }
+    .col-header .add-btn { width:28px; height:28px; border-radius:var(--radius-sm); border:1px solid var(--border-light); background:var(--bg-white); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text-secondary); font-size:16px; }
+    .group-list { flex:1; overflow-y:auto; }
+    .group-item { padding:12px 16px; cursor:pointer; transition:all 0.15s; border-left:3px solid transparent; }
+    .group-item:hover { background:var(--bg-hover); }
+    .group-item.active { background:var(--bg-active-cscec); border-left-color:var(--brand-red); }
+    .group-name { font-size:13px; font-weight:500; color:var(--text-primary); margin-bottom:4px; display:flex; align-items:center; justify-content:space-between; }
+    .group-unread { background:var(--brand-red); color:var(--text-white); font-size:11px; padding:1px 6px; border-radius:var(--radius-round); font-weight:600; }
+    .group-meta { font-size:12px; color:var(--text-muted); }
+    
+    /* 中栏 - 消息列表 */
+    .col-messages { width:300px; background:var(--bg-subtle); border-right:1px solid var(--border-light); display:flex; flex-direction:column; flex-shrink:0; }
+    .message-list { flex:1; overflow-y:auto; }
+    .message-item { padding:14px 16px; cursor:pointer; transition:all 0.15s; border-bottom:1px solid var(--border-light); background:var(--bg-white); }
+    .message-item:hover { background:var(--bg-hover); }
+    .message-item.active { background:var(--bg-active-cscec); }
+    .msg-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    .msg-sender { font-size:13px; font-weight:500; color:var(--text-primary); }
+    .msg-time { font-size:11px; color:var(--text-muted); }
+    .msg-preview { font-size:12px; color:var(--text-secondary); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .msg-ai-tag { display:inline-flex; align-items:center; gap:4px; background:rgba(15,158,213,0.1); color:var(--brand-cyan); font-size:11px; padding:2px 8px; border-radius:var(--radius-round); margin-top:6px; font-weight:500; }
+    
+    /* 右栏 - 消息详情 */
+    .col-detail { flex:1; display:flex; flex-direction:column; background:var(--bg-white); }
+    .detail-header { padding:16px 24px; border-bottom:1px solid var(--border-light); display:flex; align-items:center; justify-content:space-between; }
+    .detail-title { font-size:15px; font-weight:600; color:var(--text-primary); }
+    .detail-actions { display:flex; gap:8px; }
+    .btn-sm { padding:6px 12px; border-radius:var(--radius-sm); font-size:12px; cursor:pointer; border:1px solid var(--border-light); background:var(--bg-white); color:var(--text-secondary); }
+    .btn-sm-primary { background:var(--brand-red); color:var(--text-white); border-color:var(--brand-red); }
+    
+    .detail-body { flex:1; overflow-y:auto; padding:24px; }
+    
+    /* WhatsApp风格气泡 */
+    .message-bubble { max-width:480px; margin:0 auto 24px; }
+    .bubble-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+    .bubble-avatar { width:40px; height:40px; border-radius:50%; background:var(--brand-navy); color:var(--text-white); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; }
+    .bubble-sender { font-size:14px; font-weight:500; color:var(--text-primary); }
+    .bubble-time { font-size:12px; color:var(--text-muted); margin-left:auto; }
+    .bubble-content { background:var(--bg-subtle); border-radius:var(--radius-lg); padding:16px; font-size:14px; line-height:1.6; color:var(--text-primary); border:1px solid var(--border-light); }
+    .bubble-meta { display:flex; align-items:center; gap:12px; margin-top:8px; font-size:12px; color:var(--text-muted); }
+    
+    /* AI隐患提取面板 */
+    .ai-panel { max-width:480px; margin:0 auto; background:var(--bg-white); border:1px solid var(--border-light); border-radius:var(--radius-lg); overflow:hidden; }
+    .ai-panel-header { background:linear-gradient(135deg, rgba(15,158,213,0.08), rgba(231,0,18,0.05)); padding:16px 20px; border-bottom:1px solid var(--border-light); display:flex; align-items:center; gap:10px; }
+    .ai-panel-header .ai-icon { width:32px; height:32px; background:var(--brand-cyan); border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--text-white); font-size:16px; }
+    .ai-panel-header h3 { font-size:14px; font-weight:600; color:var(--text-primary); }
+    .ai-panel-body { padding:20px; }
+    
+    .hazard-type { display:inline-flex; align-items:center; gap:6px; background:rgba(231,0,18,0.08); color:var(--brand-red); font-size:12px; padding:4px 12px; border-radius:var(--radius-round); font-weight:500; margin-bottom:12px; }
+    .hazard-desc { font-size:13px; color:var(--text-secondary); line-height:1.6; margin-bottom:16px; }
+    
+    .hazard-field { display:flex; align-items:flex-start; gap:8px; margin-bottom:10px; font-size:13px; }
+    .hazard-field-label { color:var(--text-muted); min-width:60px; flex-shrink:0; }
+    .hazard-field-value { color:var(--text-primary); font-weight:500; }
+    .risk-badge { display:inline-flex; align-items:center; padding:2px 10px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; }
+    .risk-severe { background:#E70012; color:#fff; }
+    
+    .confidence-bar { margin-top:16px; }
+    .confidence-label { display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+    .confidence-track { height:6px; background:var(--bg-subtle); border-radius:3px; overflow:hidden; }
+    .confidence-fill { height:100%; background:var(--brand-cyan); border-radius:3px; transition:width 0.5s; }
+    
+    .ai-actions { display:flex; gap:10px; margin-top:20px; }
+    .ai-btn { flex:1; padding:10px 16px; border-radius:var(--radius-sm); font-size:13px; font-weight:500; cursor:pointer; border:none; display:flex; align-items:center; justify-content:center; gap:6px; }
+    .ai-btn-confirm { background:var(--brand-red); color:var(--text-white); }
+    .ai-btn-edit { background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border-light); }
+    
+    /* 底部 */
+    .footer { background:var(--bg-white); border-top:1px solid var(--border-light); padding:12px 20px; text-align:center; font-size:11px; color:var(--text-muted); flex-shrink:0; }
+    
+    ::-webkit-scrollbar { width:6px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border-light); border-radius:3px; }
+  </style>
+</head>
+<body>
+  <!-- 顶部栏 -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">中建</div>
+      <div>
+        <div class="brand-name">赤瞳守护者</div>
+        <div class="brand-sub">CSCEC Safety Intelligence</div>
+      </div>
+      <nav class="topbar-nav">
+        <a href="#">隐患台账</a>
+        <a href="#">AI识别记录</a>
+        <a href="#" class="active">WhatsApp消息</a>
+        <a href="#">整改通知</a>
+        <a href="#">数据看板</a>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <div class="avatar">陈</div>
+    </div>
+  </div>
+
+  <!-- 主布局 -->
+  <div class="main">
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+      <div class="sidebar-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        WhatsApp消息
+      </div>
+      <div class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        整改通知
+      </div>
+      <div class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        台账管理
+      </div>
+    </div>
+
+    <!-- 三栏内容 -->
+    <div class="three-col">
+      <!-- 左栏：群组列表 -->
+      <div class="col-groups">
+        <div class="col-header">
+          WhatsApp群组
+          <button class="add-btn">+</button>
+        </div>
+        <div class="group-list">
+          <div class="group-item active">
+            <div class="group-name">
+              基础公司安全通报群
+              <span class="group-unread">12</span>
+            </div>
+            <div class="group-meta">今早 08:32</div>
+          </div>
+          <div class="group-item">
+            <div class="group-name">
+              B2地盘日报群
+              <span class="group-unread">3</span>
+            </div>
+            <div class="group-meta">昨天 17:45</div>
+          </div>
+          <div class="group-item">
+            <div class="group-name">机械管理群</div>
+            <div class="group-meta">昨天 14:20</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 中栏：消息列表 -->
+      <div class="col-messages">
+        <div class="col-header">消息列表</div>
+        <div class="message-list">
+          <div class="message-item active">
+            <div class="msg-header">
+              <span class="msg-sender">基础公司安全通报群</span>
+              <span class="msg-time">08:32</span>
+            </div>
+            <div class="msg-preview">B2区临边围封今早被拆除，请尽快处理</div>
+            <div class="msg-ai-tag">🤖 已提取隐患</div>
+          </div>
+          <div class="message-item">
+            <div class="msg-header">
+              <span class="msg-sender">基础公司安全通报群</span>
+              <span class="msg-time">08:15</span>
+            </div>
+            <div class="msg-preview">A3区高空作业平台检查结果正常，附照片</div>
+          </div>
+          <div class="message-item">
+            <div class="msg-header">
+              <span class="msg-sender">基础公司安全通报群</span>
+              <span class="msg-time">昨天 17:30</span>
+            </div>
+            <div class="msg-preview">今日安全巡查完成，共发现2处需跟进事项</div>
+            <div class="msg-ai-tag">🤖 已提取隐患</div>
+          </div>
+          <div class="message-item">
+            <div class="msg-header">
+              <span class="msg-sender">B2地盘日报群</span>
+              <span class="msg-time">昨天 17:45</span>
+            </div>
+            <div class="msg-preview">B2地盘今日施工进展：完成桩基施工3根</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右栏：消息详情 -->
+      <div class="col-detail">
+        <div class="detail-header">
+          <div class="detail-title">消息详情</div>
+          <div class="detail-actions">
+            <button class="btn-sm">转发</button>
+            <button class="btn-sm">归档</button>
+          </div>
+        </div>
+        <div class="detail-body">
+          <!-- 原始消息 -->
+          <div class="message-bubble">
+            <div class="bubble-header">
+              <div class="bubble-avatar">基</div>
+              <div class="bubble-sender">基础公司安全通报群</div>
+              <div class="bubble-time">2026-06-16 08:32</div>
+            </div>
+            <div class="bubble-content">
+              B2区临边围封今早被拆除，请尽快处理。现场已设置临时警示，但存在安全隐患，需立即安排修复。
+            </div>
+            <div class="bubble-meta">
+              <span>📍 B2区</span>
+              <span>👤 张三</span>
+              <span>📎 附照片2张</span>
+            </div>
+          </div>
+
+          <!-- AI隐患提取面板 -->
+          <div class="ai-panel">
+            <div class="ai-panel-header">
+              <div class="ai-icon">🤖</div>
+              <h3>AI 识别到的安全隐患</h3>
+            </div>
+            <div class="ai-panel-body">
+              <div class="hazard-type">⚠️ 临边围封缺失</div>
+              <div class="hazard-desc">B2区临边围封于今早被拆除，现场仅设置临时警示，未及时修复，存在高处坠落风险。</div>
+              
+              <div class="hazard-field">
+                <span class="hazard-field-label">严重级别</span>
+                <span class="hazard-field-value"><span class="risk-badge risk-severe">严重</span></span>
+              </div>
+              <div class="hazard-field">
+                <span class="hazard-field-label">地点</span>
+                <span class="hazard-field-value">B2区临边</span>
+              </div>
+              <div class="hazard-field">
+                <span class="hazard-field-label">分判商</span>
+                <span class="hazard-field-value">基础工程有限公司</span>
+              </div>
+              <div class="hazard-field">
+                <span class="hazard-field-label">发现时间</span>
+                <span class="hazard-field-value">2026-06-16 08:32</span>
+              </div>
+
+              <div class="confidence-bar">
+                <div class="confidence-label">
+                  <span>AI 置信度</span>
+                  <span style="color:var(--brand-cyan);font-weight:600;">87%</span>
+                </div>
+                <div class="confidence-track">
+                  <div class="confidence-fill" style="width:87%"></div>
+                </div>
+              </div>
+
+              <div class="ai-actions">
+                <button class="ai-btn ai-btn-confirm">✅ 确认录入台账</button>
+                <button class="ai-btn ai-btn-edit">✏️ 编辑后录入</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部天际线 -->
+  <div style="height:40px;background:url('data:image/svg+xml;utf8,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 800 60&quot;><path d=&quot;M0 60 L0 45 L20 45 L20 30 L35 30 L35 45 L50 45 L50 25 L60 25 L60 45 L75 45 L75 35 L90 35 L90 45 L110 45 L110 20 L120 20 L120 45 L140 45 L140 30 L155 30 L155 45 L175 45 L175 15 L190 15 L190 45 L210 45 L210 32 L225 32 L225 45 L260 45 L260 28 L280 28 L280 45 L320 45 L320 42 L360 45 L360 48 L400 45 L400 50 L440 45 L440 52 L480 45 L480 40 L520 45 L520 35 L560 45 L560 30 L600 45 L600 25 L640 45 L640 38 L680 45 L680 42 L720 45 L720 48 L760 45 L760 50 L800 45 L800 60 Z&quot; fill=&quot;%230E2841&quot; opacity=&quot;0.06&quot;/></svg>') repeat-x center;background-size:800px 40px;opacity:0.7;margin-top:8px;"></div>
+  
+  <div class="footer">中国建筑工程（香港）有限公司 · 基础公司 | 赤瞳守护者 v1.0 | CSCEC Safety Intelligence Platform</div>
+</body>
+</html>

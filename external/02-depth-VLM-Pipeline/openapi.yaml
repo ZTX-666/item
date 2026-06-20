@@ -1,0 +1,152 @@
+openapi: 3.0.3
+info:
+  title: VLM-Detection HiAgent Plugin
+  description: |
+    工地人+机械 YOLO 检测插件。输入一张现场图，默认返回一张合并标注图（人绿框+机械橙框），
+    供大模型 few-shot 使用以节省图片 token。检测框 JSON 仍包含 person / machinery 列表。
+    若 config output.vlm_image=triple 则返回原图+人图+机械图三张。
+  version: 1.0.0
+servers:
+  - url: https://your-server.example.com
+    description: 替换为云服务器 HTTPS 地址
+paths:
+  /health:
+    get:
+      operationId: healthCheck
+      summary: 健康检查
+      responses:
+        "200":
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /v1/detect/triple/json:
+    post:
+      operationId: detectTripleJson
+      summary: 人+机械检测（JSON，推荐 HiAgent）
+      description: 通过 image_url 或 image_base64 传入图片，默认返回一张合并标注图及检测框 JSON。
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DetectJsonRequest"
+      responses:
+        "200":
+          description: 检测成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DetectTripleResponse"
+        "400":
+          description: 参数或图片错误
+        "401":
+          description: API Key 无效
+  /v1/detect/triple:
+    post:
+      operationId: detectTripleMultipart
+      summary: 人+机械检测（文件上传）
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 待检测图片
+                conf:
+                  type: number
+                  format: float
+                  minimum: 0
+                  maximum: 1
+                imgsz:
+                  type: integer
+                  minimum: 320
+                  maximum: 1280
+      responses:
+        "200":
+          description: 检测成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DetectTripleResponse"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    DetectJsonRequest:
+      type: object
+      properties:
+        image_base64:
+          type: string
+          description: 图片 Base64（与 image_url 二选一）
+        image_url:
+          type: string
+          format: uri
+          description: 图片公网 URL（与 image_base64 二选一）
+        conf:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        imgsz:
+          type: integer
+          minimum: 320
+          maximum: 1280
+    DetectTripleResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        vlm_image:
+          type: string
+          enum: [combined, triple]
+          description: combined=单张合并标注图；triple=三张图
+        images:
+          type: array
+          description: combined 时 1 张 annotated；triple 时为 original/human/machine
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [annotated, original, human, machine]
+              mime:
+                type: string
+              base64:
+                type: string
+        detections:
+          type: object
+          properties:
+            worker:
+              type: array
+              items:
+                type: object
+            machinery:
+              type: array
+              items:
+                type: object
+        counts:
+          type: object
+          properties:
+            worker:
+              type: integer
+            machinery:
+              type: integer

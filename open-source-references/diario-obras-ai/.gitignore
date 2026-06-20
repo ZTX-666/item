@@ -1,0 +1,57 @@
+# ===== ARQUIVOS SENSÍVEIS =====
+# NUNCA commite chaves de API!
+.env
+.env.local
+.env.*.local
+
+# ===== PYTHON =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+
+# ===== NODE/REACT =====
+node_modules/
+dist/
+build/
+.vite/
+*.local
+
+# ===== UPLOADS E OUTPUTS =====
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/output/*
+!backend/output/.gitkeep
+
+# ===== DOCKER =====
+*.log
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== SISTEMA =====
+.DS_Store
+Thumbs.db
+
+# ===== PLAYWRIGHT =====
+.playwright-mcp/
+
+# ===== CACHE E TEMPORÁRIOS =====
+.ruff_cache/
+teste-*.docx
+teste-*.json
+*.tmp
+
+# ===== SCREENSHOTS (mover para docs/) =====
+screenshot-*.png

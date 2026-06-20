@@ -1,0 +1,78 @@
+export const SCOPES_SUPPORTED = [
+  'projects:read', 'projects:write',
+  'estimates:read', 'estimates:write',
+  'rfis:read', 'rfis:write',
+  'change_orders:read', 'change_orders:write',
+  'daily_logs:read', 'daily_logs:write',
+  'budget:read', 'budget:write',
+  'schedule:read', 'schedule:write',
+  'subcontractors:read', 'subcontractors:write',
+  'documents:read', 'documents:write',
+  'safety:read', 'safety:write',
+  'users:read', 'users:write',
+  'org:read', 'org:write',
+  'integrations:read', 'integrations:write',
+  'billing:read', 'admin',
+] as const;
+
+export type Scope = (typeof SCOPES_SUPPORTED)[number];
+
+export const TOOL_SCOPES: Record<string, string[]> = {
+  'create_project':               ['projects:write'],
+  'get_project':                  ['projects:read'],
+  'list_projects':                ['projects:read'],
+  'update_project':               ['projects:write'],
+  'get_project_dashboard':        ['projects:read'],
+  'create_estimate':              ['estimates:write'],
+  'get_estimate':                 ['estimates:read'],
+  'update_line_item':             ['estimates:write'],
+  'compare_estimates':            ['estimates:read'],
+  'generate_estimate_report':     ['estimates:read'],
+  'import_cost_data':             ['estimates:write', 'admin'],
+  'create_rfi':                   ['rfis:write'],
+  'list_rfis':                    ['rfis:read'],
+  'get_rfi':                      ['rfis:read'],
+  'respond_to_rfi':               ['rfis:write'],
+  'draft_rfi_response':           ['rfis:read'],
+  'create_change_order':          ['change_orders:write'],
+  'evaluate_change_order_impact': ['change_orders:read', 'budget:read'],
+  'approve_change_order':         ['change_orders:write', 'admin'],
+  'get_change_order_log':         ['change_orders:read'],
+  'create_daily_log':             ['daily_logs:write'],
+  'get_daily_log':                ['daily_logs:read'],
+  'summarize_daily_logs':         ['daily_logs:read'],
+  'generate_weekly_report':       ['daily_logs:read'],
+  'get_budget_by_cost_code':      ['budget:read'],
+  'flag_budget_overruns':         ['budget:read'],
+  'forecast_completion_cost':     ['budget:read'],
+  'track_committed_costs':        ['budget:read'],
+  'get_schedule':                 ['schedule:read'],
+  'check_critical_path':          ['schedule:read'],
+  'flag_delayed_tasks':           ['schedule:read'],
+  'calculate_float':              ['schedule:read'],
+  'list_subcontractors':          ['subcontractors:read'],
+  'get_sub_performance':          ['subcontractors:read'],
+  'compare_bids':                 ['subcontractors:read'],
+  'generate_sub_scorecard':       ['subcontractors:read'],
+  'search_project_docs':          ['documents:read'],
+  'get_submittal_status':         ['documents:read'],
+  'generate_aia_payment_app':     ['documents:write', 'budget:read'],
+  'create_lien_waiver':           ['documents:write'],
+  'log_safety_incident':          ['safety:write'],
+  'get_osha_compliance_status':   ['safety:read'],
+  'generate_toolbox_talk':        ['safety:read'],
+  'track_certifications':         ['safety:read'],
+  // User & Org management tools
+  'create_user':                  ['users:write', 'admin'],
+  'list_users':                   ['users:read'],
+  'update_user_role':             ['users:write', 'admin'],
+  'remove_user':                  ['users:write', 'admin'],
+  'get_org_settings':             ['org:read'],
+  'update_org_settings':          ['org:write', 'admin'],
+};
+
+export function hasRequiredScopes(userScopes: string[], toolName: string): boolean {
+  const required = TOOL_SCOPES[toolName];
+  if (!required) return false;
+  return required.every((scope) => userScopes.includes(scope));
+}

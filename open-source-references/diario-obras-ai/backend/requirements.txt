@@ -1,0 +1,10 @@
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+python-dotenv==1.0.0
+google-generativeai>=0.8.0
+python-docx==1.1.0
+pydantic>=2.0.0
+aiofiles==23.2.1
+Pillow>=10.0.0
+# openai-whisper removido (incompatível com Python 3.14) - substituído por Gemini STT

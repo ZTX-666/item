@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI对话助手 - 赤瞳守护者</title>
+<style>
+:root {
+  --bg-page:#f5f6f7; --bg-white:#ffffff; --bg-subtle:#f5f6f7; --bg-hover:#f0f1f2; --bg-active-cscec:#fef1f3;
+  --brand-red:#E70012; --brand-red-dark:#c60010; --brand-red-light:#fef1f3;
+  --brand-navy:#0E2841; --brand-cyan:#0F9ED5; --brand-green:#4EA72E; --brand-orange:#E97132;
+  --text-primary:#1f2329; --text-secondary:#646a73; --text-muted:#a8adb8; --text-white:#ffffff;
+  --border-light:#e5e6eb; --border-normal:#dcddde;
+  --shadow-sm:0 1px 4px rgba(0,0,0,0.06); --shadow-md:0 4px 12px rgba(0,0,0,0.08);
+  --radius-xs:4px; --radius-sm:6px; --radius-md:8px; --radius-lg:10px; --radius-round:999px;
+  --font-family:'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;
+  --font-mono:'SF Mono','Fira Code','Consolas',monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg-page); font-family:var(--font-family); color:var(--text-primary); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+
+/* 顶部栏 */
+.topbar { background:var(--bg-white); border-bottom:1px solid var(--border-light); padding:0 24px; height:56px; display:flex; align-items:center; position:sticky; top:0; z-index:100; flex-shrink:0; }
+.topbar-logo { width:36px; height:36px; background:var(--brand-navy); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; color:var(--text-white); font-size:14px; font-weight:700; margin-right:12px; flex-shrink:0; }
+.topbar-brand { display:flex; flex-direction:column; margin-right:32px; }
+.topbar-brand h1 { font-size:15px; font-weight:600; color:var(--text-primary); line-height:1.2; }
+.topbar-brand span { font-size:11px; color:var(--text-secondary); line-height:1.2; }
+.topbar-nav { display:flex; gap:4px; height:100%; align-items:stretch; }
+.topbar-nav a { display:flex; align-items:center; padding:0 16px; font-size:14px; color:var(--text-secondary); text-decoration:none; position:relative; transition:color 0.2s; }
+.topbar-nav a:hover { color:var(--text-primary); }
+.topbar-nav a.active { color:var(--brand-red); font-weight:500; }
+.topbar-nav a.active::after { content:''; position:absolute; bottom:0; left:16px; right:16px; height:2px; background:var(--brand-red); border-radius:1px 1px 0 0; }
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:16px; }
+.topbar-icon { width:36px; height:36px; border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; color:var(--text-secondary); cursor:pointer; transition:background 0.2s; position:relative; }
+.topbar-icon:hover { background:var(--bg-hover); }
+.topbar-icon .badge { position:absolute; top:6px; right:6px; width:8px; height:8px; background:var(--brand-red); border-radius:50%; border:2px solid var(--bg-white); }
+.topbar-avatar { width:32px; height:32px; border-radius:50%; background:var(--brand-navy); color:var(--text-white); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; cursor:pointer; }
+
+/* 主内容区 - 左右两栏 */
+.main-layout { flex:1; display:flex; overflow:hidden; }
+
+/* 左栏 - 对话历史 */
+.left-panel { width:260px; background:var(--bg-white); border-right:1px solid var(--border-light); display:flex; flex-direction:column; flex-shrink:0; }
+.left-panel-header { padding:16px 16px 12px; }
+.left-panel-search { display:flex; align-items:center; gap:8px; padding:7px 12px; background:var(--bg-subtle); border-radius:var(--radius-sm); border:1px solid var(--border-light); }
+.left-panel-search svg { flex-shrink:0; color:var(--text-muted); }
+.left-panel-search input { border:none; background:transparent; outline:none; font-size:13px; color:var(--text-primary); width:100%; font-family:var(--font-family); }
+.left-panel-search input::placeholder { color:var(--text-muted); }
+.left-panel-list { flex:1; overflow-y:auto; padding:4px 8px; }
+.conversation-item { padding:12px; border-radius:var(--radius-md); cursor:pointer; transition:background 0.2s; margin-bottom:2px; }
+.conversation-item:hover { background:var(--bg-hover); }
+.conversation-item.active { background:var(--bg-active-cscec); }
+.conversation-item-title { font-size:13px; font-weight:500; color:var(--text-primary); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+.conversation-item.active .conversation-item-title { color:var(--brand-red); }
+.conversation-item-preview { font-size:12px; color:var(--text-muted); line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.conversation-item-time { font-size:11px; color:var(--text-muted); margin-top:6px; }
+.conversation-item.active .conversation-item-time { color:var(--brand-red); opacity:0.7; }
+.left-panel-footer { padding:12px 16px; border-top:1px solid var(--border-light); }
+.btn-new-chat { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:9px; background:var(--brand-red); color:var(--text-white); border:none; border-radius:var(--radius-sm); font-size:14px; font-weight:500; cursor:pointer; transition:background 0.2s; font-family:var(--font-family); }
+.btn-new-chat:hover { background:var(--brand-red-dark); }
+
+/* 右栏 - 对话主区域 */
+.right-panel { flex:1; display:flex; flex-direction:column; min-width:0; }
+.right-panel-header { padding:14px 24px; background:var(--bg-white); border-bottom:1px solid var(--border-light); display:flex; align-items:center; justify-content:space-between; }
+.right-panel-title { font-size:15px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.ai-status { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--brand-green); }
+.ai-status .dot { width:6px; height:6px; background:var(--brand-green); border-radius:50%; animation:pulse-dot 2s infinite; }
+@keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+/* 消息流 */
+.messages-area { flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; gap:20px; }
+.message { display:flex; gap:12px; max-width:85%; }
+.message.user { margin-left:auto; flex-direction:row-reverse; }
+.message-avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+.message.user .message-avatar { background:var(--brand-navy); color:var(--text-white); }
+.message.ai .message-avatar { background:linear-gradient(135deg,var(--brand-cyan),#0bc4a7); color:var(--text-white); }
+.message-bubble { padding:12px 16px; border-radius:var(--radius-lg); font-size:14px; line-height:1.7; position:relative; }
+.message.user .message-bubble { background:var(--bg-hover); color:var(--text-primary); border-top-right-radius:4px; }
+.message.ai .message-bubble { background:var(--bg-white); color:var(--text-primary); border-left:3px solid var(--brand-cyan); border-top-left-radius:4px; box-shadow:var(--shadow-sm); }
+
+/* 隐患确认卡片 */
+.hazard-card { background:var(--bg-white); border:1px solid var(--brand-red); border-radius:var(--radius-md); padding:14px 16px; margin-top:10px; }
+.hazard-card-title { font-size:13px; font-weight:600; color:var(--brand-red); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+.hazard-card-row { font-size:13px; color:var(--text-primary); margin-bottom:4px; display:flex; gap:6px; }
+.hazard-card-row .label { color:var(--text-secondary); min-width:60px; }
+.hazard-card-actions { display:flex; gap:8px; margin-top:12px; }
+.btn-sm { display:inline-flex; align-items:center; gap:4px; padding:5px 14px; border-radius:var(--radius-sm); font-size:12px; font-weight:500; cursor:pointer; border:none; transition:all 0.2s; font-family:var(--font-family); }
+.btn-sm-primary { background:var(--brand-red); color:var(--text-white); }
+.btn-sm-outline { background:var(--bg-white); color:var(--text-secondary); border:1px solid var(--border-normal); }
+
+/* 工具调用进度链 */
+.tool-chain { display:flex; align-items:center; gap:0; margin:12px 0; padding:12px 16px; background:var(--bg-subtle); border-radius:var(--radius-md); }
+.tool-step { display:flex; align-items:center; gap:8px; }
+.tool-circle { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+.tool-circle.done { background:var(--brand-green); color:var(--text-white); }
+.tool-circle.active { background:var(--brand-cyan); color:var(--text-white); animation:pulse-circle 1.5s infinite; }
+.tool-circle.pending { background:var(--bg-hover); color:var(--text-muted); border:2px solid var(--border-normal); }
+@keyframes pulse-circle { 0%,100%{box-shadow:0 0 0 0 rgba(15,158,213,0.3);} 50%{box-shadow:0 0 0 6px rgba(15,158,213,0);} }
+.tool-label { font-size:12px; color:var(--text-secondary); white-space:nowrap; }
+.tool-step.active .tool-label { color:var(--brand-cyan); font-weight:500; }
+.tool-step.done .tool-label { color:var(--brand-green); }
+.tool-connector { width:24px; height:2px; background:var(--border-normal); margin:0 4px; flex-shrink:0; }
+.tool-connector.done { background:var(--brand-green); }
+
+/* 通知草稿卡片 */
+.notif-card { background:var(--bg-white); border:1px solid var(--brand-cyan); border-radius:var(--radius-md); padding:14px 16px; margin-top:10px; }
+.notif-card-title { font-size:13px; font-weight:600; color:var(--brand-cyan); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+.notif-card-row { font-size:13px; color:var(--text-primary); margin-bottom:4px; }
+.notif-card-row .label { color:var(--text-secondary); }
+.notif-card-actions { display:flex; gap:8px; margin-top:12px; }
+
+/* 快捷指令栏 */
+.quick-actions { padding:8px 24px; display:flex; gap:8px; overflow-x:auto; flex-shrink:0; }
+.quick-actions::-webkit-scrollbar { display:none; }
+.quick-chip { display:inline-flex; align-items:center; gap:4px; padding:5px 12px; background:var(--bg-white); border:1px solid var(--border-light); border-radius:var(--radius-round); font-size:12px; color:var(--text-secondary); cursor:pointer; white-space:nowrap; transition:all 0.2s; flex-shrink:0; }
+.quick-chip:hover { border-color:var(--brand-cyan); color:var(--brand-cyan); background:rgba(15,158,213,0.05); }
+
+/* 底部输入区 */
+.input-area { padding:12px 24px 16px; background:var(--bg-white); border-top:1px solid var(--border-light); flex-shrink:0; }
+.input-box-wrapper { display:flex; align-items:flex-end; gap:8px; background:var(--bg-subtle); border:1px solid var(--border-light); border-radius:var(--radius-md); padding:8px 12px; transition:border-color 0.2s; }
+.input-box-wrapper:focus-within { border-color:var(--brand-cyan); }
+.input-actions-left { display:flex; gap:4px; flex-shrink:0; }
+.input-action-btn { width:32px; height:32px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; color:var(--text-muted); cursor:pointer; transition:all 0.2s; border:none; background:transparent; }
+.input-action-btn:hover { background:var(--bg-hover); color:var(--text-secondary); }
+.input-box { flex:1; border:none; background:transparent; outline:none; font-size:14px; color:var(--text-primary); resize:none; font-family:var(--font-family); line-height:1.5; max-height:120px; }
+.input-box::placeholder { color:var(--text-muted); }
+.send-btn { width:36px; height:36px; border-radius:50%; background:var(--brand-red); color:var(--text-white); display:flex; align-items:center; justify-content:center; cursor:pointer; border:none; transition:background 0.2s; flex-shrink:0; }
+.send-btn:hover { background:var(--brand-red-dark); }
+
+/* 底部 */
+.footer { background:var(--bg-white); border-top:1px solid var(--border-light); padding:8px 24px; text-align:center; font-size:11px; color:var(--text-muted); line-height:1.6; flex-shrink:0; }
+.skyline { height:40px; background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 60"><path d="M0 60 L0 45 L20 45 L20 30 L35 30 L35 45 L50 45 L50 25 L60 25 L60 45 L75 45 L75 35 L90 35 L90 45 L110 45 L110 20 L120 20 L120 45 L140 45 L140 30 L155 30 L155 45 L175 45 L175 15 L190 15 L190 45 L210 45 L210 32 L225 32 L225 45 L260 45 L260 28 L280 28 L280 45 L320 45 L320 42 L360 45 L360 48 L400 45 L400 50 L440 45 L440 52 L480 45 L480 40 L520 45 L520 35 L560 45 L560 30 L600 45 L600 25 L640 45 L640 38 L680 45 L680 42 L720 45 L720 48 L760 45 L760 50 L800 45 L800 60 Z" fill="%230E2841" opacity="0.06"/></svg>') repeat-x center; background-size:800px 40px; opacity:0.7; margin-top:4px; }
+</style>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<div class="topbar">
+  <div class="topbar-logo">中建</div>
+  <div class="topbar-brand">
+    <h1>赤瞳守护者</h1>
+    <span>CSCEC Safety Intelligence</span>
+  </div>
+  <nav class="topbar-nav">
+    <a href="#">工作台</a>
+    <a href="#">隐患管理</a>
+    <a href="#">视觉巡检</a>
+    <a href="#">智能填表</a>
+    <a href="#">机械与LALG</a>
+    <a href="#">整改通知</a>
+    <a href="#" class="active">AI对话助手</a>
+    <a href="#">风险雷达</a>
+  </nav>
+  <div class="topbar-right">
+    <div class="topbar-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="badge"></span>
+    </div>
+    <div class="topbar-avatar">陈</div>
+  </div>
+</div>
+
+<!-- 主内容区 -->
+<div class="main-layout">
+
+  <!-- 左栏：对话历史 -->
+  <div class="left-panel">
+    <div class="left-panel-header">
+      <div class="left-panel-search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="搜索对话...">
+      </div>
+    </div>
+    <div class="left-panel-list">
+      <!-- 当前活跃对话 -->
+      <div class="conversation-item active">
+        <div class="conversation-item-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 3-2 5-3 7h-8c-1-2-3-4-3-7a7 7 0 0 1 7-7z"/></svg>
+          B2区巡检隐患分析
+        </div>
+        <div class="conversation-item-preview">今日 B2 区巡检发现以下隐患...</div>
+        <div class="conversation-item-time">今天 14:32</div>
+      </div>
+      <!-- 历史对话 -->
+      <div class="conversation-item">
+        <div class="conversation-item-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          5月整改通知汇总
+        </div>
+        <div class="conversation-item-preview">已生成五月整改通知汇总报告...</div>
+        <div class="conversation-item-time">昨天 17:20</div>
+      </div>
+      <div class="conversation-item">
+        <div class="conversation-item-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          风险雷达周报生成
+        </div>
+        <div class="conversation-item-preview">本周高风险区域为A3区和B1区...</div>
+        <div class="conversation-item-time">06-10 09:15</div>
+      </div>
+      <div class="conversation-item">
+        <div class="conversation-item-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          LALG文件缺失提醒
+        </div>
+        <div class="conversation-item-preview">消防预案和环保计划尚未上传...</div>
+        <div class="conversation-item-time">06-08 11:42</div>
+      </div>
+    </div>
+    <div class="left-panel-footer">
+      <button class="btn-new-chat">+ 新对话</button>
+    </div>
+  </div>
+
+  <!-- 右栏：对话主区域 -->
+  <div class="right-panel">
+    <div class="right-panel-header">
+      <div class="right-panel-title">
+        <span>B2区巡检隐患分析</span>
+      </div>
+      <div class="ai-status">
+        <span class="dot"></span>
+        AI 在线 · 赤瞳守护者
+      </div>
+    </div>
+
+    <!-- 消息流 -->
+    <div class="messages-area">
+      <!-- 消息1：用户 -->
+      <div class="message user">
+        <div class="message-avatar">陈</div>
+        <div class="message-bubble">今天B2区巡检发现了什么隐患？</div>
+      </div>
+
+      <!-- 消息2：AI回复 -->
+      <div class="message ai">
+        <div class="message-avatar">AI</div>
+        <div class="message-bubble">
+          今日 B2 区巡检发现以下隐患：
+          <br><br>
+          <strong>1. 脚手架连接扣件松动</strong><br>
+          位置：B2-3层东侧 | 发现时间：09:45 | 风险等级：<span style="color:var(--brand-orange);font-weight:600;">中</span>
+          <br><br>
+          <strong>2. 电梯井口未覆盖防护网</strong><br>
+          位置：B2-2层核心筒 | 发现时间：10:20 | 风险等级：<span style="color:var(--brand-red);font-weight:600;">高</span>
+          <br><br>
+          共检测到 <strong>2 项隐患</strong>，其中 1 项高风险，建议优先处理电梯井口防护问题。
+          <br><br>
+          <!-- 隐患确认卡片 -->
+          <div class="hazard-card">
+            <div class="hazard-card-title">⚠️ 隐患确认</div>
+            <div class="hazard-card-row"><span class="label">类型：</span><span>电梯井口未覆盖防护网</span></div>
+            <div class="hazard-card-row"><span class="label">位置：</span><span>B2-2层核心筒</span></div>
+            <div class="hazard-card-row"><span class="label">等级：</span><span style="color:var(--brand-red);font-weight:600;">高风险</span></div>
+            <div class="hazard-card-row"><span class="label">截图：</span><span style="color:var(--brand-cyan);cursor:pointer;">📷 查看截图</span></div>
+            <div class="hazard-card-actions">
+              <button class="btn-sm btn-sm-primary">✅ 确认录入</button>
+              <button class="btn-sm btn-sm-outline">忽略</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 消息3：用户 -->
+      <div class="message user">
+        <div class="message-avatar">陈</div>
+        <div class="message-bubble">帮我生成一条整改通知给建业建筑</div>
+      </div>
+
+      <!-- 消息4：AI回复 -->
+      <div class="message ai">
+        <div class="message-avatar">AI</div>
+        <div class="message-bubble">
+          已为您生成整改通知草稿，请确认：
+          <br><br>
+          <!-- 工具调用进度链 -->
+          <div class="tool-chain">
+            <div class="tool-step done">
+              <div class="tool-circle done">✓</div>
+              <span class="tool-label">截取画面</span>
+            </div>
+            <div class="tool-connector done"></div>
+            <div class="tool-step done">
+              <div class="tool-circle done">✓</div>
+              <span class="tool-label">VLM检测</span>
+            </div>
+            <div class="tool-connector"></div>
+            <div class="tool-step active">
+              <div class="tool-circle active">●</div>
+              <span class="tool-label">生成通知中...</span>
+            </div>
+            <div class="tool-connector"></div>
+            <div class="tool-step">
+              <div class="tool-circle pending">○</div>
+              <span class="tool-label">发送通知</span>
+            </div>
+          </div>
+          <br>
+          <!-- 通知草稿卡片 -->
+          <div class="notif-card">
+            <div class="notif-card-title">📄 整改通知草稿</div>
+            <div class="notif-card-row"><span class="label">收件方：</span>建业建筑有限公司</div>
+            <div class="notif-card-row"><span class="label">主题：</span><strong>关于B2-2层核心筒电梯井口防护缺失的整改通知</strong></div>
+            <div class="notif-card-row" style="margin-top:8px;">
+              <span class="label">内容摘要：</span>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-top:4px;padding:8px;background:var(--bg-subtle);border-radius:var(--radius-sm);">
+              经赤瞳系统巡检发现，贵司负责的B2-2层核心筒区域电梯井口未覆盖防护网，存在高空坠落风险。请于<strong>24小时内</strong>完成整改并反馈。
+            </div>
+            <div class="notif-card-actions">
+              <button class="btn-sm btn-sm-primary" style="background:var(--brand-cyan);">✅ 确认发送</button>
+              <button class="btn-sm btn-sm-outline">✏️ 编辑草稿</button>
+              <button class="btn-sm btn-sm-outline">📋 预览全文</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 快捷指令栏 -->
+    <div class="quick-actions">
+      <div class="quick-chip">📋 今日隐患</div>
+      <div class="quick-chip">📷 启动巡检</div>
+      <div class="quick-chip">📄 生成安全表</div>
+      <div class="quick-chip">📊 今日简报</div>
+      <div class="quick-chip">⚠️ 风险查询</div>
+      <div class="quick-chip">🔍 搜索制度</div>
+    </div>
+
+    <!-- 底部输入区 -->
+    <div class="input-area">
+      <div class="input-box-wrapper">
+        <div class="input-actions-left">
+          <button class="input-action-btn" title="添加附件">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <button class="input-action-btn" title="语音输入">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </button>
+        </div>
+        <input class="input-box" type="text" placeholder="输入问题或指令...">
+        <button class="send-btn" title="发送">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 底部天际线装饰 -->
+<div class="skyline"></div>
+
+<!-- Footer -->
+<div class="footer">
+  中国建筑工程（香港）有限公司 · 基础公司 | 赤瞳守护者 v1.0 | CSCEC Safety Intelligence Platform
+</div>
+
+</body>
+</html>

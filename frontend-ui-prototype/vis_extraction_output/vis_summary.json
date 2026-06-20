@@ -1,0 +1,330 @@
+{
+  "pdf_info": {
+    "total_pages": 67,
+    "page_size": {
+      "width": 841.9199829101562,
+      "height": 595.2000122070312,
+      "width_mm": 297.0,
+      "height_mm": 210.0
+    },
+    "images": [
+      {
+        "page": 1,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_001.png"
+      },
+      {
+        "page": 2,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_002.png"
+      },
+      {
+        "page": 3,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_003.png"
+      },
+      {
+        "page": 4,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_004.png"
+      },
+      {
+        "page": 5,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_005.png"
+      },
+      {
+        "page": 6,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_006.png"
+      },
+      {
+        "page": 7,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_007.png"
+      },
+      {
+        "page": 8,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_008.png"
+      },
+      {
+        "page": 9,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_009.png"
+      },
+      {
+        "page": 10,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_010.png"
+      },
+      {
+        "page": 11,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_011.png"
+      },
+      {
+        "page": 12,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_012.png"
+      },
+      {
+        "page": 13,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_013.png"
+      },
+      {
+        "page": 14,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_014.png"
+      },
+      {
+        "page": 15,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_015.png"
+      },
+      {
+        "page": 16,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_016.png"
+      },
+      {
+        "page": 17,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_017.png"
+      },
+      {
+        "page": 18,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_018.png"
+      },
+      {
+        "page": 19,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_019.png"
+      },
+      {
+        "page": 20,
+        "image_path": "vis_extraction_output\\pdf_pages\\page_020.png"
+      }
+    ]
+  },
+  "ppt_infos": [
+    {
+      "filename": "PPT模板16-9_中建香港VIS手冊2024版(NEW).pptx",
+      "slide_count": 3,
+      "slide_size": {
+        "width_inches": 13.33,
+        "height_inches": 7.5,
+        "width_mm": 338.7,
+        "height_mm": 190.5,
+        "aspect_ratio": "133:75"
+      },
+      "layouts": [
+        {
+          "name": "標題投影片",
+          "index": 0
+        },
+        {
+          "name": "標題及內容",
+          "index": 1
+        },
+        {
+          "name": "章節標題",
+          "index": 2
+        }
+      ],
+      "fonts": {
+        "黑体_None": {
+          "name": "黑体",
+          "size": null,
+          "count": 3,
+          "slides": [
+            2,
+            3
+          ]
+        },
+        "黑体_44.0": {
+          "name": "黑体",
+          "size": 44.0,
+          "count": 1,
+          "slides": [
+            2
+          ]
+        },
+        "黑体_20.0": {
+          "name": "黑体",
+          "size": 20.0,
+          "count": 1,
+          "slides": [
+            2
+          ]
+        },
+        "仿宋_24.0": {
+          "name": "仿宋",
+          "size": 24.0,
+          "count": 3,
+          "slides": [
+            3
+          ]
+        }
+      },
+      "colors_found": [],
+      "shapes_analysis": [
+        {
+          "slide_num": 1,
+          "shapes_count": 0,
+          "fonts": [],
+          "colors": [],
+          "images": 0,
+          "text_boxes": 0
+        },
+        {
+          "slide_num": 2,
+          "shapes_count": 3,
+          "fonts": [
+            {
+              "name": "黑体",
+              "size": null
+            },
+            {
+              "name": "黑体",
+              "size": 44.0
+            },
+            {
+              "name": "黑体",
+              "size": 20.0
+            }
+          ],
+          "colors": [],
+          "images": 0,
+          "text_boxes": 3
+        },
+        {
+          "slide_num": 3,
+          "shapes_count": 2,
+          "fonts": [
+            {
+              "name": "黑体",
+              "size": null
+            },
+            {
+              "name": "黑体",
+              "size": null
+            },
+            {
+              "name": "仿宋",
+              "size": 24.0
+            },
+            {
+              "name": "仿宋",
+              "size": 24.0
+            },
+            {
+              "name": "仿宋",
+              "size": 24.0
+            }
+          ],
+          "colors": [],
+          "images": 0,
+          "text_boxes": 2
+        }
+      ]
+    },
+    {
+      "filename": "PPT模板4-3_中建香港VIS手冊2024版(NEW).pptx",
+      "slide_count": 3,
+      "slide_size": {
+        "width_inches": 10.0,
+        "height_inches": 7.5,
+        "width_mm": 254.0,
+        "height_mm": 190.5,
+        "aspect_ratio": "100:75"
+      },
+      "layouts": [
+        {
+          "name": "標題投影片",
+          "index": 0
+        },
+        {
+          "name": "標題及內容",
+          "index": 1
+        },
+        {
+          "name": "章節標題",
+          "index": 2
+        }
+      ],
+      "fonts": {
+        "黑体_None": {
+          "name": "黑体",
+          "size": null,
+          "count": 3,
+          "slides": [
+            2,
+            3
+          ]
+        },
+        "黑体_20.0": {
+          "name": "黑体",
+          "size": 20.0,
+          "count": 2,
+          "slides": [
+            2,
+            3
+          ]
+        },
+        "仿宋_18.0": {
+          "name": "仿宋",
+          "size": 18.0,
+          "count": 3,
+          "slides": [
+            3
+          ]
+        }
+      },
+      "colors_found": [],
+      "shapes_analysis": [
+        {
+          "slide_num": 1,
+          "shapes_count": 0,
+          "fonts": [],
+          "colors": [],
+          "images": 0,
+          "text_boxes": 0
+        },
+        {
+          "slide_num": 2,
+          "shapes_count": 3,
+          "fonts": [
+            {
+              "name": "黑体",
+              "size": null
+            },
+            {
+              "name": "黑体",
+              "size": null
+            },
+            {
+              "name": "黑体",
+              "size": 20.0
+            }
+          ],
+          "colors": [],
+          "images": 0,
+          "text_boxes": 3
+        },
+        {
+          "slide_num": 3,
+          "shapes_count": 2,
+          "fonts": [
+            {
+              "name": "黑体",
+              "size": null
+            },
+            {
+              "name": "黑体",
+              "size": 20.0
+            },
+            {
+              "name": "仿宋",
+              "size": 18.0
+            },
+            {
+              "name": "仿宋",
+              "size": 18.0
+            },
+            {
+              "name": "仿宋",
+              "size": 18.0
+            }
+          ],
+          "colors": [],
+          "images": 0,
+          "text_boxes": 2
+        }
+      ]
+    }
+  ]
+}

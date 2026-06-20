@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>機械與LALG管理 | 赤瞳安全智能平台 · 中國建築(香港)</title>
+<style>
+:root{
+  --brand-red:#E70012;--brand-red-dark:#C4000F;--brand-red-glow:rgba(231,0,18,0.15);
+  --brand-navy:#0E2841;--brand-navy-deep:#091B2D;--brand-navy-mid:#142538;--brand-navy-light:#1A3652;
+  --brand-cyan:#0F9ED5;--brand-cyan-glow:rgba(15,158,213,0.15);
+  --brand-green:#4EA72E;--brand-orange:#E97132;
+  --bg-primary:#0a1521;--bg-secondary:#0F1D2E;--bg-card:#152638;--bg-input:#0C1826;
+  --border-color:#1E3550;--text-primary:#E4E9EF;--text-secondary:#889BB0;--text-muted:#546B82;
+  --radius-sm:6px;--radius-md:10px;--font-sans:'Inter','Noto Sans SC',system-ui,sans-serif;--font-mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-sans);background:var(--bg-primary);color:var(--text-primary);min-height:100vh;}
+
+.top-bar{height:56px;background:linear-gradient(135deg,var(--brand-navy),var(--brand-navy-deep));border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:100;}
+.top-bar__logo{display:flex;align-items:center;gap:12px;}
+.top-bar__logo-img{height:32px;width:auto;}
+.top-bar__brand-text h1{font-size:15px;font-weight:700;color:white;letter-spacing:1px;line-height:1.2;}
+.top-bar__brand-text span{font-size:9px;color:var(--text-muted);text-transform:uppercase;}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--brand-navy-light),var(--brand-cyan));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;border:2px solid var(--border-color);}
+.top-bar__right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+
+.app-body{display:flex;height:calc(100vh-56px);}
+.sidebar{width:64px;background:var(--bg-secondary);border-right:1px solid var(--border-color);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;}
+.nav-item{width:46px;height:46px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;transition:all .15s;font-size:18px;border:1px solid transparent;}
+.nav-item:hover{background:var(--bg-card);color:var(--text-primary);border-color:var(--border-color);}
+.nav-item--active{background:var(--brand-red-glow);color:var(--brand-red);border-color:rgba(231,0,18,0.2);}
+.nav-divider{width:28px;height:1px;background:var(--border-color);margin:8px 0;}
+
+.main-content{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;}
+
+.page-header h1{font-size:22px;font-weight:800;color:white;display:flex;align-items:center;gap:10px;}
+.page-header p{font-size:13px;color:var(--text-secondary);margin-top:4px;}
+.header-actions{margin-left:auto;display:flex;gap:8px;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;font-family:var(--font-sans);}
+.btn--primary{background:linear-gradient(135deg,var(--brand-red),var(--brand-red-dark));color:white;}
+.btn--secondary{background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color);}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.stat-mini{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:14px;text-align:center;}
+.stat-mini__val{font-size:26px;font-weight:800;} .stat-mini__label{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.stat-mini--r .stat-mini__val{color:var(--brand-red);} .stat-mini--o .stat-mini__val{color:var(--brand-orange);} .stat-mini--c .stat-mini__val{color:var(--brand-cyan);} .stat-mini--g .stat-mini__val{color:var(--brand-green);}
+
+/* AI Reminder Banner */
+.ai-reminder{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(233,113,50,0.08),rgba(233,113,50,0.03));border:1px solid rgba(233,113,50,0.25);border-radius:var(--radius-md);padding:12px 16px;}
+.ai-icon{font-size:28px;} .ai-text h4{font-size:13px;font-weight:600;color:var(--brand-orange);} .ai-text p{font-size:11px;color:var(--text-secondary);margin-top:2px;}
+.ai-btn{margin-left:auto;padding:6px 14px;font-size:11px;font-weight:600;background:var(--brand-orange);color:white;border:none;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap;font-family:var(--font-sans);}
+
+/* Table */
+.table-wrap{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;flex:1;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead{background:var(--bg-secondary);}
+th{padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border-color);white-space:nowrap;}
+td{padding:10px 12px;border-bottom:1px solid rgba(30,53,80,0.35);vertical-align:middle;}
+tr:hover td{background:var(--bg-secondary);}
+
+.status-tag{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;}
+.status-tag--valid{background:rgba(78,167,46,0.12);color:var(--brand-green);border:1px solid rgba(78,167,46,0.25);}
+.status-tag--expiring{background:rgba(233,113,50,0.12);color:var(--brand-orange);border:1px solid rgba(233,113,50,0.25);}
+.status-tag--expired{background:rgba(231,0,18,0.12);color:var(--brand-red);border:1px solid rgba(231,0,18,0.25);}
+.status-tag--missing{background:rgba(136,155,176,0.12);color:var(--text-secondary);border:1px solid rgba(136,155,176,0.25);}
+
+.mech-name{font-weight:600;color:white;} .mech-type{font-size:10px;color:var(--text-muted);}
+.lalg-id{font-family:var(--font-mono);font-size:11px;color:var(--brand-cyan);}
+.days-left{font-size:11px;font-weight:600;}
+.days-left--ok{color:var(--brand-green);} .days-left--warn{color:var(--brand-orange);} .days-left--danger{color:var(--brand-red);}
+.action-btn{padding:3px 9px;font-size:10px;color:var(--brand-cyan);background:var(--brand-cyan-glow);border:1px solid rgba(15,158,213,0.25);border-radius:4px;cursor:pointer;}
+
+/* File Grid */
+.file-section{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:14px 16px;}
+.fs-header{font-size:13px;font-weight:700;color:white;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+.file-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:12px;text-align:center;transition:all .15s;cursor:pointer;position:relative;}
+.file-card:hover{border-color:var(--brand-cyan);transform:translateY(-1px);}
+.file-icon{font-size:24px;margin-bottom:6px;} .file-name{font-size:11px;font-weight:500;color:white;line-height:1.3;}
+.file-status-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;}
+.file-status-dot--ok{background:var(--brand-green);} .file-status-dot--missing{background:var(--brand-red);box-shadow:0 0 4px var(--brand-red);}
+
+.skyline-footer{flex-shrink:0;position:relative;height:50px;overflow:hidden;border-top:1px solid var(--border-color);background:linear-gradient(to top,var(--bg-secondary),transparent);}
+.skyline-img{width:100%;height:100%;object-fit:cover;object-position:bottom center;opacity:0.18;mask-image:linear-gradient(to top,black 35%,transparent 100%);-webkit-mask-image:linear-gradient(to top,black 35%,transparent 100%);}
+.footer-info{position:absolute;bottom:4px;left:24px;right:24px;display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);z-index:1;}
+::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <img src="assets/logo-cscec.png" alt="CSCEC" class="top-bar__logo-img" onerror="this.outerHTML='<div style=\'width:32px;height:32px;background:var(--brand-red);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:8px;font-weight:800\'>CSCEC</div>'">
+    <div class="top-bar__brand-text"><h1>赤瞳守護者</h1><span>機械與LALG管理</span></div>
+  </div>
+  <div class="top-bar__right"><div class="avatar">陳</div></div>
+</header>
+
+<div class="app-body">
+  <aside class="sidebar">
+    <div class="nav-item">📊</div><div class="nav-item">🚨</div><div class="nav-item">📷</div><div class="nav-item">💬</div><div class="nav-item">📝</div>
+    <div class="nav-divider"></div><div class="nav-item nav-item--active">🏗️</div><div class="nav-divider"></div><div class="nav-item">🤖</div>
+  </aside>
+
+  <main class="main-content">
+    <section style="display:flex;align-items:flex-start;justify-content:space-between;">
+      <div><h1 style="font-size:22px;font-weight:800;color:white;display:flex;align-items:center;gap:10px;">🏗️ 機械與 LALG 管理</h1><p style="font-size:13px;color:var(--text-secondary);margin-top:4px;">Plant Summary List · 證書到期提醒 · LALG 文件歸檔</p></div>
+      <div class="header-actions"><button class="btn btn--primary">＋ 新增機械</button><button class="btn btn--secondary">🔄 同步 Plant DB</button></div>
+    </section>
+
+    <!-- AI Expiry Alert -->
+    <section class="ai-reminder">
+      <span class="ai-icon">⏰</span>
+      <div class="ai-text">
+        <h4>AI 過期提醒：2 項證書即將到期 / 已過期</h4>
+        <p>塔式起重機 TL-00892 LALG 剩餘 28 天 · 挖掘機 EX-2024-015 檢驗證書已過期 3 天 — 系統已自動發送 WhatsApp 提醒給負責人</p>
+      </div>
+      <button class="ai-btn">一鍵生成警告信 →</button>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats-row">
+      <div class="stat-mini stat-mini--g"><div class="stat-mini__val">12</div><div class="stat-mini__label">總機械數量</div></div>
+      <div class="stat-mini stat-mini--o"><div class="stat-mini__val">2</div><div class="stat-mini__label">即將到期（30天內）</div></div>
+      <div class="stat-mini stat-mini--r"><div class="stat-mini__val">1</div><div class="stat-mini__label">已過期</div></div>
+      <div class="stat-mini stat-mini--c"><div class="stat-mini__val">94%</div><div class="stat-mini__label">證書合規率</div></div>
+    </section>
+
+    <!-- Machinery Table -->
+    <section class="table-wrap">
+      <table>
+        <thead><tr><th>機械名稱</th><th>類型</th><th>牌照號碼</th><th>檢驗證書</th><th>LALG 操作員</th><th>分判商</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><div class="mech-name">塔式起重機 #01</div><div class="mech-type">Tower Crane</div></td>
+            <td>塔吊</td>
+            <td class="lalg-id">TL-2024-00892</td>
+            <td><span class="status-tag status-tag--expiring">剩 28 天 ⚠</span></td>
+            <td><div style="font-size:12px;">張偉強</div><div class="lalg-id">OP-HK-2023-1456</div><div style="font-size:10px;color:var(--brand-green);">有效至 2026-03</div></td>
+            <td>華興建築</td>
+            <td><span class="status-tag status-tag--expiring">⚠ 即將到期</span></td>
+            <td><button class="action-btn">🤖 更新提醒</button></td>
+          </tr>
+          <tr>
+            <td><div class="mech-name">挖掘機 #02</div><div class="mech-type">Excavator</div></td>
+            <td>挖掘機</td>
+            <td class="lalg-id">EX-2024-015</td>
+            <td><span class="status-tag status-tag--expired">已過期 3 天 🔴</span></td>
+            <td><div style="font-size:12px;">李國華</div><div class="lalg-id">OP-HK-2022-0891</div><div style="font-size:10px;color:var(--brand-green);">有效至 2026-06</div></td>
+            <td>永達工程</td>
+            <td><span class="status-tag status-tag--expired">🔴 已過期</span></td>
+            <td><button class="action-btn">🤖 生成警告信</button></td>
+          </tr>
+          <tr>
+            <td><div class="mech-name">升降機 #01</div><div class="mech-type">Hoist / Lift</div></td>
+            <td>施工升降機</td>
+            <td class="lalg-id">HO-2024-003</td>
+            <td><span class="status-tag status-tag--valid">✓ 有效</span></td>
+            <td><div style="font-size:12px;">黃志明</div><div class="lalg-id">OP-HK-2024-2012</div><div style="font-size:10px;color:var(--brand-green);">有效至 2026-01</div></td>
+            <td>協成建設</td>
+            <td><span class="status-tag status-tag--valid">✓ 正常</span></td>
+            <td><button class="action-btn">查看詳情</button></td>
+          </tr>
+          <tr>
+            <td><div class="mech-name">壓路機 #01</div><div class="mech-type">Road Roller</div></td>
+            <td>壓路機</td>
+            <td class="lalg-id">RR-2025-001</td>
+            <td><span class="status-tag status-tag--valid">✓ 有效</span></td>
+            <td><div style="font-size:12px;">—</div><div style="font-size:10px;color:var(--text-muted);">暫無指定操作員</div></td>
+            <td>自營</td>
+            <td><span class="status-tag status-tag--valid">✓ 正常</span></td>
+            <td><button class="action-btn">分配操作員</button></td>
+          </tr>
+          <tr>
+            <td><div class="mech-name">混凝土泵車 #01</div><div class="mech-type">Concrete Pump</div></td>
+            <td>泵車</td>
+            <td class="lalg-id">CP-2024-007</td>
+            <td><span class="status-tag status-tag--expiring">剩 45 天 ⚠</span></td>
+            <td><div style="font-size:12px;">王大偉</div><div class="lalg-id">OP-HK-2021-0567</div><div style="font-size:10px;color:var(--brand-orange);">需續期！</div></td>
+            <td>華興建築</td>
+            <td><span class="status-tag status-tag--expiring">⚠ 注意</span></td>
+            <td><button class="action-btn">🤖 發送續期通知</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- LALG Files Grid -->
+    <section class="file-section">
+      <div class="fs-header">📁 TL-00892 (塔式起重機) — LALG 文件資料</div>
+      <div class="file-grid">
+        <div class="file-card"><span class="file-status-dot file-status-dot--ok"></span><div class="file-icon">📄</div><div class="file-name">身份證副本<br><small style="color:var(--text-muted)">張偉強</small></div></div>
+        <div class="file-card"><span class="file-status-dot file-status-dot--ok"></span><div class="file-icon">📜</div><div class="file-name">安全訓練証書<br><small style="color:var(--text-muted)">Green Card</small></div></div>
+        <div class="file-card"><span class="file-status-dot file-status-dot--ok"></span><div class="file-icon">🏥</div><div class="file-name">體格檢查報告<br><small style="color:var(--text-muted)">2025-03 有效</small></div></div>
+        <div class="file-card"><span class="file-status-dot file-status-dot--ok"></span><div class="file-icon">📋</div><div class="file-name">操作資格証書<br><small style="color:var(--text-muted)">Class A</small></div></div>
+        <div class="file-card"><span class="file-status-dot file-status-dot--missing"></span><div class="file-icon">❓</div><div class="file-name" style="color:var(--brand-red);">近期照片缺失<br><small style="color:var(--brand-orange)">需要更新</small></div></div>
+        <div class="file-card"><span class="file-status-dot file-status-dot--ok"></span><div class="file-icon">📝</div><div class="file-name">工作經歷證明<br><small style="color:var(--text-muted)">完整</small></div></div>
+      </div>
+    </section>
+
+    <div class="skyline-footer">
+      <img src="assets/hk-skyline-wide.jpg" alt="" class="skyline-img" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;background:linear-gradient(90deg,transparent,var(--brand-red),transparent);opacity:0.08;\'></div>'">
+      <div class="footer-info"><span>中國建築工程(香港)有限公司 · 基礎公司</span><span>赤瞳安全智能平台 © 2025</span></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

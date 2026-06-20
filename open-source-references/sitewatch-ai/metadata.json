@@ -1,0 +1,6 @@
+{
+  "name": "SiteWatch AI",
+  "description": "AI-powered construction intelligence platform for safety analysis, risk prediction, and automated reporting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤瞳安全智能平台 - 隐患台账</title>
+<style>
+  /* ============================================
+     赤瞳安全智能平台 - 隐患台账模块 UI 设计稿
+     设计师：UI Designer
+     版本：v2.0 - 工作台式布局
+     ============================================ */
+
+  :root {
+    /* 设计令牌 Design Tokens */
+    --bg-primary: #0f1923;
+    --bg-secondary: #1a2332;
+    --bg-card: #1e2d3d;
+    --bg-hover: #253545;
+    --bg-input: #15202b;
+    --border-color: #2a3f52;
+    --border-light: #1e3050;
+    
+    --accent-red: #e94560;
+    --accent-orange: #f59e0b;
+    --accent-green: #10b981;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --accent-purple: #8b5cf6;
+    
+    --text-primary: #e8edf2;
+    --text-secondary: #8899aa;
+    --text-muted: #5a6a7a;
+    --text-white: #ffffff;
+    
+    --font-family: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.3);
+    --shadow-float: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-family);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* === 顶部导航栏 === */
+  .top-bar {
+    height: 52px;
+    background: linear-gradient(180deg, #1a2332 0%, #15202b 100%);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .top-bar__logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--accent-red);
+    letter-spacing: 1px;
+  }
+  .top-bar__logo-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--accent-red), #ff6b6b);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .top-bar__nav {
+    display: flex;
+    gap: 2px;
+    margin-left: 40px;
+  }
+  .top-bar__nav-item {
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .top-bar__nav-item:hover { color: var(--text-primary); background: var(--bg-hover); }
+  .top-bar__nav-item--active {
+    color: var(--text-white);
+    background: rgba(233, 69, 96, 0.15);
+    font-weight: 600;
+  }
+  .top-bar__right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .top-bar__user {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text-secondary);
+  }
+  .avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: white;
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    box-shadow: 0 0 6px var(--accent-green);
+  }
+
+  /* === 主布局 === */
+  .main-layout {
+    display: flex;
+    height: calc(100vh - 52px);
+  }
+
+  /* === 左侧边栏 === */
+  .sidebar {
+    width: 220px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    padding: 16px 0;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .sidebar__section-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    padding: 8px 18px 6px;
+    font-weight: 600;
+  }
+  .sidebar__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 18px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.12s;
+    border-left: 3px solid transparent;
+  }
+  .sidebar__item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .sidebar__item--active {
+    background: rgba(233, 69, 96, 0.08);
+    color: var(--accent-red);
+    border-left-color: var(--accent-red);
+    font-weight: 600;
+  }
+  .sidebar__item-icon { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar__badge {
+    margin-left: auto;
+    background: var(--accent-red);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  /* === 主内容区 === */
+  .main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+
+  /* === 页面标题区 === */
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .page-header__left h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-white);
+    margin-bottom: 4px;
+  }
+  .page-header__left p {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .page-header__actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* === 按钮系统 === */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn--primary {
+    background: linear-gradient(135deg, var(--accent-red), #ff6b6b);
+    color: white;
+    box-shadow: 0 2px 8px rgba(233, 69, 96, 0.3);
+  }
+  .btn--primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(233, 69, 96, 0.4); }
+  .btn--secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+  }
+  .btn--secondary:hover { border-color: var(--accent-red); color: var(--accent-red); }
+  .btn--ghost {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+  .btn--ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .btn--danger {
+    background: rgba(233, 69, 96, 0.1);
+    color: var(--accent-red);
+    border: 1px solid rgba(233, 69, 96, 0.3);
+  }
+
+  /* === 统计卡片行 === */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .stat-card:hover { border-color: var(--accent-cyan); transform: translateY(-2px); }
+  .stat-card__icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .stat-card__icon--red { background: rgba(233, 69, 96, 0.15); }
+  .stat-card__icon--orange { background: rgba(245, 158, 11, 0.15); }
+  .stat-card__icon--blue { background: rgba(59, 130, 246, 0.15); }
+  .stat-card__icon--green { background: rgba(16, 185, 129, 0.15); }
+  .stat-card__info { flex: 1; }
+  .stat-card__label { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+  .stat-card__value { font-size: 22px; font-weight: 700; color: var(--text-white); }
+  .stat-card__trend {
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-top: 2px;
+  }
+  .stat-card__trend--up { color: var(--accent-red); }
+  .stat-card__trend--down { color: var(--accent-green); }
+
+  /* === 工具栏 === */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+  }
+  .search-box__icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .search-box__input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-box__input:focus { border-color: var(--accent-cyan); }
+  .search-box__input::placeholder { color: var(--text-muted); }
+
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .filter-chip:hover { border-color: var(--accent-cyan); color: var(--text-primary); }
+  .filter-chip--active {
+    background: rgba(6, 182, 212, 0.1);
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+  }
+  .filter-chip__close {
+    font-size: 14px;
+    margin-left: 2px;
+    opacity: 0.6;
+  }
+
+  /* === 表格 === */
+  .table-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .table-header {
+    display: grid;
+    grid-template-columns: 50px 120px 1fr 100px 100px 90px 90px 80px;
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .table-row {
+    display: grid;
+    grid-template-columns: 50px 120px 1fr 100px 100px 90px 90px 80px;
+    padding: 12px 16px;
+    align-items: center;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 13px;
+    transition: background 0.12s;
+    cursor: pointer;
+  }
+  .table-row:hover { background: var(--bg-hover); }
+  .table-row:last-child { border-bottom: none; }
+
+  /* 隐患级别标签 */
+  .severity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .severity-badge--critical { background: rgba(233, 69, 96, 0.2); color: var(--accent-red); }
+  .severity-badge--high { background: rgba(245, 158, 11, 0.2); color: var(--accent-orange); }
+  .severity-badge--medium { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); }
+  .severity-badge--low { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+
+  /* 状态标签 */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .status-badge--open { background: rgba(233, 69, 96, 0.15); color: var(--accent-red); }
+  .status-badge--progress { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+  .status-badge--resolved { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+  .status-badge--overdue { background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); }
+
+  /* 行操作按钮 */
+  .row-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .row-action-btn {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: all 0.12s;
+  }
+  .row-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .row-action-btn--ai { color: var(--accent-cyan); }
+  .row-action-btn--ai:hover { background: rgba(6, 182, 212, 0.15); }
+
+  /* 复选框 */
+  .checkbox {
+    width: 16px; height: 16px;
+    border-radius: 4px;
+    border: 2px solid var(--border-color);
+    background: var(--bg-input);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s;
+  }
+  .checkbox--checked {
+    background: var(--accent-cyan);
+    border-color: var(--accent-cyan);
+  }
+
+  /* === 分页 === */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-top: 1px solid var(--border-light);
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .pagination__controls {
+    display: flex;
+    gap: 4px;
+  }
+  .pagination__btn {
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    transition: all 0.12s;
+  }
+  .pagination__btn:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+  .pagination__btn--active {
+    background: var(--accent-cyan);
+    border-color: var(--accent-cyan);
+    color: white;
+  }
+
+  /* === 右侧 AI 面板（收起状态）=== */
+  .ai-panel-toggle {
+    position: fixed;
+    right: 0;
+    top: 52px;
+    width: 36px;
+    height: 80px;
+    background: linear-gradient(180deg, var(--accent-red), #ff6b6b);
+    border-radius: 8px 0 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 50;
+    box-shadow: -2px 2px 8px rgba(233, 69, 96, 0.3);
+    writing-mode: vertical-rl;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+    letter-spacing: 2px;
+  }
+
+  /* === 备注浮层 === */
+  .note-indicator {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent-orange);
+    display: inline-block;
+    margin-left: 4px;
+  }
+
+  /* === 表格行展开详情 === */
+  .table-row-detail {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
+    padding: 0 16px 16px 66px;
+    display: none;
+  }
+  .table-row-detail--open { display: block; }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .detail-item label {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 2px;
+  }
+  .detail-item span {
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+  .detail-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  /* === 地点标签 === */
+  .location-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 6px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--accent-purple);
+  }
+
+  /* === 滚动条 === */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- ========== 顶部导航栏 ========== -->
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <div class="top-bar__logo-icon">👁</div>
+    <span>赤瞳安全智能平台</span>
+  </div>
+  
+  <nav class="top-bar__nav">
+    <div class="top-bar__nav-item top-bar__nav-item--active">📊 工作台</div>
+    <div class="top-bar__nav-item">📋 隐患台账</div>
+    <div class="top-bar__nav-item">📷 视觉巡检</div>
+    <div class="top-bar__nav-item">🤖 AI 助手</div>
+    <div class="top-bar__nav-item">📄 智能填表</div>
+    <div class="top-bar__nav-item">⚙️ 系统设置</div>
+  </nav>
+
+  <div class="top-bar__right">
+    <div style="position:relative;">
+      <div style="width:28px;height:28px;border-radius:50%;background:rgba(233,69,96,0.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;">🔔</div>
+      <div style="position:absolute;top:-2px;right:-2px;width:10px;height:10px;background:var(--accent-red);border-radius:50%;border:2px solid var(--bg-primary);"></div>
+    </div>
+    <div class="top-bar__user">
+      <div class="status-dot"></div>
+      <span>安全主任 · 陈志明</span>
+      <div class="avatar">陈</div>
+    </div>
+  </div>
+</header>
+
+<!-- ========== 主布局 ========== -->
+<div class="main-layout">
+
+  <!-- 左侧边栏 -->
+  <aside class="sidebar">
+    <div class="sidebar__section-title">主要功能</div>
+    <div class="sidebar__item sidebar__item--active">
+      <span class="sidebar__item-icon">📋</span>
+      <span>隐患台账</span>
+      <span class="sidebar__badge">23</span>
+    </div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">📷</span>
+      <span>视觉巡检</span>
+    </div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">💬</span>
+      <span>WhatsApp 消息</span>
+      <span class="sidebar__badge" style="background:var(--accent-blue)">5</span>
+    </div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">🏗️</span>
+      <span>机械与 LALG</span>
+    </div>
+    
+    <div class="sidebar__section-title" style="margin-top:12px;">AI 功能</div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">🤖</span>
+      <span>AI 对话</span>
+    </div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">📄</span>
+      <span>智能填表</span>
+    </div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">📡</span>
+      <span>风险雷达</span>
+    </div>
+    
+    <div class="sidebar__section-title" style="margin-top:12px;">文档</div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">📝</span>
+      <span>整改通知</span>
+    </div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">📊</span>
+      <span>每日简报</span>
+    </div>
+    <div class="sidebar__item">
+      <span class="sidebar__item-icon">📁</span>
+      <span>制度查询</span>
+    </div>
+  </aside>
+
+  <!-- 主内容区 -->
+  <main class="main-content">
+
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <div class="page-header__left">
+        <h1>📋 隐患台账</h1>
+        <p>管理和跟踪所有安全隐患，点击行可展开详情</p>
+      </div>
+      <div class="page-header__actions">
+        <button class="btn btn--secondary">📥 导入</button>
+        <button class="btn btn--secondary">📤 导出</button>
+        <button class="btn btn--primary">➕ 新增隐患</button>
+      </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--red">⚠️</div>
+        <div class="stat-card__info">
+          <div class="stat-card__label">待处理隐患</div>
+          <div class="stat-card__value">23</div>
+          <div class="stat-card__trend stat-card__trend--up">↑ 比上周 +3</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--orange">⏰</div>
+        <div class="stat-card__info">
+          <div class="stat-card__label">超期未结</div>
+          <div class="stat-card__value">7</div>
+          <div class="stat-card__trend stat-card__trend--up">↑ 需紧急处理</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--blue">🔄</div>
+        <div class="stat-card__info">
+          <div class="stat-card__label">整改中</div>
+          <div class="stat-card__value">12</div>
+          <div class="stat-card__trend stat-card__trend--down">↓ 比上周 -2</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--green">✅</div>
+        <div class="stat-card__info">
+          <div class="stat-card__label">本周已闭环</div>
+          <div class="stat-card__value">8</div>
+          <div class="stat-card__trend stat-card__trend--up" style="color:var(--accent-green)">↑ 达标率 85%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-box__icon">🔍</span>
+        <input class="search-box__input" placeholder="搜索隐患描述、地点、分判商..." />
+      </div>
+      <div class="filter-chip filter-chip--active">
+        全部 <span class="filter-chip__close">✕</span>
+      </div>
+      <div class="filter-chip">🔴 严重</div>
+      <div class="filter-chip">🟡 高风险</div>
+      <div class="filter-chip">⏰ 超期</div>
+      <div class="filter-chip">🔄 整改中</div>
+      <div class="btn btn--ghost" style="margin-left:auto;">更多筛选 ▾</div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="table-container">
+      <div class="table-header">
+        <span></span>
+        <span>隐患编号</span>
+        <span>隐患描述</span>
+        <span>级别</span>
+        <span>地点</span>
+        <span>状态</span>
+        <span>截止日期</span>
+        <span>操作</span>
+      </div>
+
+      <!-- 行 1 - 严重超期 -->
+      <div class="table-row" style="background:rgba(233,69,96,0.05);">
+        <div class="checkbox"></div>
+        <span style="font-size:12px;color:var(--text-muted);font-family:monospace;">HZ-20250612-001</span>
+        <span>
+          <span style="color:var(--text-white);font-weight:500;">B区3楼临边护栏拆除后未恢复，宽度约2米</span>
+          <span class="note-indicator" title="有备注"></span>
+        </span>
+        <span><span class="severity-badge severity-badge--critical">🔴 严重</span></span>
+        <span><span class="location-tag">📍 B区3楼</span></span>
+        <span><span class="status-badge status-badge--overdue">⏰ 超期 3天</span></span>
+        <span style="font-size:12px;color:var(--accent-red);font-weight:600;">2025-06-09</span>
+        <div class="row-actions">
+          <button class="row-action-btn row-action-btn--ai" title="AI 生成整改通知">🤖</button>
+          <button class="row-action-btn" title="查看详情">👁</button>
+          <button class="row-action-btn" title="编辑">✏️</button>
+        </div>
+      </div>
+
+      <!-- 行 2 - 高风险整改中 -->
+      <div class="table-row">
+        <div class="checkbox"></div>
+        <span style="font-size:12px;color:var(--text-muted);font-family:monospace;">HZ-20250613-005</span>
+        <span style="color:var(--text-primary);">吊装区域未设置警示带，有工人穿越</span>
+        <span><span class="severity-badge severity-badge--high">🟡 高风险</span></span>
+        <span><span class="location-tag">📍 A区吊运区</span></span>
+        <span><span class="status-badge status-badge--progress">🔄 整改中</span></span>
+        <span style="font-size:12px;color:var(--accent-orange);">2025-06-16</span>
+        <div class="row-actions">
+          <button class="row-action-btn row-action-btn--ai" title="AI 跟进">🤖</button>
+          <button class="row-action-btn" title="查看详情">👁</button>
+          <button class="row-action-btn" title="编辑">✏️</button>
+        </div>
+      </div>
+
+      <!-- 行 3 - 中风险 -->
+      <div class="table-row">
+        <div class="checkbox"></div>
+        <span style="font-size:12px;color:var(--text-muted);font-family:monospace;">HZ-20250614-003</span>
+        <span style="color:var(--text-primary);">工人未佩戴安全帽（VLM 自动检测）</span>
+        <span><span class="severity-badge severity-badge--medium">🔵 中风险</span></span>
+        <span><span class="location-tag">📍 C区2楼</span></span>
+        <span><span class="status-badge status-badge--open">🟠 待处理</span></span>
+        <span style="font-size:12px;">2025-06-17</span>
+        <div class="row-actions">
+          <button class="row-action-btn row-action-btn--ai" title="AI 生成通知">🤖</button>
+          <button class="row-action-btn" title="查看详情">👁</button>
+          <button class="row-action-btn" title="编辑">✏️</button>
+        </div>
+      </div>
+
+      <!-- 行 4 - WhatsApp 来源 -->
+      <div class="table-row">
+        <div class="checkbox"></div>
+        <span style="font-size:12px;color:var(--text-muted);font-family:monospace;">HZ-20250614-008</span>
+        <span style="color:var(--text-primary);">电箱门未关闭，有积水痕迹（WhatsApp 消息）</span>
+        <span><span class="severity-badge severity-badge--high">🟡 高风险</span></span>
+        <span><span class="location-tag">📍 D区配电房</span></span>
+        <span><span class="status-badge status-badge--progress">🔄 整改中</span></span>
+        <span style="font-size:12px;">2025-06-18</span>
+        <div class="row-actions">
+          <button class="row-action-btn row-action-btn--ai" title="AI 查看原文">💬</button>
+          <button class="row-action-btn" title="查看详情">👁</button>
+          <button class="row-action-btn" title="编辑">✏️</button>
+        </div>
+      </div>
+
+      <!-- 行 5 - 已闭环 -->
+      <div class="table-row" style="opacity:0.6;">
+        <div class="checkbox"></div>
+        <span style="font-size:12px;color:var(--text-muted);font-family:monospace;">HZ-20250610-002</span>
+        <span style="color:var(--text-secondary);text-decoration:line-through;">灭火器过期未更换</span>
+        <span><span class="severity-badge severity-badge--medium">🔵 中风险</span></span>
+        <span><span class="location-tag">📍 A区1楼</span></span>
+        <span><span class="status-badge status-badge--resolved">✅ 已闭环</span></span>
+        <span style="font-size:12px;color:var(--accent-green);">2025-06-12</span>
+        <div class="row-actions">
+          <button class="row-action-btn" title="查看详情">👁</button>
+        </div>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <span>共 23 条，显示 1-5</span>
+        <div class="pagination__controls">
+          <button class="pagination__btn">‹</button>
+          <button class="pagination__btn pagination__btn--active">1</button>
+          <button class="pagination__btn">2</button>
+          <button class="pagination__btn">3</button>
+          <button class="pagination__btn">...</button>
+          <button class="pagination__btn">5</button>
+          <button class="pagination__btn">›</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 展开详情示意（模拟点击第1行后） -->
+    <div style="margin-top:16px;background:var(--bg-card);border:1px solid var(--accent-red);border-radius:var(--radius-md);padding:16px;display:none;" id="detail-preview">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+        <div style="font-weight:600;color:var(--accent-red);">📋 隐患详情 — HZ-20250612-001</div>
+        <button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;">
+        <div><span style="color:var(--text-muted);">发现时间：</span><span>2025-06-12 09:30</span></div>
+        <div><span style="color:var(--text-muted);">发现方式：</span><span>安全主任巡查</span></div>
+        <div><span style="color:var(--text-muted);">责任分判商：</span><span style="color:var(--accent-orange);">宏基建筑有限公司</span></div>
+        <div><span style="color:var(--text-muted);">整改负责人：</span><span>李国强（分判商）</span></div>
+        <div><span style="color:var(--text-muted);">关联检查表：</span><span>T032 吊运安全检查</span></div>
+        <div><span style="color:var(--text-muted);">AI 建议措施：</span><span>立即设置临时围封，安排钢筋工恢复护栏</span></div>
+      </div>
+      <div style="margin-top:12px;padding:12px;background:var(--bg-input);border-radius:var(--radius-sm);font-size:12px;color:var(--text-secondary);">
+        💡 <strong style="color:var(--accent-cyan);">AI 提示：</strong>此隐患已超期 3 天，建议立即发送警告信并安排现场复查。上次跟进：2025-06-13。
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn btn--primary" style="font-size:12px;padding:6px 12px;">🤖 AI 生成整改通知</button>
+        <button class="btn btn--secondary" style="font-size:12px;padding:6px 12px;">📷 查看现场照片</button>
+        <button class="btn btn--ghost" style="font-size:12px;padding:6px 12px;">✏️ 编辑</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- AI 面板收起指示器 -->
+<div class="ai-panel-toggle">AI 助手</div>
+
+<!-- 设计说明 -->
+<div style="position:fixed;bottom:12px;left:12px;background:rgba(0,0,0,0.8);color:#aaa;font-size:10px;padding:6px 10px;border-radius:6px;font-family:monospace;pointer-events:none;">
+  🎨 UI 设计稿 v2.0 — 隐患台账模块 | 赤瞳安全智能平台
+</div>
+
+</body>
+</html>

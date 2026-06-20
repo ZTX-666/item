@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日簡報 | 赤瞳安全智能平台 · 中國建築(香港)</title>
+<style>
+:root{
+  --brand-red:#E70012;--brand-red-dark:#C4000F;--brand-red-glow:rgba(231,0,18,0.15);
+  --brand-navy:#0E2841;--brand-navy-deep:#091B2D;--brand-navy-mid:#142538;--brand-navy-light:#1A3652;
+  --brand-cyan:#0F9ED5;--brand-cyan-glow:rgba(15,158,213,0.15);
+  --brand-green:#4EA72E;--brand-orange:#E97132;--brand-purple:#A02B93;
+  --bg-primary:#0a1521;--bg-secondary:#0F1D2E;--bg-card:#152638;--bg-input:#0C1826;
+  --border-color:#1E3550;--text-primary:#E4E9EF;--text-secondary:#889BB0;--text-muted:#546B82;
+  --radius-sm:6px;--radius-md:10px;--font-sans:'Inter','Noto Sans SC',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-sans);background:var(--bg-primary);color:var(--text-primary);min-height:100vh;}
+
+.top-bar{height:56px;background:linear-gradient(135deg,var(--brand-navy),var(--brand-navy-deep));border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:100;}
+.top-bar__logo{display:flex;align-items:center;gap:12px;}
+.top-bar__logo-img{height:32px;width:auto;}
+.top-bar__brand-text h1{font-size:15px;font-weight:700;color:white;letter-spacing:1px;line-height:1.2;}
+.top-bar__brand-text span{font-size:9px;color:var(--text-muted);text-transform:uppercase;}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--brand-navy-light),var(--brand-cyan));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;border:2px solid var(--border-color);}
+.top-bar__right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+
+.app-body{display:flex;height:calc(100vh-56px);}
+.sidebar{width:64px;background:var(--bg-secondary);border-right:1px solid var(--border-color);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;}
+.nav-item{width:46px;height:46px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;transition:all .15s;font-size:18px;border:1px solid transparent;}
+.nav-item:hover{background:var(--bg-card);color:var(--text-primary);border-color:var(--border-color);}
+.nav-item--active{background:var(--brand-red-glow);color:var(--brand-red);border-color:rgba(231,0,18,0.2);}
+.nav-divider{width:28px;height:1px;background:var(--border-color);margin:8px 0;}
+
+.main-content{flex:1;overflow-y:auto;padding:20px 28px;display:flex;flex-direction:column;gap:14px;}
+
+/* Report Header */
+.report-header{text-align:center;padding:8px 0 16px;}
+.report-header .date-badge{display:inline-block;background:linear-gradient(135deg,var(--brand-red),#ff4d5a);color:white;padding:6px 20px;border-radius:20px;font-size:13px;font-weight:700;letter-spacing:1px;margin-bottom:12px;}
+.report-header h1{font-size:24px;font-weight:800;color:white;letter-spacing:2px;}
+.report-header p{font-size:13px;color:var(--text-secondary);}
+
+/* Weather Alert Banner */
+.weather-banner{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,rgba(233,113,50,0.08),rgba(233,113,50,0.03));border:1px solid rgba(233,113,50,0.3);border-radius:var(--radius-md);padding:12px 18px;}
+.weather-icon{font-size:36px;} .weather-info{flex:1;}
+.weather-temp{font-size:24px;font-weight:800;color:var(--brand-orange);} .weather-desc{font-size:12px;color:var(--text-secondary);}
+.weather-alerts{display:flex;gap:6px;}
+.wa-tag{font-size:11px;padding:3px 10px;border-radius:4px;font-weight:600;}
+.wa-tag--hot{background:rgba(233,113,50,0.15);color:var(--brand-orange);} .wa-tag--rain{background:rgba(15,158,213,0.15);color:var(--brand-cyan);}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.stat-mini{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:14px;text-align:center;}
+.stat-mini__val{font-size:26px;font-weight:800;}
+.stat-mini--r .stat-mini__val{color:var(--brand-red);} .stat-mini--o .stat-mini__val{color:var(--brand-orange);}
+.stat-mini--c .stat-mini__val{color:var(--brand-cyan);} .stat-mini--g .stat-mini__val{color:var(--brand-green);}
+.stat-mini__label{font-size:11px;color:var(--text-muted);margin-top:2px;}
+
+/* Content Grid */
+.content-grid{display:grid;grid-template-columns:2fr 1fr;gap:14px;flex:1;}
+.section-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;display:flex;flex-direction:column;}
+.sc-header{padding:12px 16px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary);font-size:13px;font-weight:700;color:white;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.sc-body{padding:14px 16px;overflow-y:auto;flex:1;}
+
+/* Hazard Items in Briefing */
+.brief-hazard{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid rgba(30,53,80,0.3);}
+.brief-hazard:last-child{border-bottom:none;}
+.bh-severity{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.bh-severity--cr{background:var(--brand-red);box-shadow:0 0 5px var(--brand-red);} .bh-severity--hi{background:var(--brand-orange);}
+.bh-severity--md{background:var(--brand-cyan);} .bh-severity--lo{background:var(--brand-green);}
+.bh-content{flex:1;} .bh-title{font-size:13px;font-weight:600;color:white;} .bh-meta{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.bh-status{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap;}
+.bh-status--open{background:rgba(231,0,18,0.12);color:var(--brand-red);} .bh-status--done{background:rgba(78,167,46,0.12);color:var(--brand-green);}
+
+/* Focus Tomorrow */
+.focus-list{list-style:none;}
+.focus-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(30,53,80,0.25);font-size:12px;}
+.focus-item:last-child{border-bottom:none;}
+.focus-num{width:22px;height:22px;border-radius:50%;background:var(--brand-orange);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.focus-text{flex:1;} .focus-priority{font-size:10px;color:var(--text-muted);}
+
+/* AI Insight Box */
+.ai-insight{background:linear-gradient(145deg,rgba(15,158,213,0.06),rgba(14,40,65,0.5));border:1px solid rgba(15,158,213,0.3);border-radius:var(--radius-sm);padding:14px 16px;margin-top:12px;}
+.ai-insight__header{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--brand-cyan);margin-bottom:8px;}
+.ai-insight__body{font-size:12px;color:var(--text-secondary);line-height:1.7;}
+.ai-insight__body b{color:var(--text-primary);}
+
+/* Weekly Chart Mini */
+.week-chart{margin-top:12px;}
+.wc-bars{display:flex;align-items:flex-end;gap:6px;height:45px;}
+.wc-bar{flex:1;border-radius:3px 3px 0 0;min-height:8px;position:relative;}
+.wc-bar:hover::after{content:attr(data-val);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:9px;color:var(--text-primary);white-space:nowrap;padding:2px 4px;background:var(--bg-card);border-radius:3px;margin-bottom:2px;}
+.wc-labels{display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text-muted);}
+
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 18px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:var(--font-sans);}
+.btn--primary{background:linear-gradient(135deg,var(--brand-red),var(--brand-red-dark));color:white;}
+.btn--secondary{background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);}
+.btn--cyan{background:linear-gradient(135deg,var(--brand-cyan),#0C7FA8);color:white;}
+.btn-row{display:flex;gap:8px;justify-content:center;margin-top:8px;}
+
+.skyline-footer{flex-shrink:0;position:relative;height:55px;overflow:hidden;border-top:1px solid var(--border-color);background:linear-gradient(to top,var(--bg-secondary),transparent);}
+.skyline-img{width:100%;height:100%;object-fit:cover;object-position:bottom center;opacity:0.2;mask-image:linear-gradient(to top,black 35%,transparent 100%);-webkit-mask-image:linear-gradient(to top,black 35%,transparent 100%);}
+.footer-info{position:absolute;bottom:5px;left:28px;right:28px;display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);z-index:1;}
+::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <img src="assets/logo-cscec.png" alt="CSCEC" class="top-bar__logo-img" onerror="this.outerHTML='<div style=\'width:32px;height:32px;background:var(--brand-red);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:8px;font-weight:800\'>CSCEC</div>'">
+    <div class="top-bar__brand-text"><h1>赤瞳守護者</h1><span>每日安全簡報</span></div>
+  </div>
+  <div class="top-bar__right"><div class="avatar">陳</div></div>
+</header>
+
+<div class="app-body">
+  <aside class="sidebar">
+    <div class="nav-item">📊</div><div class="nav-item">🚨</div><div class="nav-item">📷</div><div class="nav-item">💬</div><div class="nav-item">📝</div>
+    <div class="nav-divider"></div>
+    <div class="nav-item nav-item--active">📋</div><div class="nav-divider"></div>
+    <div class="nav-item">🤖</div>
+  </aside>
+
+  <main class="main-content">
+    <!-- Header -->
+    <section class="report-header">
+      <div class="date-badge">2025年6月17日 星期二</div>
+      <h1>🛡️ 地盤每日安全簡報</h1>
+      <p>DAILY SAFETY BRIEFING · AI 自動生成 · 赤瞳安全智能平台</p>
+    </section>
+
+    <!-- Weather -->
+    <section class="weather-banner">
+      <span class="weather-icon">☀️</span>
+      <div class="weather-info">
+        <div class="weather-temp">33°C / 體感 37°C</div>
+        <div class="weather-desc">多雲間晴 · UV 極強 · 風力東南 3 級</div>
+      </div>
+      <div class="weather-alerts">
+        <span class="wa-tag wa-tag--hot">🔴 高溫黃色預警</span>
+        <span class="wa-tag wa-tag--rain">💧 降雨概率 30%</span>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats-row">
+      <div class="stat-mini stat-mini--r"><div class="stat-mini__val">5</div><div class="stat-mini__label">未閉環隱患</div></div>
+      <div class="stat-mini stat-mini--o"><div class="stat-mini__val">2</div><div class="stat-mini__label">超期事項</div></div>
+      <div class="stat-mini stat-mini--g"><div class="stat-mini__val">8</div><div class="stat-mini__label">本周已整改</div></div>
+      <div class="stat-mini stat-mini--c"><div class="stat-mini__val">96%</div><div class="stat-mini__label">PPE 合規率</div></div>
+    </section>
+
+    <!-- Content -->
+    <section class="content-grid">
+      <!-- Left: Hazards + Progress -->
+      <article class="section-card">
+        <div class="sc-header">🚨 今日新增隱患摘要</div>
+        <div class="sc-body">
+          <div class="brief-hazard">
+            <span class="bh-severity bh-severity--cr"></span>
+            <div class="bh-content">
+              <div class="bh-title">A1吊運區人員未佩戴安全帽（VLM 自動檢測，置信度 94%）</div>
+              <div class="bh-meta">10:23 · A1 吊運區 · 華興建築 · #H-2025-042</div>
+            </div>
+            <span class="bh-status bh-status--open">待處理</span>
+          </div>
+          <div class="brief-hazard">
+            <span class="bh-severity bh-severity--hi"></span>
+            <div class="bh-content">
+              <div class="bh-title">B2臨邊圍封缺失約 3 米（護欄被拆除）</div>
+              <div class="bh-meta">09:45 · B2 臨邊 · 永達工程 · WhatsApp 通報 · #H-2025-038</div>
+            </div>
+            <span class="bh-status bh-status--open">待處理</span>
+          </div>
+          <div class="brief-hazard">
+            <span class="bh-severity bh-severity--md"></span>
+            <div class="bh-content">
+              <div class="bh-title">塔式起重機 TL-00892 LALG 證書即將到期（剩 28 天）</div>
+              <div class="bh-meta">09:00 · 機械場地 · 系統自動提醒</div>
+            </div>
+            <span class="bh-status bh-status--open">跟進中</span>
+          </div>
+
+          <div style="margin-top:16px;">
+            <div style="font-size:13px;font-weight:700;color:white;margin-bottom:8px;">✅ 整改进展</div>
+            <div class="brief-hazard">
+              <span class="bh-severity bh-severity--lo"></span>
+              <div class="bh-content">
+                <div class="bh-title" style="color:var(--brand-green);">C3臨時電纜套管完成，通過驗收 ✓</div>
+                <div class="bh-meta">#H-2025-031 · 永達工程 · 今日閉環</div>
+              </div>
+              <span class="bh-status bh-status--done">已閉環</span>
+            </div>
+            <div class="brief-hazard">
+              <span class="bh-severity bh-severity--lo"></span>
+              <div class="bh-content">
+                <div class="bh-title" style="color:var(--brand-green);">A1吊運區警示標誌已補裝 ✓</div>
+                <div class="bh-meta">#H-2025-029 · 華興建築 · 昨日閉環</div>
+              </div>
+              <span class="bh-status bh-status--done">已閉環</span>
+            </div>
+          </div>
+
+          <!-- AI Insight -->
+          <div class="ai-insight">
+            <div class="ai-insight__header">🤖 AI 安全洞察</div>
+            <div class="ai-insight__body">
+              本週 PPE 違規佔總隱患的 <b>42%</b>（較上週下降 8%），主要集中於<b>A1 吊運區和 B2 臨邊</b>。
+              建議在明日班前會議重點強調 PPE 規範。天氣持續高溫，
+              <b style="color:var(--brand-orange)">請確保熱工序作業有充足降溫措施和防暑用品</b>。
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Right: Focus + Trend -->
+      <aside>
+        <article class="section-card">
+          <div class="sc-header">🎯 明日重点关注</div>
+          <div class="sc-body">
+            <ul class="focus-list">
+              <li class="focus-item">
+                <span class="focus-num">1</span>
+                <span class="focus-text">確認 A1 吊運區 PPE 整改結果<br><span class="focus-priority">截止：今日 17:00</span></span>
+              </li>
+              <li class="focus-item">
+                <span class="focus-num">2</span>
+                <span class="focus-text">安排永達工程修復 B2 圍封<br><span class="focus-priority">截止：明日上午</span></span>
+              </li>
+              <li class="focus-item">
+                <span class="focus-num">3</span>
+                <span class="focus-text">追蹤塔吊 LALG 更新進度<br><span class="focus-priority">張偉強負責</span></span>
+              </li>
+              <li class="focus-item">
+                <span class="focus-num">4</span>
+                <span class="focus-text">高溫下熱工序現場巡查<br><span class="focus-priority">天文台預警</span></span>
+              </li>
+              <li class="focus-item">
+                <span class="focus-num">5</span>
+                <span class="focus-text">下午 2 點吊運前檢查 T032 表格<br><span class="focus-priority">計劃安排</span></span>
+              </li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="section-card">
+          <div class="sc-header">📈 本周趨勢</div>
+          <div class="sc-body">
+            <div class="week-chart">
+              <div class="wc-bars">
+                <div class="wc-bar" style="background:linear-gradient(to top,var(--brand-red),rgba(231,0,18,0.3));height:80%;" data-val="7 項"></div>
+                <div class="wc-bar" style="background:linear-gradient(to top,var(--brand-red),rgba(231,0,18,0.3));height:95%;" data-val="9 項"></div>
+                <div class="wc-bar" style="background:linear-gradient(to top,var(--brand-orange),rgba(233,113,50,0.3));height:60%;" data-val="5 項"></div>
+                <div class="wc-bar" style="background:linear-gradient(to top,var(--brand-cyan),rgba(15,158,213,0.3));height:45%;" data-val="4 項"></div>
+                <div class="wc-bar" style="background:linear-gradient(to top,var(--brand-green),rgba(78,167,46,0.3));height:30%;" data-val="2 項 (今日)"></div>
+              </div>
+              <div class="wc-labels"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span></div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn--primary">📤 推送至群組</button>
+              <button class="btn btn--secondary">📄 下載 PDF</button>
+            </div>
+          </div>
+        </article>
+      </aside>
+    </section>
+
+    <div class="skyline-footer">
+      <img src="assets/hk-skyline-wide.jpg" alt="" class="skyline-img" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;background:linear-gradient(90deg,transparent,var(--brand-red),transparent);opacity:0.08;\'></div>'">
+      <div class="footer-info"><span>中國建築工程(香港)有限公司 · 基礎公司</span><span>赤瞳安全智能平台 © 2025</span></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

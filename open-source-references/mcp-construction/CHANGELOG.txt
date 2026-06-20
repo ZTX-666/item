@@ -1,0 +1,195 @@
+CMCP — Construction AI MCP Server
+==================================
+Full changelog of all work performed.
+
+Project: /home/ubuntu/.openclaw/workspace/construction-mcp-server/
+Domain:  https://cmcp.us
+VPS:     OVH Canada, 51.222.31.196, 4 cores, 7.6GB RAM, 72GB disk
+Stack:   Node.js + Hono + MCP SDK + Drizzle ORM + Neon Postgres + Upstash Redis + Stripe
+
+
+========================================================================
+COMMIT 1: 05b4058 — Initial commit
+========================================================================
+- Base MCP server with 50 construction management tools
+- Drizzle ORM schema with Neon PostgreSQL
+- MCP Streamable HTTP transport
+- Basic project structure
+
+
+========================================================================
+COMMIT 2: 0aae2fa — Security middleware, user management, Procore, admin API, billing
+========================================================================
+- Added requireContext + executeWithMiddleware + validateProjectAccess
+  security pattern to all 50 tools (multi-tenant data isolation)
+- User management tools: create_user, list_users, update_user_role, remove_user
+- Organization tools: get_org_settings, update_org_settings
+- Admin API: GET /admin/usage, GET /admin/billing, POST /admin/subscription/upgrade
+- Stripe billing integration: checkout sessions, customer portal, webhooks
+- Procore integration routes
+- OAuth 2.1 with PKCE (S256) — full authorization code flow
+- JWT-based auth with RS256 key pair
+- Scope-based access control (28 scopes)
+- Rate limiting via Redis
+- BullMQ usage tracking worker for metered billing
+- Hono auth middleware (honoAuth, requireAdmin)
+
+
+========================================================================
+COMMIT 3: 3418bfc — Self-service signup, Stripe checkout, billing portal
+========================================================================
+
+Files created:
+  - src/auth/signup.ts         — POST /signup endpoint
+  - src/billing/checkout-routes.ts — POST /billing/checkout, POST /billing/portal
+
+Features:
+  - Self-service signup: org creation, Stripe customer, user, OAuth client
+  - 14-day free trial with 2,000 tool calls
+  - Stripe Checkout integration for plan upgrades
+  - Stripe Billing Portal for subscription management
+  - Enhanced subscription error with checkout_url hint
+
+Files modified:
+  - src/auth/routes.ts     — mounted signup route
+  - src/index.ts           — mounted checkout routes
+  - src/lib/errors.ts      — subscriptionRequired() now includes checkout info
+
+
+========================================================================
+COMMIT 4: 60883a0 — Fix 6 critical security vulnerabilities
+========================================================================
+
+C1: Passwordless login bypass (src/auth/routes.ts)
+  - Changed: if (user.passwordHash) → if (!user.passwordHash) return 403
+  - Always validates password now
+
+C2: OAuth client secret never validated (src/auth/oauth.ts)
+  - Added bcrypt validation of client_secret in exchangeAuthorizationCode()
+  - Added bcrypt validation of client_secret in refreshAccessToken()
+  - Updated routes.ts to pass clientSecret through
+
+C3: XSS in OAuth consent page (src/auth/routes.ts)
+  - Added escapeHtml() function
+  - Applied to all 8 interpolated values in consent page HTML
+
+C4: Trial expiration never enforced (src/billing/middleware.ts)
+  - Restructured: check trial expiration BEFORE ACTIVE_STATUSES pass-through
+  - 'trialing' was in ACTIVE_STATUSES, making expiry check unreachable
+
+C5: Private key world-readable
+  - chmod 600 on keys/private.pem, keys/public.pem, .env
+
+C6: SSH password authentication enabled
+  - Overwrote /etc/ssh/sshd_config.d/50-cloud-init.conf
+  - Set PasswordAuthentication no (first-match-wins in OpenSSH)
+
+
+========================================================================
+COMMIT 5: 7050e65 — Landing page, logo, checkout fix
+========================================================================
+
+Files created:
+  - logo.svg               — Programmatic SVG: dark navy, amber crane, circuit nodes
+  - logo.png               — 400x400 PNG conversion via rsvg-convert
+
+Files modified:
+  - src/index.ts           — Added HTML landing page at / with pricing plans
+  - src/billing/checkout-routes.ts — Added payment_method_types: ['card']
+
+
+========================================================================
+UNCOMMITTED — Bug fixes, monitoring, documentation, Discord notifications
+========================================================================
+
+Bug fixes (from QA report — 47/50 → 50/50):
+  - src/tools/estimates/create-estimate.ts — Removed totalCost from insert
+    (total_cost is a GENERATED ALWAYS column computed by Postgres)
+  - src/tools/estimates/import-cost-data.ts — Removed totalCost from insert (same fix)
+  - ALTER TABLE estimates — Added 'reference' to status CHECK constraint
+    (import_cost_data uses status='reference', was not in allowed values)
+
+Files created:
+  - src/monitoring/routes.ts   — GET /status endpoint (CPU, RAM, disk, DB, Redis health)
+  - docs/API.md                — Comprehensive API documentation for AI agents
+                                 (50 tools, all parameters, OAuth flow, billing, errors)
+  - /home/ubuntu/monitor-cmcp.sh — Health monitoring script with Discord alerts
+
+Files modified:
+  - src/index.ts               — Mounted /status route
+  - src/auth/signup.ts         — Added Discord webhook notification on new signups
+  - .env                       — Added DISCORD_WEBHOOK_URL
+
+Systemd services created:
+  - ~/.config/systemd/user/cmcp-monitor.service   — Health check runner
+  - ~/.config/systemd/user/cmcp-monitor.timer     — Every 2 minutes
+  - ~/.config/systemd/user/cmcp-daily-report.service — Daily digest runner
+  - ~/.config/systemd/user/cmcp-daily-report.timer   — Midnight UTC
+
+
+========================================================================
+INFRASTRUCTURE SETUP (not in git)
+========================================================================
+
+Domain & HTTPS:
+  - Registered cmcp.us on Cloudflare
+  - A record → 51.222.31.196
+  - Caddy reverse proxy with auto Let's Encrypt HTTPS
+  - HSTS, security headers (X-Content-Type-Options, X-Frame-Options, etc.)
+  - Config: /etc/caddy/Caddyfile
+
+Systemd:
+  - User service: ~/.config/systemd/user/construction-mcp.service
+  - Enabled with linger (survives logout)
+  - Auto-restart on failure (10s delay)
+
+Firewall:
+  - UFW: allow 22, 80, 443/tcp only
+
+Stripe (live mode):
+  - Products: Starter (prod_TvkyIy4Bx817J8), Pro (prod_Tvl2xzAXfsoIRg),
+    Enterprise (prod_Tvl2TQQQU06xr6)
+  - Base prices: $49/mo, $149/mo, $499/mo
+  - Metered prices: $0.05, $0.03, $0.02 per overage call
+  - Billing meters: mcp_tool_call, mcp_ai_tokens
+  - Webhook: https://cmcp.us/webhooks/stripe
+  - Customer portal configured
+
+Monitoring:
+  - /status endpoint — real-time JSON health metrics
+  - Discord alerts every 2 min on threshold breach
+  - Daily digest at midnight UTC
+  - Recovery notifications on issue resolution
+  - Thresholds: CPU >2.5 warn / >3.5 crit, RAM >70/85%,
+    Disk >70/85%, RSS >512/1024MB, DB >200/1000ms, Redis >50/200ms
+
+Data regions:
+  - VPS: Montreal, Canada (OVH)
+  - Neon Postgres: us-east-1 (AWS Virginia)
+  - Upstash Redis: us-east-1 (likely)
+
+
+========================================================================
+TODO — Future considerations
+========================================================================
+
+*** IMPORTANT: Admin scope change ***
+Currently, every agent that signs up gets 'admin' scope by default
+(src/auth/signup.ts:125). This grants access to:
+  - approve_change_order (financial impact)
+  - create_user / update_user_role / remove_user (user management)
+  - update_org_settings (org configuration)
+  - import_cost_data (bulk data import)
+  - /admin/* HTTP endpoints (usage analytics, billing, subscription changes)
+This is fine for single-user orgs but risky for multi-user orgs
+connecting third-party agents. Should remove 'admin' from the default
+signup scope before marketing to larger teams.
+
+Other TODO items:
+  - Activate payment methods in Stripe Dashboard (cards, etc.)
+  - Delete test orgs/data from database
+  - Submit to MCP directories (MCP Registry, Cline, MCP.so, Smithery)
+  - Set up application-level logging/error tracking (Sentry or similar)
+  - Add pm2 cluster mode when traffic warrants (4 workers on 4 cores)
+  - Add swap file as safety net (fallocate -l 2G /swapfile)
+  - Commit and push latest changes (monitoring, docs, Discord notifications)

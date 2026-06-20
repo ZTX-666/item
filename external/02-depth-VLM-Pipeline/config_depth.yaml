@@ -1,0 +1,12 @@
+# Depth Anything V2 Small（相对深度，非米制）
+model:
+  encoder: vits
+  weights: weights/depth/depth_anything_v2_vits.pth
+  input_size: 518
+
+inference:
+  device: auto   # auto | cuda | cpu
+  fp16: true     # GPU 上启用半精度以加速
+
+output:
+  dir: output/depth

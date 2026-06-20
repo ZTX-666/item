@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+weights/unified/_hf/
+weights/depth/_hf/
+output/detect/images/
+output/detect/*.json
+output/depth/*
+output/pipeline/*

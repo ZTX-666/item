@@ -1,0 +1,41 @@
+{
+  "cameras": [
+    {
+      "id": "front_gate",
+      "name": "Front Gate Camera",
+      "source": "rtsp://admin:password@192.168.1.100:554/stream",
+      "enabled": true,
+      "location": "Zone A - Main Entrance",
+      "description": "Monitors main entrance for PPE compliance"
+    },
+    {
+      "id": "loading_dock",
+      "name": "Loading Dock Camera",
+      "source": "rtsp://admin:password@192.168.1.101:554/stream",
+      "enabled": true,
+      "location": "Zone B - Loading Area",
+      "description": "Monitors loading dock operations"
+    },
+    {
+      "id": "scaffolding",
+      "name": "Scaffolding Area Camera",
+      "source": "rtsp://admin:password@192.168.1.102:554/stream",
+      "enabled": true,
+      "location": "Zone C - Construction Area",
+      "description": "Monitors high-risk scaffolding area"
+    },
+    {
+      "id": "equipment_yard",
+      "name": "Equipment Yard Camera",
+      "source": "rtsp://admin:password@192.168.1.103:554/stream",
+      "enabled": false,
+      "location": "Zone D - Equipment Storage",
+      "description": "Monitors equipment storage area"
+    }
+  ],
+  "settings": {
+    "auto_refresh_interval": 30,
+    "alerts_enabled": true,
+    "daily_report_time": "18:00"
+  }
+}

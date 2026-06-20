@@ -1,0 +1,114 @@
+{
+  "filename": "PPT模板4-3_中建香港VIS手冊2024版(NEW).pptx",
+  "slide_count": 3,
+  "slide_size": {
+    "width_inches": 10.0,
+    "height_inches": 7.5,
+    "width_mm": 254.0,
+    "height_mm": 190.5,
+    "aspect_ratio": "100:75"
+  },
+  "layouts": [
+    {
+      "name": "標題投影片",
+      "index": 0
+    },
+    {
+      "name": "標題及內容",
+      "index": 1
+    },
+    {
+      "name": "章節標題",
+      "index": 2
+    }
+  ],
+  "fonts": {
+    "黑体_None": {
+      "name": "黑体",
+      "size": null,
+      "count": 3,
+      "slides": [
+        2,
+        3
+      ]
+    },
+    "黑体_20.0": {
+      "name": "黑体",
+      "size": 20.0,
+      "count": 2,
+      "slides": [
+        2,
+        3
+      ]
+    },
+    "仿宋_18.0": {
+      "name": "仿宋",
+      "size": 18.0,
+      "count": 3,
+      "slides": [
+        3
+      ]
+    }
+  },
+  "colors_found": [],
+  "shapes_analysis": [
+    {
+      "slide_num": 1,
+      "shapes_count": 0,
+      "fonts": [],
+      "colors": [],
+      "images": 0,
+      "text_boxes": 0
+    },
+    {
+      "slide_num": 2,
+      "shapes_count": 3,
+      "fonts": [
+        {
+          "name": "黑体",
+          "size": null
+        },
+        {
+          "name": "黑体",
+          "size": null
+        },
+        {
+          "name": "黑体",
+          "size": 20.0
+        }
+      ],
+      "colors": [],
+      "images": 0,
+      "text_boxes": 3
+    },
+    {
+      "slide_num": 3,
+      "shapes_count": 2,
+      "fonts": [
+        {
+          "name": "黑体",
+          "size": null
+        },
+        {
+          "name": "黑体",
+          "size": 20.0
+        },
+        {
+          "name": "仿宋",
+          "size": 18.0
+        },
+        {
+          "name": "仿宋",
+          "size": 18.0
+        },
+        {
+          "name": "仿宋",
+          "size": 18.0
+        }
+      ],
+      "colors": [],
+      "images": 0,
+      "text_boxes": 2
+    }
+  ]
+}
