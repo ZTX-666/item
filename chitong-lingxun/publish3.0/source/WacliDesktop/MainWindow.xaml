@@ -1,0 +1,265 @@
+<Window x:Class="WacliDesktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="wacli 控制台 · WhatsApp 本地同步" Height="820" Width="1140"
+        MinHeight="640" MinWidth="960">
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- Brand strip (Site Guard style) -->
+    <Border Grid.Row="0" Background="#f5f6f8" BorderBrush="#e8e0e0" BorderThickness="0,0,0,1" Padding="16,10">
+      <TextBlock Text="WhatsApp 本地消息同步平台" FontSize="13" Foreground="{StaticResource SgMutedBrush}"/>
+    </Border>
+
+    <!-- Red gradient header -->
+    <Border Grid.Row="1" Background="{StaticResource SgHeaderGradient}" Padding="20,18">
+      <Grid>
+        <StackPanel HorizontalAlignment="Center">
+          <TextBlock Text="wacli 控制台" FontSize="22" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+          <TextBlock Text="登录配对 · 消息同步 · 附件下载 · SQLite 查询"
+                     FontSize="12" Foreground="#ffe8e8" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+        </StackPanel>
+        <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="#ffffff22"
+                CornerRadius="10" Padding="12,8" BorderBrush="#ffffff44" BorderThickness="1">
+          <StackPanel>
+            <TextBlock x:Name="StatusText" Text="检测中…" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+            <TextBlock x:Name="MediaDownloadText" Text="" Foreground="#ffe0e0" FontSize="11" Margin="0,2,0,0"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+
+    <!-- Main content -->
+    <Border Grid.Row="2" Background="{StaticResource SgBgBrush}" Padding="16,12,16,16">
+      <TabControl>
+        <!-- Login -->
+        <TabItem Header="登录">
+          <Grid Margin="4,12,4,4">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Column="0" Grid.RowSpan="2" Margin="0,0,8,0" Style="{StaticResource SgCard}">
+              <StackPanel>
+                <TextBlock Text="方式一：二维码登录" FontWeight="SemiBold" FontSize="15" Foreground="{StaticResource SgPrimaryBrush}" Margin="0,0,0,6"/>
+                <TextBlock Text="手机 WhatsApp → 已连接的设备 → 连接设备" Foreground="{StaticResource SgMutedBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                <StackPanel Orientation="Horizontal">
+                  <Button x:Name="BtnQrStart" Content="生成二维码" Style="{StaticResource PrimaryButton}" Click="BtnQrStart_Click"/>
+                  <Button x:Name="BtnAuthStop" Content="停止登录" Click="BtnAuthStop_Click"/>
+                </StackPanel>
+                <Border Background="#fafafa" CornerRadius="8" Height="280" Margin="0,12,0,0" BorderBrush="{StaticResource SgBorderBrush}" BorderThickness="1">
+                  <Image x:Name="QrImage" Stretch="Uniform" Margin="12"/>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Grid.Row="0" Margin="8,0,0,8" Style="{StaticResource SgCard}">
+              <StackPanel>
+                <TextBlock Text="方式二：手机号登录" FontWeight="SemiBold" FontSize="15" Foreground="{StaticResource SgPrimaryBrush}" Margin="0,0,0,6"/>
+                <TextBlock Text="E.164 格式，如 +85284941215" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,0,8"/>
+                <TextBlock Text="手机号" Foreground="{StaticResource SgMutedBrush}" FontSize="12"/>
+                <TextBox x:Name="PhoneInput" Text="+852" Margin="0,4,0,10"/>
+                <Button x:Name="BtnPhoneStart" Content="获取配对码" Style="{StaticResource PrimaryButton}" Click="BtnPhoneStart_Click"/>
+                <TextBlock Text="配对码" Foreground="{StaticResource SgMutedBrush}" Margin="0,16,0,4"/>
+                <TextBlock x:Name="PairingCodeText" Text="—" FontSize="32" FontFamily="Consolas"
+                           Foreground="{StaticResource SgPrimaryBrush}" HorizontalAlignment="Center"/>
+              </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Grid.Row="1" Margin="8,8,0,0" Style="{StaticResource SgCard}">
+              <StackPanel>
+                <TextBlock Text="会话与同步" FontWeight="SemiBold" FontSize="15" Foreground="{StaticResource SgPrimaryBrush}" Margin="0,0,0,8"/>
+                <WrapPanel>
+                  <Button Content="启动 sync（含附件）" Click="BtnSyncStart_Click"/>
+                  <Button Content="停止 sync" Click="BtnSyncStop_Click"/>
+                  <Button Content="刷新状态" Click="BtnRefreshStatus_Click"/>
+                  <Button Content="退出登录" Style="{StaticResource DangerButton}" Click="BtnLogout_Click"/>
+                </WrapPanel>
+                <TextBox x:Name="StatusBox" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto" Height="160" FontFamily="Consolas" FontSize="11" Margin="0,8,0,0"/>
+                <TextBox x:Name="AuthLogBox" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto" Height="70" FontFamily="Consolas" FontSize="11"
+                         Foreground="{StaticResource SgMutedBrush}" Margin="0,8,0,0"/>
+              </StackPanel>
+            </Border>
+          </Grid>
+        </TabItem>
+
+        <!-- Browse -->
+        <TabItem Header="数据浏览">
+          <Grid Margin="4,12,4,4">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="170"/>
+            </Grid.RowDefinitions>
+            <WrapPanel Grid.Row="0">
+              <Button Content="消息明细" Tag="message_detail" Click="Preset_Click"/>
+              <Button Content="含附件消息" Tag="messages_with_attachment" Click="Preset_Click"/>
+              <Button Content="聊天列表" Tag="chat_summary" Click="Preset_Click"/>
+              <Button Content="消息总数" Tag="message_count" Click="Preset_Click"/>
+              <Button Content="附件消息数" Tag="attachment_count" Click="Preset_Click"/>
+            </WrapPanel>
+            <DockPanel Grid.Row="1" Margin="0,8,0,8">
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="下载选中附件" Click="BtnDownloadAttachment_Click" Margin="0,0,8,0"/>
+                <Button Content="打开附件文件" Click="BtnOpenAttachment_Click" Margin="0,0,8,0"/>
+                <Button Content="wacli 搜索" Style="{StaticResource PrimaryButton}" Width="100" Click="BtnSearch_Click"/>
+              </StackPanel>
+              <TextBox x:Name="SearchInput" DockPanel.Dock="Left" Margin="0,0,8,0" VerticalContentAlignment="Center"/>
+            </DockPanel>
+            <Border Grid.Row="2" Style="{StaticResource SgCard}" Padding="8">
+              <Grid>
+                <ListView x:Name="MessageListView" SelectionMode="Single" BorderThickness="0"
+                          SelectionChanged="MessageListView_SelectionChanged">
+                  <ListView.View>
+                    <GridView>
+                      <GridViewColumn Header="缩略图" Width="84">
+                        <GridViewColumn.CellTemplate>
+                          <DataTemplate>
+                            <Border Width="72" Height="72" Background="#fafafa" CornerRadius="6" Margin="2">
+                              <Image Source="{Binding Thumbnail}" Stretch="Uniform" Margin="4"/>
+                            </Border>
+                          </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                      </GridViewColumn>
+                      <GridViewColumn Header="日期" Width="140" DisplayMemberBinding="{Binding MessageDate}"/>
+                      <GridViewColumn Header="WhatsApp ID" Width="200" DisplayMemberBinding="{Binding WhatsappId}"/>
+                      <GridViewColumn Header="发送人" Width="90" DisplayMemberBinding="{Binding SenderName}"/>
+                      <GridViewColumn Header="附件" Width="80" DisplayMemberBinding="{Binding AttachmentType}"/>
+                      <GridViewColumn Header="状态" Width="72" DisplayMemberBinding="{Binding AttachmentStatus}"/>
+                      <GridViewColumn Header="消息" Width="260" DisplayMemberBinding="{Binding MessageText}"/>
+                    </GridView>
+                  </ListView.View>
+                </ListView>
+                <DataGrid x:Name="BrowseGrid" AutoGenerateColumns="True" IsReadOnly="True" Visibility="Collapsed"/>
+              </Grid>
+            </Border>
+            <Border Grid.Row="3" Margin="0,8,0,0" Style="{StaticResource SgCard}">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="选中消息 · 附件详情" FontWeight="SemiBold"
+                           Foreground="{StaticResource SgPrimaryBrush}" Margin="0,0,0,6"/>
+                <TextBox x:Name="AttachmentDetailBox" IsReadOnly="True" AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11"
+                         Foreground="{StaticResource SgMutedBrush}" BorderThickness="0" Background="Transparent"/>
+              </DockPanel>
+            </Border>
+          </Grid>
+        </TabItem>
+
+        <!-- SQL -->
+        <TabItem Header="SQLite 查询">
+          <Grid Margin="4,12,4,4">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="220"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Column="0" Grid.RowSpan="2" Margin="0,0,8,0" Style="{StaticResource SgCard}">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="数据表" FontWeight="SemiBold"
+                           Foreground="{StaticResource SgPrimaryBrush}" Margin="0,0,0,8"/>
+                <ListBox x:Name="TableList" SelectionChanged="TableList_SelectionChanged" BorderThickness="0"/>
+              </DockPanel>
+            </Border>
+
+            <Border Grid.Column="1" Grid.Row="0" Margin="0,0,0,8" Style="{StaticResource SgCard}">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                  <TextBlock Text="行数上限" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,8,0"/>
+                  <TextBox x:Name="SqlLimitInput" Width="60" Text="100" VerticalContentAlignment="Center"/>
+                  <Button Content="执行查询" Style="{StaticResource PrimaryButton}" Margin="12,0,0,0" Click="BtnSqlRun_Click"/>
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Top" Text="SQL（仅 SELECT）" FontWeight="SemiBold"
+                           Foreground="{StaticResource SgPrimaryBrush}" Margin="0,0,0,6"/>
+                <TextBox x:Name="SqlInput" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                         FontFamily="Consolas" FontSize="12"
+                         Text="SELECT datetime(ts,'unixepoch','localtime') AS message_date, sender_jid AS whatsapp_id, sender_name, media_type AS attachment_type, filename AS attachment_filename, local_path AS attachment_local_path FROM messages ORDER BY ts DESC LIMIT 20"/>
+              </DockPanel>
+            </Border>
+
+            <Border Grid.Column="1" Grid.Row="1" Style="{StaticResource SgCard}" Padding="8">
+              <Grid>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                  <Border DockPanel.Dock="Left" Width="96" Height="96" Background="#fafafa"
+                          BorderBrush="{StaticResource SgBorderBrush}" BorderThickness="1" CornerRadius="8" Margin="0,0,8,0">
+                    <Image x:Name="SqlPreviewImage" Stretch="Uniform" Margin="6"/>
+                  </Border>
+                  <TextBox x:Name="SchemaBox" IsReadOnly="True" Height="96" FontFamily="Consolas" FontSize="11"
+                           Foreground="{StaticResource SgMutedBrush}" BorderThickness="0" Background="Transparent"/>
+                </DockPanel>
+                <ListView x:Name="SqlMessageListView" Grid.Row="1" SelectionMode="Single" BorderThickness="0"
+                          SelectionChanged="SqlMessageListView_SelectionChanged">
+                  <ListView.View>
+                    <GridView>
+                      <GridViewColumn Header="缩略图" Width="84">
+                        <GridViewColumn.CellTemplate>
+                          <DataTemplate>
+                            <Border Width="72" Height="72" Background="#fafafa" CornerRadius="6" Margin="2">
+                              <Image Source="{Binding Thumbnail}" Stretch="Uniform" Margin="4"/>
+                            </Border>
+                          </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                      </GridViewColumn>
+                      <GridViewColumn Header="日期" Width="140" DisplayMemberBinding="{Binding MessageDate}"/>
+                      <GridViewColumn Header="WhatsApp ID" Width="180" DisplayMemberBinding="{Binding WhatsappId}"/>
+                      <GridViewColumn Header="附件" Width="80" DisplayMemberBinding="{Binding AttachmentType}"/>
+                      <GridViewColumn Header="状态" Width="72" DisplayMemberBinding="{Binding AttachmentStatus}"/>
+                      <GridViewColumn Header="消息/路径" Width="280" DisplayMemberBinding="{Binding MessageText}"/>
+                    </GridView>
+                  </ListView.View>
+                </ListView>
+                <DataGrid x:Name="SqlGrid" Grid.Row="1" AutoGenerateColumns="True" IsReadOnly="True"
+                          Visibility="Collapsed" SelectionChanged="SqlGrid_SelectionChanged"/>
+              </Grid>
+            </Border>
+          </Grid>
+        </TabItem>
+
+        <!-- Console -->
+        <TabItem Header="wacli 命令">
+          <Border Margin="4,12,4,4" Style="{StaticResource SgCard}">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+              </Grid.RowDefinitions>
+              <WrapPanel Grid.Row="0">
+                <Button Content="doctor" Tag='doctor' Click="QuickCmd_Click"/>
+                <Button Content="auth status" Tag='auth status' Click="QuickCmd_Click"/>
+                <Button Content="chats list" Tag='--read-only --json chats list --limit 20' Click="QuickCmd_Click"/>
+                <Button Content="messages list" Tag='--read-only --json messages list --limit 20' Click="QuickCmd_Click"/>
+              </WrapPanel>
+              <DockPanel Grid.Row="1" Margin="0,8,0,8">
+                <Button DockPanel.Dock="Right" Content="运行" Style="{StaticResource PrimaryButton}" Click="BtnCmdRun_Click"/>
+                <TextBox x:Name="CmdArgsInput" FontFamily="Consolas" Text="--read-only messages list --limit 10"/>
+              </DockPanel>
+              <TextBox x:Name="CmdOutput" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True"
+                       VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11"/>
+            </Grid>
+          </Border>
+        </TabItem>
+      </TabControl>
+    </Border>
+  </Grid>
+</Window>

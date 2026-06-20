@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>風險雷達 | 赤瞳安全智能平台 · 中國建築(香港)</title>
+<style>
+:root{
+  --brand-red:#E70012;--brand-red-dark:#C4000F;--brand-red-glow:rgba(231,0,18,0.15);
+  --brand-navy:#0E2841;--brand-navy-deep:#091B2D;--brand-navy-mid:#142538;--brand-navy-light:#1A3652;
+  --brand-cyan:#0F9ED5;--brand-cyan-glow:rgba(15,158,213,0.15);
+  --brand-green:#4EA72E;--brand-orange:#E97132;--brand-purple:#A02B93;
+  --bg-primary:#0a1521;--bg-secondary:#0F1D2E;--bg-card:#152638;--bg-input:#0C1826;
+  --border-color:#1E3550;--text-primary:#E4E9EF;--text-secondary:#889BB0;--text-muted:#546B82;
+  --radius-sm:6px;--radius-md:10px;--font-sans:'Inter','Noto Sans SC',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-sans);background:var(--bg-primary);color:var(--text-primary);min-height:100vh;}
+
+.top-bar{height:56px;background:linear-gradient(135deg,var(--brand-navy),var(--brand-navy-deep));border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:100;}
+.top-bar__logo{display:flex;align-items:center;gap:12px;}
+.top-bar__logo-img{height:32px;width:auto;}
+.top-bar__brand-text h1{font-size:15px;font-weight:700;color:white;letter-spacing:1px;line-height:1.2;}
+.top-bar__brand-text span{font-size:9px;color:var(--text-muted);text-transform:uppercase;}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--brand-navy-light),var(--brand-cyan));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;border:2px solid var(--border-color);}
+.top-bar__right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+
+.app-body{display:flex;height:calc(100vh-56px);}
+.sidebar{width:64px;background:var(--bg-secondary);border-right:1px solid var(--border-color);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;}
+.nav-item{width:46px;height:46px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;transition:all .15s;font-size:18px;border:1px solid transparent;}
+.nav-item:hover{background:var(--bg-card);color:var(--text-primary);border-color:var(--border-color);}
+.nav-item--active{background:var(--brand-red-glow);color:var(--brand-red);border-color:rgba(231,0,18,0.2);}
+.nav-divider{width:28px;height:1px;background:var(--border-color);margin:8px 0;}
+
+.main-content{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;}
+
+.page-header h1{font-size:22px;font-weight:800;color:white;display:flex;align-items:center;gap:10px;}
+.page-header p{font-size:13px;color:var(--text-secondary);margin-top:4px;}
+
+/* Risk Level Cards */
+.risk-levels{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.rl-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:16px;text-align:center;position:relative;overflow:hidden;transition:all .25s;cursor:pointer;}
+.rl-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,0.3);}
+.rl-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;}
+.rl-card--critical{border-color:rgba(231,0,18,0.3);} .rl-card--critical::after{background:var(--brand-red);}
+.rl-card--high{border-color:rgba(233,113,50,0.3);} .rl-card--high::after{background:var(--brand-orange);}
+.rl-card--medium{border-color:rgba(15,158,213,0.3);} .rl-card--medium::after{background:var(--brand-cyan);}
+.rl-card--low{border-color:rgba(78,167,46,0.3);} .rl-card--low::after{background:var(--brand-green);}
+.rl-val{font-size:32px;font-weight:800;}
+.rl-card--critical .rl-val{color:var(--brand-red);} .rl-card--high .rl-val{color:var(--brand-orange);}
+.rl-card--medium .rl-val{color:var(--brand-cyan);} .rl-card--low .rl-val{color:var(--brand-green);}
+.rl-label{font-size:11px;color:var(--text-muted);margin-top:2px;} .rl-desc{font-size:10px;color:var(--text-dim);margin-top:4px;}
+
+/* Weather Panel */
+.weather-detail{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.wd-item{text-align:center;}
+.wd-icon{font-size:28px;margin-bottom:4px;} .wd-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;}
+.wd-val{font-size:20px;font-weight:800;color:white;} .wd-unit{font-size:11px;color:var(--text-muted);}
+.wd-advice{font-size:11px;color:var(--brand-orange);margin-top:4px;padding:3px 8px;background:rgba(233,113,50,0.08);border-radius:4px;}
+
+/* Alert Cards */
+.alert-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;}
+.alert-section{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;display:flex;flex-direction:column;}
+.as-header{padding:12px 16px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary);font-size:13px;font-weight:700;color:white;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.as-body{padding:14px 16px;overflow-y:auto;flex:1;}
+
+.alert-card{padding:12px 14px;background:var(--bg-secondary);border:1px solid rgba(30,53,80,0.4);border-radius:var(--radius-sm);margin-bottom:8px;border-left:3px solid;transition:all .15s;cursor:pointer;}
+.alert-card:last-child{margin-bottom:0;}
+.alert-card:hover{border-left-width:4px;background:var(--bg-card-hover);}
+.alert-card--weather{border-left-color:var(--brand-orange);} .alert-card--news{border-left-color:var(--brand-red);} .alert-card--policy{border-left-color:var(--brand-purple);}
+.ac-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.ac-title{font-size:13px;font-weight:600;color:white;} .ac-time{font-size:10px;color:var(--text-muted);}
+.ac-desc{font-size:12px;color:var(--text-secondary);line-height:1.5;}
+.ac-tags{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;}
+.ac-tag{font-size:9px;padding:2px 7px;border-radius:3px;font-weight:600;}
+.ac-tag--auto{background:var(--brand-cyan-glow);color:var(--brand-cyan);} ac-tag--linked{background:rgba(160,43,147,0.1);color:var(--brand-purple);}
+
+/* Settings Toggle */
+.settings-row{display:flex;align-items:center;justify-content:space-between;background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:10px 16px;}
+.settings-text{font-size:12px;color:var(--text-secondary);} .settings-text b{color:var(--text-primary);}
+.toggle-switch{width:40px;height:22px;background:var(--brand-green);border-radius:11px;position:relative;cursor:pointer;transition:all .25s;}
+.toggle-switch::after{content:'';position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:white;transition:all .25s;box-shadow:0 1px 3px rgba(0,0,0,0.3);}
+
+.skyline-footer{flex-shrink:0;position:relative;height:55px;overflow:hidden;border-top:1px solid var(--border-color);background:linear-gradient(to top,var(--bg-secondary),transparent);}
+.skyline-img{width:100%;height:100%;object-fit:cover;object-position:bottom center;opacity:0.2;mask-image:linear-gradient(to top,black 35%,transparent 100%);-webkit-mask-image:linear-gradient(to top,black 35%,transparent 100%);}
+.footer-info{position:absolute;bottom:5px;left:24px;right:24px;display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);z-index:1;}
+::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <img src="assets/logo-cscec.png" alt="CSCEC" class="top-bar__logo-img" onerror="this.outerHTML='<div style=\'width:32px;height:32px;background:var(--brand-red);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:8px;font-weight:800\'>CSCEC</div>'">
+    <div class="top-bar__brand-text"><h1>赤瞳守護者</h1><span>外部風險監測系統</span></div>
+  </div>
+  <div class="top-bar__right"><div class="avatar">陳</div></div>
+</header>
+
+<div class="app-body">
+  <aside class="sidebar">
+    <div class="nav-item">📊</div><div class="nav-item">🚨</div><div class="nav-item">📷</div><div class="nav-item">💬</div><div class="nav-item">📝</div>
+    <div class="nav-divider"></div><div class="nav-item nav-item--active">🛡️</div><div class="nav-divider"></div><div class="nav-item">🤖</div>
+  </aside>
+
+  <main class="main-content">
+    <section class="page-header">
+      <h1>🛡️ 風險雷達</h1>
+      <p>實時監測香港天文台天氣預警 · 建造業新聞事故 · 外部風險自動關聯本地作業計劃</p>
+    </section>
+
+    <!-- Risk Levels -->
+    <section class="risk-levels">
+      <div class="rl-card rl-card--critical"><div class="rl-val">1</div><div class="rl-label">嚴重風險</div><div class="rl-desc">需立即行動</div></div>
+      <div class="rl-card rl-card--high"><div class="rl-val">2</div><div class="rl-label">高風險</div><div class="rl-desc">24小時內處理</div></div>
+      <div class="rl-card rl-card--medium"><div class="rl-val">3</div><div class="rl-label">中等風險</div><div class="rl-desc">本週內跟進</div></div>
+      <div class="rl-card rl-card--low"><div class="rl-val">4</div><div class="rl-label">低風險</div><div class="rl-desc">持續觀察</div></div>
+    </section>
+
+    <!-- Weather Detail -->
+    <section class="weather-detail">
+      <div class="wd-item"><div class="wd-icon">🌡️</div><div class="wd-label">溫度</div><div class="wd-val">33<span class="wd-unit">°C</span></div><div class="wd-advice">高溫警告</div></div>
+      <div class="wd-item"><div class="wd-icon">💧</div><div class="wd-label">濕度</div><div class="wd-val">78<span class="wd-unit">%</span></div><div class="wd-advice" style="color:var(--brand-cyan);background:rgba(15,158,213,0.08);">正常範圍</div></div>
+      <div class="wd-item"><div class="wd-icon">🌬️</div><div class="wd-label">風力</div><div class="wd-val">3<span class="wd-unit">級</span></div><div class="wd-advice" style="color:var(--brand-green);background:rgba(78,167,46,0.08);">適合作業</div></div>
+      <div class="wd-item"><div class="wd-icon">☀️</div><div class="wd-label">UV 指數</div><div class="wd-val">11<span class="wd-unit">+</span></div><div class="wd-advice">極強防護</div></div>
+    </section>
+
+    <!-- Alerts -->
+    <section class="alert-grid">
+      <article class="alert-section">
+        <div class="as-header">🌡️ 天氣預警 & AI 建議</div>
+        <div class="as-body">
+          <div class="alert-card alert-card--weather">
+            <div class="ac-header"><span class="ac-title">🔴 高溫黃色警告生效中</span><span class="ac-time">今日 06:00 發布</span></div>
+            <div class="ac-desc">天文台發出高溫黃色警告，預料本港地區天气酷熱，最高氣温約 33°C 或以上。</div>
+            <div class="ac-tags">
+              <span class="ac-tag ac-tag--auto">🤖 自動推送到熱工序表格 T061</span>
+              <span class="ac-tag ac-tag--linked">已關聯: 熱工序檢查表、健康聲明 T001</span>
+            </div>
+          </div>
+          <div class="alert-card alert-card--weather" style="border-left-color:var(--brand-cyan);">
+            <div class="ac-header"><span class="ac-title">💧 降雨概率上升至 30%</span><span class="ac-time">更新於 08:00</span></div>
+            <div class="ac-desc">下午可能有驟雨，臨邊及高空作業需做好防滑措施。電力設備注意防水保護。</div>
+            <div class="ac-tags">
+              <span class="ac-tag ac-tag--auto">🤖 自動提醒: 臨電檢查表 T051</span>
+            </div>
+          </div>
+          <div class="alert-card" style="border-left-color:var(--brand-green);">
+            <div class="ac-header"><span class="ac-title">✅ 強風警告未生效</span><span class="ac-time">持續監測中</span></div>
+            <div class="ac-desc">目前風力東南 3 級，適合吊運作業。若升級為強風信號將自動通知。</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="alert-section">
+        <div class="as-header">📰 行业新聞 & 安全舆情</div>
+        <div class="as-body">
+          <div class="alert-card alert-card--news">
+            <div class="ac-header"><span class="ac-title">⛔ 荃灣地盤吊運事故 — 1人受傷</span><span class="ac-time">昨日 14:30 新聞</span></div>
+            <div class="ac-desc">荃灣某建築地盤發生吊運物體墜落事故，一名工人腳部受傷送院。勞工署已介入調查。</div>
+            <div class="ac-tags">
+              <span class="ac-tag ac-tag--linked">AI 關聯: 本地 A1 吊運區 → 建議複查吊鉤限位裝置</span>
+              <span class="ac-tag ac-tag--auto">已推送至吊運前檢查表 T032</span>
+            </div>
+          </div>
+          <div class="alert-card alert-card--news" style="border-left-color:var(--brand-orange);">
+            <div class="ac-header"><span class="ac-title">⚡ 屋宇署加強 PPE 執法力度</span><span class="ac-time">2025-06-15 政策</span></div>
+            <div class="ac-desc">屋宇署宣布將加大對工地 PPE 合規性的巡查力度，違規罰款上限提高至 HK$50,000。</div>
+            <div class="ac-tags">
+              <span class="ac-tag ac-tag--auto">🤖 已同步至安全制度庫</span>
+            </div>
+          </div>
+          <div class="alert-card" style="border-left-color:var(--brand-purple);">
+            <div class="ac-header"><span class="ac-title">📋 建造業新安全指引發佈</span><span class="ac-time">2025-06-12 制度更新</span></div>
+            <div class="ac-desc">建造業議會發佈新版「高溫作業安全管理指引」，新增熱應激評估標準。</div>
+            <div class="ac-tags">
+              <span class="ac-tag ac-tag--auto">🤖 已入庫至制度模板 #159</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- Monitor Settings -->
+    <section class="settings-row">
+      <div class="settings-text">🔄 <b>外部風險自動監控</b> — 每 30 分鐘輪詢天文台 + 新聞源，發現新預警即時推送卡片通知</div>
+      <div class="toggle-switch"></div>
+    </section>
+
+    <div class="skyline-footer">
+      <img src="assets/hk-skyline-wide.jpg" alt="" class="skyline-img" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;background:linear-gradient(90deg,transparent,var(--brand-red),transparent);opacity:0.08;\'></div>'">
+      <div class="footer-info"><span>中國建築工程(香港)有限公司 · 基礎公司</span><span>赤瞳安全智能平台 © 2025</span></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

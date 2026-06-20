@@ -1,0 +1,53 @@
+{
+  "id": "T004",
+  "index": 4,
+  "title": "安全施工計劃自檢報告",
+  "policy_context": "(四) 落實執行《地盤健康、安全、環境及防疫管理》實務指引（第六版） > 安全施工計劃 > 年 月至 月安全施工計劃",
+  "nearby_paragraphs": [
+    "附件1.3",
+    "年 月 至 月",
+    "安全施工計劃",
+    "年 月至 月安全施工計劃",
+    "地盤名稱： 填表日期： / /",
+    "附件1.4",
+    "年 月",
+    "安全施工計劃自檢報告"
+  ],
+  "rows": 5,
+  "columns": 2,
+  "non_empty_cell_count": 5,
+  "first_row": [
+    "地 盤 名 稱：",
+    ""
+  ],
+  "headers_guess": [
+    "地 盤 名 稱：",
+    ""
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T004_安全施工計劃自檢報告.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T004_安全施工計劃自檢報告.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T004_安全施工計劃自檢報告.md",
+  "cells": [
+    [
+      "地 盤 名 稱：",
+      ""
+    ],
+    [
+      "地 盤 經 理：",
+      ""
+    ],
+    [
+      "地 盤 總 管：",
+      ""
+    ],
+    [
+      "高級 安全管理人員：",
+      ""
+    ],
+    [
+      "日 期：",
+      ""
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

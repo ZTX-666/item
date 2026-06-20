@@ -1,0 +1,70 @@
+{
+  "id": "T026",
+  "index": 26,
+  "title": "Supervisor 監督人員姓名: / Supervisor 監督人員姓名: / Supervisor 監督人員姓名: / Tel. 電話: / Tel. 電話: / Signature 簽署: / Signature 簽署:",
+  "policy_context": "5.6其他 > 附件 > Implement hot work permitsystem執行熱工序許可證制度",
+  "nearby_paragraphs": [
+    "本人證明前述安全措施已全部妥善執行。本人已清楚向下列工作人員講解有關安全工作步驟，並保證遵守。",
+    "(To be signed before commencement of works 開工前簽發)",
+    "Acceptance of the Permit 接受有關許可證",
+    "I have read and understood this Permit and shall undertake to work in accordance with all the conditions laid down in it.",
+    "本人已細閱及明白許可證內容，並承諾於工作期間謹遵有關條款。",
+    "Details of the work team 工作人員資料",
+    "I have read and understood this Permit and shall undertake to work in accordance with all the conditions laid down in it.",
+    "本人已細閱及明白許可證內容，並承諾於工作期間謹遵有關條款。"
+  ],
+  "rows": 3,
+  "columns": 7,
+  "non_empty_cell_count": 21,
+  "first_row": [
+    "Supervisor 監督人員姓名:",
+    "Supervisor 監督人員姓名:",
+    "Supervisor 監督人員姓名:",
+    "Tel. 電話:",
+    "Tel. 電話:",
+    "Signature 簽署:",
+    "Signature 簽署:"
+  ],
+  "headers_guess": [
+    "Supervisor 監督人員姓名:",
+    "Supervisor 監督人員姓名:",
+    "Supervisor 監督人員姓名:",
+    "Tel. 電話:",
+    "Tel. 電話:",
+    "Signature 簽署:",
+    "Signature 簽署:"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T026_Supervisor 監督人員姓名_ _ Supervisor 監督人員姓名_ _ Supervisor 監督人員姓名_ _ Tel. 電話.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T026_Supervisor 監督人員姓名_ _ Supervisor 監督人員姓名_ _ Supervisor 監督人員姓名_ _ Tel. 電話.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T026_Supervisor 監督人員姓名_ _ Supervisor 監督人員姓名_ _ Supervisor 監督人員姓名_ _ Tel. 電話.md",
+  "cells": [
+    [
+      "Supervisor 監督人員姓名:",
+      "Supervisor 監督人員姓名:",
+      "Supervisor 監督人員姓名:",
+      "Tel. 電話:",
+      "Tel. 電話:",
+      "Signature 簽署:",
+      "Signature 簽署:"
+    ],
+    [
+      "Workman 工作人員",
+      "Name 姓名:",
+      "Signature 簽署:",
+      "Signature 簽署:",
+      "Name 姓名:",
+      "Name 姓名:",
+      "Signature 簽署:"
+    ],
+    [
+      "Workman 工作人員",
+      "Name 姓名:",
+      "Signature 簽署:",
+      "Signature 簽署:",
+      "Name 姓名:",
+      "Name 姓名:",
+      "Signature 簽署:"
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

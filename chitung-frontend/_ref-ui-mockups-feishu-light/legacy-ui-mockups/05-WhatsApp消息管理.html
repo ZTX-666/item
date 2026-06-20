@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp 消息 | 赤瞳安全智能平台 · 中國建築(香港)</title>
+<style>
+:root{
+  --brand-red:#E70012;--brand-red-dark:#C4000F;--brand-red-glow:rgba(231,0,18,0.15);
+  --brand-navy:#0E2841;--brand-navy-deep:#091B2D;--brand-navy-mid:#142538;--brand-navy-light:#1A3652;
+  --brand-cyan:#0F9ED5;--brand-cyan-glow:rgba(15,158,213,0.15);
+  --brand-green:#4EA72E;--brand-orange:#E97132;--brand-purple:#A02B93;
+  --bg-primary:#0a1521;--bg-secondary:#0F1D2E;--bg-card:#152638;--bg-input:#0C1826;
+  --border-color:#1E3550;--text-primary:#E4E9EF;--text-secondary:#889BB0;--text-muted:#546B82;
+  --radius-sm:6px;--radius-md:10px;--font-sans:'Inter','Noto Sans SC',system-ui,sans-serif;--font-mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-sans);background:var(--bg-primary);color:var(--text-primary);min-height:100vh;}
+
+.top-bar{height:56px;background:linear-gradient(135deg,var(--brand-navy),var(--brand-navy-deep));border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:100;}
+.top-bar__logo{display:flex;align-items:center;gap:12px;}
+.top-bar__logo-img{height:32px;width:auto;}
+.top-bar__brand-text h1{font-size:15px;font-weight:700;color:white;letter-spacing:1px;line-height:1.2;}
+.top-bar__brand-text span{font-size:9px;color:var(--text-muted);text-transform:uppercase;}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--brand-navy-light),var(--brand-cyan));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;border:2px solid var(--border-color);}
+.top-bar__right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+
+.app-body{display:flex;height:calc(100vh-56px);}
+.sidebar{width:64px;background:var(--bg-secondary);border-right:1px solid var(--border-color);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;}
+.nav-item{width:46px;height:46px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;transition:all .15s;font-size:18px;border:1px solid transparent;}
+.nav-item:hover{background:var(--bg-card);color:var(--text-primary);border-color:var(--border-color);}
+.nav-item--active{background:var(--brand-red-glow);color:var(--brand-red);border-color:rgba(231,0,18,0.2);}
+.nav-divider{width:28px;height:1px;background:var(--border-color);margin:8px 0;}
+
+.main-content{flex:1;display:flex;overflow:hidden;}
+
+/* Three Column Layout */
+.col-groups{width:240px;background:var(--bg-secondary);border-right:1px solid var(--border-color);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.col-msgs{width:340px;background:var(--bg-primary);border-right:1px solid var(--border-color);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
+.col-detail{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;}
+
+/* Group List */
+.col-header{padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:600;font-size:13px;color:white;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.group-list{padding:8px;flex:1;overflow-y:auto;}
+.group-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;margin-bottom:2px;}
+.group-item:hover{background:var(--bg-card);}
+.group-item--active{background:rgba(15,158,213,0.08);border-left:3px solid var(--brand-cyan);}
+.group-avatar{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.group-name{font-size:13px;font-weight:500;color:white;} .group-meta{font-size:10px;color:var(--text-muted);margin-top:1px;}
+.group-badge{margin-left:auto;background:var(--brand-red);color:white;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;min-width:18px;text-align:center;}
+
+/* Message List */
+.msg-header{padding:12px 16px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.msg-avatar{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;font-size:15px;}
+.msg-info h3{font-size:13px;font-weight:600;color:white;} .msg-info p{font-size:10px;color:var(--text-muted);}
+.msg-list{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:2px;}
+.msg-row{display:flex;gap:8px;padding:8px 4px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;}
+.msg-row:hover{background:var(--bg-secondary);}
+.msg-row--active{background:rgba(15,158,213,0.06);}
+.msg-bubble-mini{font-size:12px;color:var(--text-primary);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;}
+.msg-time{font-size:10px;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap;margin-top:2px;}
+.msg-tag{font-size:9px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;}
+.msg-tag--hazard{background:rgba(231,0,18,0.12);color:var(--brand-red);} .msg-tag--info{background:rgba(15,158,213,0.12);color:var(--brand-cyan);}
+
+/* Detail View */
+.detail-sender{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.detail-avatar{width:36px;height:36px;border-radius:10px;background:var(--brand-navy-light);display:flex;align-items:center;justify-content:center;font-size:15px;color:white;font-weight:600;}
+.detail-name{font-size:14px;font-weight:600;color:white;} .detail-time{font-size:11px;color:var(--text-muted);}
+.detail-bubble{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:16px 18px;font-size:13px;line-height:1.7;color:var(--text-primary);position:relative;}
+.detail-bubble::before{content:'';position:absolute;top:-6px;left:24px;width:12px;height:12px;background:var(--bg-card);border-left:1px solid var(--border-color);border-top:1px solid var(--border-color);transform:rotate(45deg);}
+.detail-images{display:flex;gap:6px;margin-top:10px;}
+.detail-img{width:80px;height:60px;border-radius:var(--radius-sm);object-fit:cover;border:1px solid var(--border-color);}
+
+/* AI Extraction Panel */
+.ai-panel{background:linear-gradient(145deg,var(--brand-navy-mid),var(--bg-card));border:1px solid var(--brand-cyan);border-radius:var(--radius-md);padding:16px;position:relative;overflow:hidden;}
+.ai-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--brand-cyan),var(--brand-purple));}
+.ai-panel__title{font-size:13px;font-weight:700;color:var(--brand-cyan);display:flex;align-items:center;gap:6px;margin-bottom:12px;}
+.ai-field{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(30,53,80,0.4);font-size:12px;}
+.ai-field:last-child{border-bottom:none;}
+.ai-field__label{color:var(--text-secondary);} .ai-field__value{color:white;font-weight:600;text-align:right;max-width:55%;}
+.ai-field__value--hazard{color:var(--brand-red);} .ai-field__value--location{color:var(--brand-cyan);} .ai-field__value--contractor{color:var(--brand-orange);}
+.ai-actions{display:flex;gap:8px;margin-top:14px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;font-family:var(--font-sans);}
+.btn--primary{background:linear-gradient(135deg,var(--brand-red),var(--brand-red-dark));color:white;}
+.btn--secondary{background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);}
+.btn--secondary:hover{border-color:var(--brand-cyan);color:var(--brand-cyan);}
+.btn--cyan{background:linear-gradient(135deg,var(--brand-cyan),#0C7FA8);color:white;}
+
+.skyline-footer{flex-shrink:0;position:relative;height:45px;overflow:hidden;border-top:1px solid var(--border-color);background:linear-gradient(to top,var(--bg-secondary),transparent);}
+.skyline-img{width:100%;height:100%;object-fit:cover;object-position:bottom center;opacity:0.18;mask-image:linear-gradient(to top,black 35%,transparent 100%);-webkit-mask-image:linear-gradient(to top,black 35%,transparent 100%);}
+.footer-info{position:absolute;bottom:4px;left:24px;right:24px;display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);z-index:1;}
+::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <img src="assets/logo-cscec.png" alt="CSCEC" class="top-bar__logo-img" onerror="this.outerHTML='<div style=\'width:32px;height:32px;background:var(--brand-red);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:8px;font-weight:800\'>CSCEC</div>'">
+    <div class="top-bar__brand-text"><h1>赤瞳守護者</h1><span>WhatsApp 歸檔系統</span></div>
+  </div>
+  <div class="top-bar__right"><div class="avatar">陳</div></div>
+</header>
+
+<div class="app-body">
+  <aside class="sidebar">
+    <div class="nav-item">📊</div><div class="nav-item">🚨</div><div class="nav-item">📷</div>
+    <div class="nav-item nav-item--active">💬</div><div class="nav-item">📝</div><div class="nav-divider"></div><div class="nav-item">🤖</div>
+  </aside>
+
+  <!-- Group List -->
+  <section class="col-groups">
+    <div class="col-header">💬 群組列表</div>
+    <div class="group-list">
+      <div class="group-item group-item--active">
+        <div class="group-avatar">🏗️</div>
+        <div><div class="group-name">地盤安全通報群</div><div class="group-meta">32 人 · 今日 15 條消息</div></div>
+        <span class="group-badge">3</span>
+      </div>
+      <div class="group-item">
+        <div class="group-avatar">⚡</div>
+        <div><div class="group-name">電力安全組</div><div class="group-meta">12 人 · 今日 5 條</div></div>
+      </div>
+      <div class="group-item">
+        <div class="group-avatar">🔥</div>
+        <div><div class="group-name">熱工序監察組</div><div class="group-meta">8 人 · 今日 2 條</div></div>
+      </div>
+      <div class="group-item">
+        <div class="group-avatar">🏗️</div>
+        <div><div class="group-name">A區施工群</div><div class="group-meta">18 人 · 今日 8 條</div></div>
+      </div>
+      <div class="group-item">
+        <div class="group-avatar">📋</div>
+        <div><div class="group-name">每日安全簡報</div><div class="group-meta">自動推送</div></div>
+      </div>
+      <div class="group-item">
+        <div class="group-avatar">🚧</div>
+        <div><div class="group-name">棚架工程協調</div><div class="group-meta">6 人 · 今日 1 條</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Message List -->
+  <section class="col-msgs">
+    <div class="msg-header">
+      <div class="msg-avatar">🏗️</div>
+      <div class="msg-info"><h3>地盤安全通報群</h3><p>32 位成員</p></div>
+    </div>
+    <div class="msg-list">
+      <div class="msg-row msg-row--active">
+        <div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <span class="msg-bubble-mini">李工：@陳主任 B2區臨邊的護欄被拆了，需要重新安裝，照片已發上來</span>
+          </div>
+          <div class="msg-time">09:45</div>
+        </div>
+        <span class="msg-tag msg-tag--hazard">隱患</span>
+      </div>
+      <div class="msg-row">
+        <div>
+          <div class="msg-bubble-mini">王隊長：今日吊運作業安排在下午 2 點開始，請提前檢查吊鉤和限位器</div>
+          <div class="msg-time">09:30</div>
+        </div>
+        <span class="msg-tag msg-tag--info">通知</span>
+      </div>
+      <div class="msg-row">
+        <div>
+          <div class="msg-bubble-mini">系統自動：【天氣預警】天文台發布高溫黃色警告，請注意防暑降溫措施</div>
+          <div class="msg-time">09:00</div>
+        </div>
+        <span class="msg-tag msg-tag--info">預警</span>
+      </div>
+      <div class="msg-row">
+        <div>
+          <div class="msg-bubble-mini">張偉強：塔吊操作員證件明天到期，我會今天去更新 LALG 資料</div>
+          <div class="msg-time">昨日 17:20</div>
+        </div>
+        <span class="msg-tag msg-tag--info">LALG</span>
+      </div>
+      <div class="msg-row">
+        <div>
+          <div class="msg-bubble-mini">陳主任：收到，LALG 更新後通知我，我同步到 Plant Summary List</div>
+          <div class="msg-time">昨日 17:25</div>
+        </div>
+      </div>
+      <div class="msg-row">
+        <div>
+          <div class="msg-bubble-mini">永達工程代表：C3 區域的臨時電纜我們已經套管完成，請安排驗收</div>
+          <div class="msg-time">昨日 16:40</div>
+        </div>
+        <span class="msg-tag msg-tag--info">進展</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Detail + AI Panel -->
+  <section class="col-detail">
+    <div class="detail-sender">
+      <div class="detail-avatar">李</div>
+      <div><div class="detail-name">李工（現場監理）</div><div class="detail-time">2025-06-17 09:45 · 地盤安全通報群</div></div>
+    </div>
+
+    <div class="detail-bubble">
+      @陳主任 B2區臨邊的護欄被拆了，需要重新安裝。位置在 B2 區北側，靠近塔吊基座的位置，大概有 3 米的缺口。照片已發。
+      <div class="detail-images">
+        <div style="width:80px;height:60px;border-radius:6px;background:linear-gradient(135deg,#2a3a4a,#1a2838);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--border-color);">📷</div>
+        <div style="width:80px;height:60px;border-radius:6px;background:linear-gradient(135deg,#2a3a4a,#1a2838);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--border-color);">📷</div>
+      </div>
+    </div>
+
+    <!-- AI Extraction -->
+    <div class="ai-panel">
+      <div class="ai-panel__title">🤖 AI 信息提取結果</div>
+      <div class="ai-field"><span class="ai-field__label">隱患類型</span><span class="ai-field__value ai-field__value--hazard">臨邊圍封缺失</span></div>
+      <div class="ai-field"><span class="ai-field__label">嚴重程度</span><span class="ai-field__value ai-field__value--hazard">高風險 (High)</span></div>
+      <div class="ai-field"><span class="ai-field__label">具體位置</span><span class="ai-field__value ai-field__value--location">B2 區北側 · 塔吊基座附近 · 約 3 米</span></div>
+      <div class="ai-field"><span class="ai-field__label">可能責任方</span><span class="ai-field__value ai-field__value--contractor">待確認（推測：永達/華興）</span></div>
+      <div class="ai-field"><span class="ai-field__label">建議截止日期</span><span class="ai-field__value">2025-06-19 (48小時內)</span></div>
+      <div class="ai-field"><span class="ai-field__label">關聯表格</span><span class="ai-field__value" style="color:var(--brand-cyan);">T041 棚架檢查表 / T011 臨時設施</span></div>
+
+      <div class="ai-actions">
+        <button class="btn btn--primary">✉️ 生成整改通知</button>
+        <button class="btn btn--secondary">✅ 確認入庫</button>
+        <button class="btn btn--secondary">✏️ 編輯修正</button>
+      </div>
+    </div>
+
+    <div class="skyline-footer">
+      <img src="assets/hk-skyline-wide.jpg" alt="" class="skyline-img" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;background:linear-gradient(90deg,transparent,var(--brand-red),transparent);opacity:0.08;\'></div>'">
+      <div class="footer-info"><span>中國建築工程(香港)有限公司</span><span>赤瞳 © 2025</span></div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

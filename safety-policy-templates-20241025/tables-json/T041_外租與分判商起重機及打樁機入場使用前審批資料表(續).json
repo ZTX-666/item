@@ -1,0 +1,43 @@
+{
+  "id": "T041",
+  "index": 41,
+  "title": "外租與分判商起重機及打樁機入場使用前審批資料表(續)",
+  "policy_context": "6.8 地盤負荷物移動機械 > 附件 > 吊運安全守則",
+  "nearby_paragraphs": [
+    "致 監管組織： 機械部／基礎機械部 日期：________________",
+    "註: 地盤必須提前至少1個星期將相關文件交相應的監管組織；",
+    "請圈出合適選項；若有其他相關資料提供，請清楚正確書寫在備註欄內；",
+    "如果不適用，則在欄內填寫NA。",
+    "抄送：地盤安全部",
+    "外租與分判商起重機及打樁機入場使用前審批資料表(續)",
+    "(審批：由監管組織填寫)",
+    "致 地盤：_____________________________ 日期：________________"
+  ],
+  "rows": 1,
+  "columns": 4,
+  "non_empty_cell_count": 2,
+  "first_row": [
+    "機械型號：",
+    "",
+    "自 編 號：",
+    ""
+  ],
+  "headers_guess": [
+    "機械型號：",
+    "",
+    "自 編 號：",
+    ""
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T041_外租與分判商起重機及打樁機入場使用前審批資料表(續).docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T041_外租與分判商起重機及打樁機入場使用前審批資料表(續).json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T041_外租與分判商起重機及打樁機入場使用前審批資料表(續).md",
+  "cells": [
+    [
+      "機械型號：",
+      "",
+      "自 編 號：",
+      ""
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

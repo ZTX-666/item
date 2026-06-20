@@ -1,0 +1,7 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Chitung">
+  <rect width="256" height="256" rx="56" fill="#0e2841"/>
+  <circle cx="128" cy="128" r="72" fill="#e70012"/>
+  <circle cx="128" cy="128" r="38" fill="#ffffff"/>
+  <circle cx="128" cy="128" r="20" fill="#0f9ed5"/>
+  <path d="M58 132h34M164 132h34M128 58v34M128 164v34" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+</svg>

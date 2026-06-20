@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤瞳安全智能平台 - AI 对话助手</title>
+<style>
+  :root {
+    --bg-primary: #0f1923;
+    --bg-secondary: #1a2332;
+    --bg-card: #1e2d3d;
+    --bg-hover: #253545;
+    --bg-input: #15202b;
+    --border-color: #2a3f52;
+    --accent-red: #e94560;
+    --accent-orange: #f59e0b;
+    --accent-green: #10b981;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --accent-purple: #8b5cf6;
+    --text-primary: #e8edf2;
+    --text-secondary: #8899aa;
+    --text-muted: #5a6a7a;
+    --font-family: 'Inter', 'Noto Sans SC', sans-serif;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family: var(--font-family); background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+
+  .top-bar { height:52px; background:linear-gradient(180deg,#1a2332 0%,#15202b 100%); border-bottom:1px solid var(--border-color); display:flex; align-items:center; padding:0 20px; position:sticky; top:0; z-index:100; }
+  .top-bar__logo { display:flex; align-items:center; gap:10px; font-weight:700; font-size:15px; color:var(--accent-red); letter-spacing:1px; }
+  .top-bar__logo-icon { width:28px;height:28px; background:linear-gradient(135deg,var(--accent-red),#ff6b6b); border-radius:8px; display:flex;align-items:center;justify-content:center;font-size:14px; }
+  .top-bar__nav { display:flex; gap:2px; margin-left:40px; }
+  .top-bar__nav-item { padding:6px 14px;border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);cursor:pointer;transition:all 0.15s; }
+  .top-bar__nav-item:hover { color:var(--text-primary);background:var(--bg-hover); }
+  .top-bar__nav-item--active { color:var(--text-white);background:rgba(233,69,96,0.15);font-weight:600; }
+  .top-bar__right { margin-left:auto;display:flex;align-items:center;gap:12px; }
+  .avatar { width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent-cyan),var(--accent-blue));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white; }
+
+  .main-layout { display:flex; height:calc(100vh - 52px); }
+
+  /* 左侧：对话历史 */
+  .chat-sidebar { width:260px; background:var(--bg-secondary); border-right:1px solid var(--border-color); display:flex; flex-direction:column; flex-shrink:0; }
+  .chat-sidebar__header { padding:14px 16px; border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between; }
+  .chat-sidebar__title { font-size:14px; font-weight:600; color:var(--text-white); }
+  .new-chat-btn {
+    width:28px; height:28px; border-radius:var(--radius-sm); border:1px solid var(--border-color);
+    background:var(--bg-input); color:var(--accent-cyan); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px;
+    transition: all 0.15s;
+  }
+  .new-chat-btn:hover { background:var(--accent-cyan); color:var(--bg-primary); }
+
+  .chat-list { flex:1; overflow-y:auto; }
+  .chat-item {
+    padding:10px 16px; cursor:pointer; transition:background 0.12s; border-left:3px solid transparent;
+    display:flex; align-items:center; gap:8px;
+  }
+  .chat-item:hover { background:var(--bg-hover); }
+  .chat-item--active { background:var(--bg-hover); border-left-color:var(--accent-cyan); }
+  .chat-item__icon { font-size:14px; flex-shrink:0; }
+  .chat-item__info { flex:1; min-width:0; }
+  .chat-item__name { font-size:12px; font-weight:500; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chat-item__preview { font-size:11px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+  .chat-item__time { font-size:10px; color:var(--text-muted); flex-shrink:0; }
+
+  .chat-sidebar__footer {
+    padding:12px 16px; border-top:1px solid var(--border-color); font-size:11px; color:var(--text-muted);
+  }
+
+  /* 右侧：对话主区 */
+  .chat-main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .chat-header {
+    padding:12px 20px; border-bottom:1px solid var(--border-color);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .chat-header__info { display:flex; align-items:center; gap:10px; }
+  .chat-header__avatar {
+    width:36px; height:36px; border-radius:50%;
+    background:linear-gradient(135deg, var(--accent-red), #ff6b6b);
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px;
+  }
+  .chat-header__name { font-size:14px; font-weight:600; color:var(--text-white); }
+  .chat-header__status { font-size:11px; color:var(--accent-green); display:flex; align-items:center; gap:4px; }
+  .chat-header__status-dot { width:6px; height:6px; border-radius:50%; background:var(--accent-green); }
+
+  /* 消息流 */
+  .chat-messages { flex:1; overflow-y:auto; padding:20px; }
+
+  .message {
+    display:flex; gap:10px; margin-bottom:16px; max-width:85%;
+  }
+  .message--user { margin-left:auto; flex-direction:row-reverse; }
+  .message__avatar {
+    width:30px; height:30px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+  }
+  .message--ai .message__avatar { background:linear-gradient(135deg, var(--accent-red), #ff6b6b); }
+  .message--user .message__avatar { background:linear-gradient(135deg, var(--accent-cyan), var(--accent-blue)); color:white; font-size:12px; font-weight:700; }
+
+  .message__content { flex:1; }
+  .message__bubble {
+    padding:10px 14px; border-radius:var(--radius-md); font-size:13px; line-height:1.6;
+  }
+  .message--ai .message__bubble {
+    background:var(--bg-card); border:1px solid var(--border-color);
+    border-top-left-radius:4px;
+  }
+  .message--user .message__bubble {
+    background:linear-gradient(135deg, rgba(6,182,212,0.2), rgba(59,130,246,0.2));
+    border:1px solid rgba(6,182,212,0.3);
+    border-top-right-radius:4px; color:var(--text-white);
+  }
+  .message__time { font-size:10px; color:var(--text-muted); margin-top:4px; }
+  .message--user .message__time { text-align:right; }
+
+  /* AI 操作卡片 */
+  .action-card {
+    margin-top:10px; background:var(--bg-secondary); border:1px solid var(--border-color);
+    border-radius:var(--radius-sm); overflow:hidden;
+  }
+  .action-card__header {
+    display:flex; align-items:center; gap:6px; padding:8px 12px;
+    background:rgba(6,182,212,0.08); border-bottom:1px solid var(--border-color);
+    font-size:12px; font-weight:600; color:var(--accent-cyan);
+  }
+  .action-card__body { padding:10px 12px; font-size:12px; color:var(--text-secondary); line-height:1.5; }
+  .action-card__actions { display:flex; gap:6px; padding:8px 12px; border-top:1px solid var(--border-color); }
+
+  .btn { display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:var(--radius-sm); font-size:11px; font-weight:500; cursor:pointer; border:none; transition:all 0.15s; }
+  .btn--primary { background:linear-gradient(135deg,var(--accent-red),#ff6b6b);color:white; }
+  .btn--secondary { background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color); }
+  .btn--ai { background:rgba(6,182,212,0.15);color:var(--accent-cyan);border:1px solid rgba(6,182,212,0.3); }
+  .btn--confirm { background:rgba(16,185,129,0.15);color:var(--accent-green);border:1px solid rgba(16,185,129,0.3); }
+  .btn--danger { background:rgba(233,69,96,0.15);color:var(--accent-red);border:1px solid rgba(233,69,96,0.3); }
+
+  /* 工具调用进度链 */
+  .tool-chain {
+    margin-top:10px; padding:10px 12px; background:var(--bg-input);
+    border:1px solid var(--border-color); border-radius:var(--radius-sm);
+  }
+  .tool-chain__title { font-size:11px; font-weight:600; color:var(--accent-cyan); margin-bottom:6px; }
+  .tool-chain__step {
+    display:flex; align-items:center; gap:8px; padding:3px 0; font-size:11px;
+  }
+  .tool-chain__dot {
+    width:8px; height:8px; border-radius:50%; flex-shrink:0;
+  }
+  .tool-chain__dot--done { background:var(--accent-green); }
+  .tool-chain__dot--active { background:var(--accent-cyan); box-shadow:0 0 6px var(--accent-cyan); animation:pulse 1.5s infinite; }
+  .tool-chain__dot--pending { background:var(--border-color); }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+  .tool-chain__name { color:var(--text-secondary); }
+  .tool-chain__name--done { color:var(--accent-green); }
+  .tool-chain__name--active { color:var(--accent-cyan); font-weight:600; }
+
+  /* 快捷命令面板 */
+  .quick-commands {
+    padding:12px 20px; border-top:1px solid var(--border-color); background:var(--bg-secondary);
+  }
+  .quick-commands__label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+  .quick-commands__list { display:flex; gap:6px; flex-wrap:wrap; }
+  .quick-cmd {
+    padding:6px 12px; background:var(--bg-input); border:1px solid var(--border-color);
+    border-radius:20px; font-size:12px; color:var(--text-secondary); cursor:pointer; transition:all 0.12s;
+    display:flex; align-items:center; gap:4px;
+  }
+  .quick-cmd:hover { border-color:var(--accent-cyan); color:var(--accent-cyan); }
+
+  /* 输入区 */
+  .chat-input {
+    padding:12px 20px; border-top:1px solid var(--border-color); background:var(--bg-secondary);
+    display:flex; gap:8px; align-items:flex-end;
+  }
+  .chat-input__field {
+    flex:1; padding:10px 14px; background:var(--bg-input); border:1px solid var(--border-color);
+    border-radius:var(--radius-md); color:var(--text-primary); font-size:13px; outline:none;
+    resize:none; min-height:40px; max-height:120px; line-height:1.5;
+    font-family:var(--font-family);
+  }
+  .chat-input__field:focus { border-color:var(--accent-cyan); }
+  .chat-input__field::placeholder { color:var(--text-muted); }
+  .chat-input__send {
+    width:40px; height:40px; border-radius:50%; border:none;
+    background:linear-gradient(135deg, var(--accent-red), #ff6b6b);
+    color:white; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:all 0.15s; flex-shrink:0;
+  }
+  .chat-input__send:hover { transform:scale(1.05); box-shadow:0 2px 8px rgba(233,69,96,0.4); }
+  .chat-input__attach {
+    width:36px; height:36px; border-radius:50%; border:1px solid var(--border-color);
+    background:var(--bg-input); color:var(--text-muted); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:16px;
+    transition:all 0.15s; flex-shrink:0;
+  }
+  .chat-input__attach:hover { border-color:var(--accent-cyan); color:var(--accent-cyan); }
+
+  /* AI 思考中动画 */
+  .thinking-dots { display:inline-flex; gap:4px; padding:4px 0; }
+  .thinking-dots span {
+    width:6px; height:6px; border-radius:50%; background:var(--accent-cyan);
+    animation:thinkBounce 1.2s infinite;
+  }
+  .thinking-dots span:nth-child(2) { animation-delay:0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay:0.4s; }
+  @keyframes thinkBounce { 0%,80%,100%{transform:translateY(0);} 40%{transform:translateY(-6px);} }
+
+  /* 隐患引用卡 */
+  .hazard-ref {
+    display:inline-flex; align-items:center; gap:6px; padding:4px 8px;
+    background:rgba(233,69,96,0.1); border:1px solid rgba(233,69,96,0.3);
+    border-radius:4px; font-size:11px; color:var(--accent-red); margin:4px 2px;
+  }
+
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border-color);border-radius:3px; }
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <div class="top-bar__logo-icon">👁</div>
+    <span>赤瞳安全智能平台</span>
+  </div>
+  <nav class="top-bar__nav">
+    <div class="top-bar__nav-item">📊 工作台</div>
+    <div class="top-bar__nav-item">📋 隐患台账</div>
+    <div class="top-bar__nav-item top-bar__nav-item--active">🤖 AI 助手</div>
+    <div class="top-bar__nav-item">📷 视觉巡检</div>
+  </nav>
+  <div class="top-bar__right"><div class="avatar">陈</div></div>
+</header>
+
+<div class="main-layout">
+
+  <!-- 左侧：对话历史 -->
+  <div class="chat-sidebar">
+    <div class="chat-sidebar__header">
+      <span class="chat-sidebar__title">🤖 对话记录</span>
+      <button class="new-chat-btn">+</button>
+    </div>
+    <div class="chat-list">
+      <div class="chat-item chat-item--active">
+        <span class="chat-item__icon">⚠️</span>
+        <div class="chat-item__info">
+          <div class="chat-item__name">B区临边隐患处理</div>
+          <div class="chat-item__preview">已生成警告信，等待发送确认</div>
+        </div>
+        <span class="chat-item__time">14:50</span>
+      </div>
+      <div class="chat-item">
+        <span class="chat-item__icon">📋</span>
+        <div class="chat-item__info">
+          <div class="chat-item__name">T032 吊运检查表生成</div>
+          <div class="chat-item__preview">表格已生成并下载</div>
+        </div>
+        <span class="chat-item__time">11:20</span>
+      </div>
+      <div class="chat-item">
+        <span class="chat-item__icon">🔍</span>
+        <div class="chat-item__info">
+          <div class="chat-item__name">制度查询 — 临边围封规定</div>
+          <div class="chat-item__preview">已找到 T032 第5.2条</div>
+        </div>
+        <span class="chat-item__time">昨天</span>
+      </div>
+      <div class="chat-item">
+        <span class="chat-item__icon">📊</span>
+        <div class="chat-item__info">
+          <div class="chat-item__name">上周隐患趋势分析</div>
+          <div class="chat-item__preview">吊装作业隐患占比最高</div>
+        </div>
+        <span class="chat-item__time">06-13</span>
+      </div>
+    </div>
+    <div class="chat-sidebar__footer">
+      💡 你可以随时输入自然语言，AI 会自动识别意图并调用工具
+    </div>
+  </div>
+
+  <!-- 右侧：对话主区 -->
+  <div class="chat-main">
+    <div class="chat-header">
+      <div class="chat-header__info">
+        <div class="chat-header__avatar">👁</div>
+        <div>
+          <div class="chat-header__name">赤瞳 AI 助手</div>
+          <div class="chat-header__status">
+            <div class="chat-header__status-dot"></div>
+            在线 · 本地数据安全
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn--secondary" style="font-size:11px;">📋 对话记录</button>
+        <button class="btn btn--secondary" style="font-size:11px;">⚙️</button>
+      </div>
+    </div>
+
+    <div class="chat-messages">
+
+      <!-- 用户消息 -->
+      <div class="message message--user">
+        <div class="message__avatar">陈</div>
+        <div class="message__content">
+          <div class="message__bubble">
+            B区3楼临边护栏被拆了，有人穿越，帮我处理一下
+          </div>
+          <div class="message__time">14:42</div>
+        </div>
+      </div>
+
+      <!-- AI 回复：工具调用进度 -->
+      <div class="message message--ai">
+        <div class="message__avatar">👁</div>
+        <div class="message__content">
+          <div class="message__bubble">
+            收到，我正在处理这个隐患。让我先调用相关工具获取信息：
+            <div class="tool-chain">
+              <div class="tool-chain__title">🔧 工具调用链</div>
+              <div class="tool-chain__step">
+                <div class="tool-chain__dot tool-chain__dot--done"></div>
+                <span class="tool-chain__name tool-chain__name--done">1. 查询隐患台账 → 已找到相关记录 HZ-20250612-001</span>
+              </div>
+              <div class="tool-chain__step">
+                <div class="tool-chain__dot tool-chain__dot--done"></div>
+                <span class="tool-chain__name tool-chain__name--done">2. 查询制度模板 → 已找到 T032 第5.2条</span>
+              </div>
+              <div class="tool-chain__step">
+                <div class="tool-chain__dot tool-chain__dot--done"></div>
+                <span class="tool-chain__name tool-chain__name--done">3. 生成警告信草稿 → 已生成 WARN-20250616-001</span>
+              </div>
+            </div>
+          </div>
+          <div class="message__time">14:43 · 调用 3 个工具</div>
+        </div>
+      </div>
+
+      <!-- AI 回复：结果 + 确认卡片 -->
+      <div class="message message--ai">
+        <div class="message__avatar">👁</div>
+        <div class="message__content">
+          <div class="message__bubble">
+            已完成处理！以下是汇总：
+
+            <div style="margin-top:8px;">
+              <strong>📌 关联隐患：</strong>
+              <span class="hazard-ref">HZ-20250612-001 · 严重 · B区3楼</span>
+            </div>
+            <div style="margin-top:6px;">
+              <strong>📋 引用制度：</strong>T032《临边作业安全管理规定》第5.2条 — 拆除临边护栏后须于当日恢复
+            </div>
+            <div style="margin-top:6px;">
+              <strong>🏢 责任分判商：</strong>宏基建筑有限公司（李国强）
+            </div>
+
+            <div class="action-card">
+              <div class="action-card__header">📝 警告信草稿 — WARN-20250616-001</div>
+              <div class="action-card__body">
+                已自动生成致「宏基建筑有限公司」的警告信，引用 HZ-20250612-001 违规事项及 T032 相关条款。整改期限：2025-06-18（2个工作日内）。
+              </div>
+              <div class="action-card__actions">
+                <button class="btn btn--confirm" style="font-size:11px;">✅ 确认并发送</button>
+                <button class="btn btn--secondary" style="font-size:11px;">👁 预览文档</button>
+                <button class="btn btn--ai" style="font-size:11px;">✏️ AI 修改</button>
+              </div>
+            </div>
+          </div>
+          <div class="message__time">14:43</div>
+        </div>
+      </div>
+
+      <!-- 用户确认 -->
+      <div class="message message--user">
+        <div class="message__avatar">陈</div>
+        <div class="message__content">
+          <div class="message__bubble">
+            先让我看看文档预览，语气再严厉一点
+          </div>
+          <div class="message__time">14:44</div>
+        </div>
+      </div>
+
+      <!-- AI 修改后 -->
+      <div class="message message--ai">
+        <div class="message__avatar">👁</div>
+        <div class="message__content">
+          <div class="message__bubble">
+            好的，已将语气调整为「严厉」模式，强化了违规后果的描述。
+
+            <div class="action-card">
+              <div class="action-card__header">📝 警告信草稿（修改版）— WARN-20250616-001</div>
+              <div class="action-card__body">
+                <div style="color:var(--accent-orange);">🔄 已修改：语气从「标准」调整为「严厉」，增加了以下内容：</div>
+                <ul style="margin:6px 0 0 16px;color:var(--text-secondary);font-size:12px;line-height:1.6;">
+                  <li>强调「同类违规再次发生将发出<strong style="color:var(--accent-red);">罚款通知</strong>」</li>
+                  <li>增加「保留暂停相关作业的权利」条款</li>
+                  <li>整改期限保持不变：2025-06-18</li>
+                </ul>
+              </div>
+              <div class="action-card__actions">
+                <button class="btn btn--confirm" style="font-size:11px;">✅ 确认并发送</button>
+                <button class="btn btn--secondary" style="font-size:11px;">👁 预览文档</button>
+                <button class="btn btn--danger" style="font-size:11px;">↩️ 撤销修改</button>
+              </div>
+            </div>
+          </div>
+          <div class="message__time">14:45</div>
+        </div>
+      </div>
+
+      <!-- AI 思考中 -->
+      <div class="message message--ai" style="opacity:0.6;">
+        <div class="message__avatar">👁</div>
+        <div class="message__content">
+          <div class="message__bubble" style="display:flex;align-items:center;gap:8px;">
+            <div class="thinking-dots"><span></span><span></span><span></span></div>
+            <span style="font-size:12px;color:var(--text-muted);">正在等待确认...</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 快捷命令 -->
+    <div class="quick-commands">
+      <div class="quick-commands__label">快捷指令</div>
+      <div class="quick-commands__list">
+        <div class="quick-cmd">📋 今日隐患</div>
+        <div class="quick-cmd">📷 巡检结果</div>
+        <div class="quick-cmd">📊 每日简报</div>
+        <div class="quick-cmd">⏰ 超期隐患</div>
+        <div class="quick-cmd">🏗️ 机械到期</div>
+        <div class="quick-cmd">🌡️ 天气预警</div>
+        <div class="quick-cmd">🔍 制度查询</div>
+      </div>
+    </div>
+
+    <!-- 输入区 -->
+    <div class="chat-input">
+      <button class="chat-input__attach" title="上传附件">📎</button>
+      <textarea class="chat-input__field" placeholder="输入消息，或使用快捷指令...（如：帮我查下B区还有哪些未闭环隐患）" rows="1"></textarea>
+      <button class="chat-input__send">➤</button>
+    </div>
+
+  </div>
+</div>
+
+<div style="position:fixed;bottom:12px;left:12px;background:rgba(0,0,0,0.8);color:#aaa;font-size:10px;padding:6px 10px;border-radius:6px;font-family:monospace;pointer-events:none;">
+  🎨 UI 设计稿 v2.0 — AI 对话助手模块 | 赤瞳安全智能平台
+</div>
+
+</body>
+</html>

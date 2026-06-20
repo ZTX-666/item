@@ -1,0 +1,113 @@
+<UserControl x:Class="WacliDesktop.Views.SqlView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:h="clr-namespace:WacliDesktop.Helpers">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="210" MinWidth="210"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="148"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <Border Grid.Column="0" Grid.RowSpan="2" Margin="0,0,4,0" Style="{StaticResource SgCard}" Padding="6">
+      <DockPanel LastChildFill="True">
+        <TextBlock DockPanel.Dock="Top" Text="数据表" Style="{StaticResource SgSectionTitle}"/>
+        <ListBox x:Name="TableList" SelectionChanged="TableList_SelectionChanged" BorderThickness="0"
+                 FontSize="13" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+          <ListBox.ItemContainerStyle>
+            <Style TargetType="ListBoxItem">
+              <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            </Style>
+          </ListBox.ItemContainerStyle>
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip="{Binding}"/>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <Border Grid.Column="1" Grid.Row="0" Margin="0,0,0,4" Style="{StaticResource SgCard}" Padding="6">
+      <DockPanel LastChildFill="True">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,4,0,0">
+          <TextBlock Text="上限" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" FontSize="12" Margin="0,0,4,0"/>
+          <TextBox x:Name="SqlLimitInput" Width="48" Text="100" VerticalContentAlignment="Center" FontSize="12"/>
+          <Button Content="执行查询" Style="{StaticResource PrimaryButton}" Margin="6,0,0,0" Click="BtnSqlRun_Click"/>
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Top" Text="SQL（仅 SELECT）" Style="{StaticResource SgSectionTitle}"/>
+        <TextBox x:Name="SqlInput" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Disabled"
+                 FontFamily="Consolas" FontSize="11" TextWrapping="Wrap"
+                 Text="SELECT datetime(ts,'unixepoch','localtime') AS message_date, sender_jid AS whatsapp_id, sender_name, media_type AS attachment_type, filename AS attachment_filename, local_path AS attachment_local_path FROM messages ORDER BY ts DESC LIMIT 20"/>
+      </DockPanel>
+    </Border>
+
+    <Border Grid.Column="1" Grid.Row="1" Style="{StaticResource SgCard}" Padding="2">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" Margin="0,0,0,2">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Border Width="56" Height="56" Background="#fafafa"
+                  BorderBrush="{StaticResource SgBorderBrush}" BorderThickness="1" CornerRadius="6" Margin="0,0,6,0">
+            <Image x:Name="SqlPreviewImage" Stretch="Uniform" Margin="3"/>
+          </Border>
+          <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="56">
+            <TextBox x:Name="SchemaBox" IsReadOnly="True" FontFamily="Consolas" FontSize="11"
+                     TextWrapping="Wrap" Foreground="{StaticResource SgMutedBrush}"
+                     BorderThickness="0" Background="Transparent"/>
+          </ScrollViewer>
+        </Grid>
+        <ListView x:Name="SqlMessageListView" Grid.Row="1" Style="{StaticResource CompactListView}"
+                  h:GridViewFitHelper.AutoFitLastColumn="True"
+                  SelectionMode="Single" SelectionChanged="SqlMessageListView_SelectionChanged">
+          <ListView.View>
+            <GridView>
+              <GridViewColumn Header="图" Width="46">
+                <GridViewColumn.CellTemplate>
+                  <DataTemplate>
+                    <Border Width="38" Height="38" Background="#fafafa" CornerRadius="4">
+                      <Image Source="{Binding Thumbnail}" Stretch="Uniform" Margin="2"/>
+                    </Border>
+                  </DataTemplate>
+                </GridViewColumn.CellTemplate>
+              </GridViewColumn>
+              <GridViewColumn Header="日期" Width="108" DisplayMemberBinding="{Binding MessageDate}"/>
+              <GridViewColumn Header="ID" Width="108">
+                <GridViewColumn.CellTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding WhatsappId}" TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding WhatsappId}" FontSize="12"/>
+                  </DataTemplate>
+                </GridViewColumn.CellTemplate>
+              </GridViewColumn>
+              <GridViewColumn Header="附件" Width="48" DisplayMemberBinding="{Binding AttachmentType}"/>
+              <GridViewColumn Header="状态" Width="48" DisplayMemberBinding="{Binding AttachmentStatus}"/>
+              <GridViewColumn Header="内容" Width="200">
+                <GridViewColumn.CellTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding MessageText}" TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding MessageText}" FontSize="12"/>
+                  </DataTemplate>
+                </GridViewColumn.CellTemplate>
+              </GridViewColumn>
+            </GridView>
+          </ListView.View>
+        </ListView>
+        <DataGrid x:Name="SqlGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
+                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                  ScrollViewer.CanContentScroll="True"
+                  Visibility="Collapsed" SelectionChanged="SqlGrid_SelectionChanged"/>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+from typing import Any
+
+from chitung_center.audit import audit_logger
+from chitung_center.toolbox_client import toolbox_client
+
+
+async def read_docx(file_path: str) -> dict[str, Any]:
+    result = await toolbox_client.call_tool("docmate_read_docx", {"file_path": file_path})
+    return {"ok": result.get("ok", False), "data": result.get("data", {})}
+
+
+async def generate_changeset(doc_id: str, instruction: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {"doc_id": doc_id, "instruction": instruction}
+    if context:
+        payload["context"] = context
+    result = await toolbox_client.call_tool("docmate_generate_changeset", payload)
+    return {"ok": result.get("ok", False), "data": result.get("data", {})}
+
+
+async def preview_changeset(changeset_id: str) -> dict[str, Any]:
+    result = await toolbox_client.call_tool("docmate_preview_changeset", {"changeset_id": changeset_id})
+    return {"ok": result.get("ok", False), "data": result.get("data", {})}
+
+
+async def apply_changeset(changeset_id: str, accepted_change_ids: list[str], save_as: str) -> dict[str, Any]:
+    result = await toolbox_client.call_tool("docmate_apply_changeset", {
+        "changeset_id": changeset_id,
+        "accepted_change_ids": accepted_change_ids,
+        "save_as": save_as,
+    })
+    return {"ok": result.get("ok", False), "data": result.get("data", {})}
+
+
+async def pipeline_edit(
+    file_path: str,
+    instruction: str,
+    accepted_change_ids: list[str],
+    save_as: str,
+    context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    read_result = await read_docx(file_path)
+    if not read_result["ok"]:
+        return read_result
+    doc_id = read_result["data"]["doc_id"]
+
+    gen_result = await generate_changeset(doc_id, instruction, context)
+    if not gen_result["ok"]:
+        return gen_result
+    changeset_id = gen_result["data"]["changeset_id"]
+
+    apply_result = await apply_changeset(changeset_id, accepted_change_ids, save_as)
+
+    return {
+        "ok": True,
+        "data": {
+            "read": read_result["data"],
+            "generate": gen_result["data"],
+            "apply": apply_result["data"],
+        },
+    }

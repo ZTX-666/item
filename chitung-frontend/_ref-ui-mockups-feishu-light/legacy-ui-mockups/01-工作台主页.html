@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤瞳安全智能平台 — 工作台 | 中國建築工程(香港)有限公司</title>
+<style>
+  /* ========================================
+     赤瞳安全智能平台 - 中建香港品牌版
+     Design Token System v2.0 (CSCEC Brand)
+     ======================================== */
+  :root {
+    /* === 品牌色板 (CSCEC VIS 2024) === */
+    --brand-red: #E70012;
+    --brand-red-dark: #C4000F;
+    --brand-red-light: #FEF2F3;
+    --brand-red-glow: rgba(231, 0, 18, 0.25);
+    
+    --brand-navy: #0E2841;
+    --brand-navy-deep: #091B2D;
+    --brand-navy-mid: #142538;
+    --brand-navy-light: #1A3652;
+    
+    --brand-cyan: #0F9ED5;
+    --brand-cyan-dark: #0C7FA8;
+    --brand-cyan-glow: rgba(15, 158, 213, 0.2);
+    
+    --brand-green: #4EA72E;
+    --brand-green-light: #E8F5E9;
+    --brand-orange: #E97132;
+    --brand-purple: #A02B93;
+    
+    /* === 界面色系 (深色工作台) === */
+    --bg-primary: #0a1521;
+    --bg-secondary: #0F1D2E;
+    --bg-tertiary: #132740;
+    --bg-card: #152638;
+    --bg-card-hover: #1B3352;
+    --bg-input: #0C1826;
+    --bg-overlay: rgba(9, 27, 45, 0.92);
+    
+    --border-color: #1E3550;
+    --border-light: #253D58;
+    --border-hover: #2A5075;
+    
+    /* === 文字色阶 === */
+    --text-white: #FFFFFF;
+    --text-primary: #E4E9EF;
+    --text-secondary: #889BB0;
+    --text-muted: #546B82;
+    --text-dim: #3A4F63;
+    
+    /* === 圆角系统 === */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    
+    /* === 阴影系统 === */
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.35);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+    --shadow-red: 0 4px 16px rgba(231,0,18,0.3);
+    --shadow-cyan: 0 4px 16px rgba(15,158,213,0.25);
+    
+    /* === 字体 === */
+    --font-sans: 'Inter', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+    
+    /* === 过渡 === */
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+    --transition-smooth: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ====== TOP BAR (带CSCEC Logo) ====== */
+  .top-bar {
+    height: 56px;
+    background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-deep) 100%);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    backdrop-filter: blur(12px);
+  }
+  .top-bar__logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .top-bar__logo-img {
+    height: 34px;
+    width: auto;
+    object-fit: contain;
+  }
+  .top-bar__brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+  }
+  .top-bar__brand-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-white);
+    letter-spacing: 1px;
+  }
+  .top-bar__brand-sub {
+    font-size: 9px;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* Command Bar */
+  .command-bar {
+    flex: 1;
+    max-width: 600px;
+    margin: 0 36px;
+    position: relative;
+  }
+  .command-bar__input {
+    width: 100%;
+    height: 38px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 0 44px 0 16px;
+    font-size: 13px;
+    color: var(--text-primary);
+    outline: none;
+    transition: all var(--transition-fast);
+    font-family: var(--font-sans);
+  }
+  .command-bar__input::placeholder { color: var(--text-muted); }
+  .command-bar__input:focus {
+    border-color: var(--brand-cyan);
+    box-shadow: 0 0 0 3px var(--brand-cyan-glow), var(--shadow-sm);
+  }
+  .command-bar__icon {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px; height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--brand-cyan);
+    font-size: 16px;
+  }
+  .command-bar__shortcuts {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    padding-left: 4px;
+  }
+  .command-bar__shortcut {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 2px 8px;
+    background: var(--bg-card);
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+  }
+  .command-bar__shortcut:hover {
+    color: var(--brand-cyan);
+    border-color: var(--border-color);
+  }
+
+  .top-bar__right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .top-bar__status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--brand-green);
+    font-weight: 600;
+  }
+  .live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--brand-green);
+    animation: pulse-live 2s infinite;
+    box-shadow: 0 0 6px var(--brand-green);
+  }
+  @keyframes pulse-live { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .icon-btn {
+    width: 34px; height: 34px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 16px;
+    position: relative;
+  }
+  .icon-btn:hover {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-white);
+  }
+  .icon-btn--alert { color: var(--brand-orange); }
+  .avatar {
+    width: 33px; height: 33px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--brand-navy-light), var(--brand-cyan));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: white;
+    border: 2px solid var(--border-color);
+  }
+
+  /* ====== MAIN LAYOUT ====== */
+  .app-body {
+    display: flex;
+    height: calc(100vh - 56px);
+  }
+
+  /* Sidebar Navigation */
+  .sidebar {
+    width: 68px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 0;
+    gap: 4px;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+  .nav-item {
+    width: 48px; height: 48px;
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+    font-size: 19px;
+    border: 1px solid transparent;
+  }
+  .nav-item:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+  }
+  .nav-item--active {
+    background: var(--brand-red-glow);
+    color: var(--brand-red);
+    border-color: rgba(231,0,18,0.2);
+  }
+  .nav-item__badge {
+    position: absolute;
+    top: 6px; right: 6px;
+    min-width: 16px; height: 16px;
+    border-radius: 8px;
+    background: var(--brand-red);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+  .nav-divider {
+    width: 32px; height: 1px;
+    background: var(--border-color);
+    margin: 8px 0;
+  }
+
+  /* Main Workspace */
+  .workspace {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    position: relative;
+  }
+
+  /* ====== HEADER STATS ROW ====== */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+  }
+  .stat-card {
+    background: linear-gradient(145deg, var(--bg-card), var(--bg-tertiary));
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+    transition: all var(--transition-normal);
+    cursor: default;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    border-radius: 3px 0 0 3px;
+  }
+  .stat-card:hover { transform: translateY(-2px); border-color: var(--border-hover); box-shadow: var(--shadow-md); }
+  .stat-card--red::before { background: var(--brand-red); }
+  .stat-card--orange::before { background: var(--brand-orange); }
+  .stat-card--cyan::before { background: var(--brand-cyan); }
+  .stat-card--green::before { background: var(--brand-green); }
+  .stat-card--purple::before { background: var(--brand-purple); }
+  .stat-card__label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+  }
+  .stat-card__value {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+  }
+  .stat-card--red .stat-card__value { color: var(--brand-red); }
+  .stat-card--orange .stat-card__value { color: var(--brand-orange); }
+  .stat-card--cyan .stat-card__value { color: var(--brand-cyan); }
+  .stat-card--green .stat-card__value { color: var(--brand-green); }
+  .stat-card--purple .stat-card__value { color: var(--brand-purple); }
+  .stat-card__sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .stat-card__trend { color: var(--brand-green); }
+  .stat-card__trend--down { color: var(--brand-red); }
+  .stat-card__icon {
+    position: absolute;
+    right: 16px; bottom: 12px;
+    font-size: 40px;
+    opacity: 0.06;
+  }
+
+  /* ====== WIDGET GRID ====== */
+  .widget-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+  }
+  .widget {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: all var(--transition-normal);
+  }
+  .widget:hover { border-color: var(--border-light); }
+  .widget__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+  }
+  .widget__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .widget__title-icon { font-size: 15px; }
+  .widget__actions { display: flex; gap: 6px; }
+  .widget__action-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .widget__action-btn:hover {
+    color: var(--brand-cyan);
+    border-color: var(--brand-cyan-dark);
+  }
+  .widget__body {
+    flex: 1;
+    padding: 12px 16px;
+    overflow-y: auto;
+    position: relative;
+  }
+
+  /* Camera Widget */
+  .camera-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .cam-feed {
+    aspect-ratio: 16/10;
+    background: linear-gradient(145deg, #0a1628, #162035);
+    border-radius: var(--radius-sm);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    transition: all var(--transition-fast);
+  }
+  .cam-feed:hover {
+    border-color: var(--brand-cyan);
+    box-shadow: var(--shadow-cyan);
+    transform: scale(1.02);
+  }
+  .cam-feed__grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(15,158,213,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15,158,213,0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .cam-feed__label {
+    position: absolute;
+    bottom: 6px; left: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: white;
+    background: rgba(0,0,0,0.65);
+    padding: 2px 8px;
+    border-radius: 3px;
+    backdrop-filter: blur(4px);
+  }
+  .cam-feed__badge {
+    position: absolute;
+    top: 6px; right: 6px;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    color: white;
+  }
+  .cam-feed__badge--live {
+    background: var(--brand-red);
+    animation: pulse-live 2s infinite;
+  }
+  .cam-feed__badge--ok {
+    background: var(--brand-green);
+  }
+  .cam-feed__detection {
+    position: absolute;
+    border: 2px solid var(--brand-green);
+    border-radius: 3px;
+    background: rgba(78,167,46,0.08);
+  }
+  .cam-feed__detection-label {
+    position: absolute;
+    top: -17px; left: 0;
+    font-size: 9px;
+    font-weight: 700;
+    background: var(--brand-green);
+    color: white;
+    padding: 1px 5px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  /* Hazard List Widget */
+  .hazard-list { list-style: none; }
+  .hazard-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(30,53,80,0.5);
+    font-size: 12px;
+    transition: background var(--transition-fast);
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+    margin-bottom: -1px;
+  }
+  .hazard-item:hover { background: var(--bg-card-hover); padding-left: 6px; padding-right: 6px; }
+  .hazard-item:last-child { border-bottom: none; }
+  .hazard-severity {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .hazard-severity--critical { background: var(--brand-red); box-shadow: 0 0 6px var(--brand-red); }
+  .hazard-severity--high { background: var(--brand-orange); }
+  .hazard-severity--medium { background: var(--brand-cyan); }
+  .hazard-severity--low { background: var(--brand-green); }
+  .hazard-info { flex: 1; min-width: 0; }
+  .hazard-desc { color: var(--text-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hazard-meta { color: var(--text-muted); font-size: 10px; margin-top: 1px; }
+  .hazard-time { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); flex-shrink: 0; }
+  .hazard-action {
+    padding: 3px 8px;
+    font-size: 10px;
+    color: var(--brand-cyan);
+    background: rgba(15,158,213,0.08);
+    border: 1px solid rgba(15,158,213,0.25);
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+  }
+  .hazard-action:hover { background: rgba(15,158,213,0.18); }
+
+  /* AI Chat Preview Widget */
+  .chat-preview { height: 100%; display: flex; flex-direction: column; }
+  .chat-msg {
+    display: flex;
+    gap: 8px;
+    padding: 10px 0;
+  }
+  .chat-avatar {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .chat-avatar--ai {
+    background: linear-gradient(135deg, var(--brand-cyan), var(--brand-navy-light));
+    color: white;
+    font-weight: 800;
+  }
+  .chat-avatar--user {
+    background: linear-gradient(135deg, var(--brand-red), #ff5566);
+    color: white;
+    font-weight: 700;
+    font-size: 11px;
+  }
+  .chat-bubble {
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .chat-bubble--ai {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-top-left-radius: 2px;
+  }
+  .chat-bubble--user {
+    background: linear-gradient(135deg, rgba(231,0,18,0.15), rgba(231,0,18,0.05));
+    border: 1px solid rgba(231,0,18,0.2);
+    color: var(--text-primary);
+    border-top-right-radius: 2px;
+    margin-left: auto;
+  }
+  .chat-tools-used {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .chat-tool-tag {
+    font-size: 10px;
+    padding: 2px 7px;
+    background: var(--brand-cyan-glow);
+    color: var(--brand-cyan);
+    border-radius: 10px;
+    font-weight: 500;
+  }
+  .chat-input-area {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .chat-input {
+    flex: 1;
+    height: 32px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: 0 14px;
+    font-size: 12px;
+    color: var(--text-primary);
+    outline: none;
+    font-family: var(--font-sans);
+  }
+  .chat-input:focus { border-color: var(--brand-cyan); }
+  .chat-send {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--brand-red), var(--brand-red-dark));
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: all var(--transition-fast);
+  }
+  .chat-send:hover { transform: scale(1.08); box-shadow: var(--shadow-red); }
+
+  /* Weather & Risk Widget */
+  .weather-panel {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+  }
+  .weather-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+  }
+  .weather-icon {
+    font-size: 42px;
+    filter: drop-shadow(0 2px 8px rgba(233,113,50,0.3));
+  }
+  .weather-temp { font-size: 32px; font-weight: 800; color: var(--text-white); }
+  .weather-desc { font-size: 12px; color: var(--text-secondary); }
+  .weather-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .weather-alert-tag {
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: var(--radius-xs);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .weather-alert-tag--hot {
+    background: rgba(233,113,50,0.12);
+    color: var(--brand-orange);
+    border: 1px solid rgba(233,113,50,0.3);
+  }
+  .weather-alert-tag--rain {
+    background: rgba(15,158,213,0.12);
+    color: var(--brand-cyan);
+    border: 1px solid rgba(15,158,213,0.3);
+  }
+
+  /* Quick Actions Row */
+  .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .qa-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 12px;
+    color: var(--text-primary);
+  }
+  .qa-btn:hover {
+    border-color: var(--brand-cyan);
+    background: var(--bg-card-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+  .qa-btn__icon {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+  }
+  .qa-btn__label { font-weight: 600; }
+  .qa-btn__hint { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+
+  /* Progress Bar */
+  .progress-mini {
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .progress-mini__bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  /* ====== FOOTER SKYLINE ====== */
+  .skyline-footer {
+    margin-top: auto;
+    padding: 0 24px;
+    flex-shrink: 0;
+    position: relative;
+    height: 80px;
+    overflow: hidden;
+    border-top: 1px solid var(--border-color);
+    background: linear-gradient(to top, var(--bg-secondary), transparent);
+  }
+  .skyline-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: bottom center;
+    opacity: 0.25;
+    mask-image: linear-gradient(to top, black 40%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to top, black 40%, transparent 100%);
+  }
+  .footer-text {
+    position: absolute;
+    bottom: 8px;
+    left: 24px;
+    right: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    z-index: 1;
+  }
+  .footer-brand {
+    font-size: 10px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .footer-logo-tiny { height: 16px; opacity: 0.5; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+  /* Responsive */
+  @media (max-width: 1200px) {
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+    .widget-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== TOP BAR (CSCEC Brand Header) ========== -->
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <!-- CSCEC Logo -->
+    <img src="assets/logo-cscec.png" alt="中國建築" class="top-bar__logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+    <div style="display:none;" class="top-bar__logo-img" style="background:var(--brand-red);width:34px;height:34px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:800;">CSCEC</div>
+    <div class="top-bar__brand-text">
+      <span class="top-bar__brand-title">赤瞳守護者</span>
+      <span class="top-bar__brand-sub">China State Construction HK · Safety Platform</span>
+    </div>
+  </div>
+
+  <!-- Command Bar -->
+  <div class="command-bar">
+    <input type="text" class="command-bar__input" placeholder="輸入指令或提問…（如：檢查B區攝像頭、生成整改通知）">
+    <span class="command-bar__icon">⌘</span>
+  </div>
+
+  <div class="top-bar__right">
+    <div class="top-bar__status"><div class="live-dot"></div> 系統運行中</div>
+    <button class="icon-btn icon-btn--alert" title="通知中心">🔔</button>
+    <button class="icon-btn" title="設置">⚙️</button>
+    <div class="avatar" title="陳主任">陳</div>
+  </div>
+</header>
+
+<!-- ========== APP BODY ========== -->
+<div class="app-body">
+
+  <!-- Left Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="nav-item nav-item--active" title="工作台">📊</div>
+    <div class="nav-item" title="隱患台账">🚨<span class="nav-item__badge">5</span></div>
+    <div class="nav-item" title="視覺巡檢">📷</div>
+    <div class="nav-item" title="WhatsApp 消息">💬<span class="nav-item__badge">3</span></div>
+    <div class="nav-item" title="智能填表">📝</div>
+    <div class="nav-item" title="整改通知">✉️</div>
+    <div class="nav-item" title="機械管理">🏗️</div>
+    <div class="nav-item" title="風險雷達">🛡️</div>
+    <div class="nav-divider"></div>
+    <div class="nav-item" title="每日簡報">📋</div>
+    <div class="nav-item" title="AI 助手">🤖</div>
+    <div class="nav-divider"></div>
+    <div class="nav-item" title="系統設定">⚙️</div>
+  </aside>
+
+  <!-- Main Workspace Area -->
+  <main class="workspace">
+
+    <!-- Stats Cards Row -->
+    <section class="stats-row">
+      <div class="stat-card stat-card--red">
+        <div class="stat-card__label">未閉環隱患</div>
+        <div class="stat-card__value">5</div>
+        <div class="stat-card__sub">
+          <span class="stat-card__trend">↑ 2 較昨日</span>
+        </div>
+        <div class="stat-card__icon">⚠️</div>
+      </div>
+      <div class="stat-card stat-card--orange">
+        <div class="stat-card__label">超期事項</div>
+        <div class="stat-card__value">2</div>
+        <div class="stat-card__sub">
+          <span class="stat-card__trend--down">需立即處理</span>
+        </div>
+        <div class="stat-card__icon">⏰</div>
+      </div>
+      <div class="stat-card stat-card--cyan">
+        <div class="stat-card__label">今日巡檢</div>
+        <div class="stat-card__value">14</div>
+        <div class="stat-card__sub">
+          <span class="stat-card__trend">已完成 11/14</span>
+        </div>
+        <div class="stat-card__icon">📷</div>
+      </div>
+      <div class="stat-card stat-card--green">
+        <div class="stat-card__label">本周已整改</div>
+        <div class="stat-card__value">8</div>
+        <div class="stat-card__sub">
+          <span class="stat-card__trend">↑ 3 較上週</span>
+        </div>
+        <div class="stat-card__icon">✅</div>
+      </div>
+      <div class="stat-card stat-card--purple">
+        <div class="stat-card__label">天氣預警</div>
+        <div class="stat-card__value">1</div>
+        <div class="stat-card__sub">
+          <span style="color:var(--brand-orange)">高溫黃色預警</span>
+        </div>
+        <div class="stat-card__icon">🌡️</div>
+      </div>
+    </section>
+
+    <!-- Widget Grid: Top Row (Camera + Hazards + AI) -->
+    <section class="widget-grid">
+      
+      <!-- Camera Feed Widget -->
+      <article class="widget">
+        <header class="widget__header">
+          <div class="widget__title">
+            <span class="widget__title-icon">📹</span>
+            實時監控
+          </div>
+          <div class="widget__actions">
+            <button class="widget__action-btn">全屏 ▢</button>
+          </div>
+        </header>
+        <div class="widget__body">
+          <div class="camera-grid">
+            <div class="cam-feed">
+              <div class="cam-feed__grid-bg"></div>
+              <div class="cam-feed__detection" style="left:30%;top:25%;width:45px;height:70px;">
+                <span class="cam-feed__detection-label">人員 ✓</span>
+              </div>
+              <div class="cam-feed__detection" style="left:60%;top:40%;width:38px;height:62px;">
+                <span class="cam-feed__detection-label">人員 ✓</span>
+              </div>
+              <span class="cam-feed__label">B2 區臨邊</span>
+              <span class="cam-feed__badge cam-feed__badge--live">LIVE</span>
+            </div>
+            <div class="cam-feed">
+              <div class="cam-feed__grid-bg"></div>
+              <div class="cam-feed__detection" style="left:20%;top:30%;width:40px;height:66px;border-color:var(--brand-orange);">
+                <span class="cam-feed__detection-label" style="background:var(--brand-orange);">無安全帽 ⚠</span>
+              </div>
+              <span class="cam-feed__label">A1 吊運區</span>
+              <span class="cam-feed__badge cam-feed__badge--live">LIVE</span>
+            </div>
+            <div class="cam-feed">
+              <div class="cam-feed__grid-bg"></div>
+              <span class="cam-feed__label">C3 出入口</span>
+              <span class="cam-feed__badge cam-feed__badge--ok">正常</span>
+            </div>
+            <div class="cam-feed">
+              <div class="cam-feed__grid-bg"></div>
+              <span class="cam-feed__label">D1 材料堆放區</span>
+              <span class="cam-feed__badge cam-feed__badge--ok">正常</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Hazard List Widget -->
+      <article class="widget">
+        <header class="widget__header">
+          <div class="widget__title">
+            <span class="widget__title-icon">🚨</span>
+            最新隱患
+          </div>
+          <div class="widget__actions">
+            <button class="widget__action-btn">查看全部 →</button>
+          </div>
+        </header>
+        <div class="widget__body">
+          <ul class="hazard-list">
+            <li class="hazard-item">
+              <span class="hazard-severity hazard-severity--critical"></span>
+              <div class="hazard-info">
+                <div class="hazard-desc">A1吊運區人員未佩戴安全帽</div>
+                <div class="hazard-meta">A1 吊運區 · VLM 自動檢測</div>
+              </div>
+              <span class="hazard-time">10:23</span>
+              <span class="hazard-action">生成通知</span>
+            </li>
+            <li class="hazard-item">
+              <span class="hazard-severity hazard-severity--high"></span>
+              <div class="hazard-info">
+                <div class="hazard-desc">B2臨邊圍封缺失 3 米</div>
+                <div class="hazard-meta">B2 臨邊 · WhatsApp 通報</div>
+              </div>
+              <span class="hazard-time">09:45</span>
+              <span class="hazard-action">生成通知</span>
+            </li>
+            <li class="hazard-item">
+              <span class="hazard-severity hazard-severity--medium"></span>
+              <div class="hazard-info">
+                <div class="hazard-desc">塔式起重機 LALG 即將到期</div>
+                <div class="hazard-meta">機械資料 · 系統提醒</div>
+              </div>
+              <span class="hazard-time">09:00</span>
+              <span class="hazard-action">查看詳情</span>
+            </li>
+            <li class="hazard-item">
+              <span class="hazard-severity hazard-severity--medium"></span>
+              <div class="hazard-info">
+                <div class="hazard-desc">熱工序作業未設置防火監察</div>
+                <div class="hazard-meta">C3 區域 · 巡檢發現</div>
+              </div>
+              <span class="hazard-time">昨日</span>
+              <span class="hazard-action">生成通知</span>
+            </li>
+            <li class="hazard-item">
+              <span class="hazard-severity hazard-severity--low"></span>
+              <div class="hazard-info">
+                <div class="hazard-desc">PPE 存放區整潔度不達標</div>
+                <div class="hazard-meta">PPE 室 · 每日巡查</div>
+              </div>
+              <span class="hazard-time">昨日</span>
+              <span class="hazard-action">記錄</span>
+            </li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- AI Assistant Preview Widget -->
+      <article class="widget">
+        <header class="widget__header">
+          <div class="widget__title">
+            <span class="widget__title-icon">🤖</span>
+            AI 助手
+          </div>
+          <div class="widget__actions">
+            <button class="widget__action-btn">展開對話 ↗</button>
+          </div>
+        </header>
+        <div class="widget__body">
+          <div class="chat-preview">
+            <div class="chat-msg">
+              <div class="chat-avatar chat-avatar--ai">赤</div>
+              <div>
+                <div class="chat-bubble chat-bubble--ai">
+                  陳主任，今日有 <b style="color:var(--brand-red)">5 項未閉環隱患</b>需要關注。其中 A1 吊運區檢測到<b>人員未戴安全帽</b>，建議立即生成整改通知。
+                </div>
+                <div class="chat-tools-used">
+                  <span class="chat-tool-tag">vlm_detect</span>
+                  <span class="chat-tool-tag">hazard_query</span>
+                  <span class="chat-tool-tag">risk_assess</span>
+                </div>
+              </div>
+            </div>
+            <div class="chat-msg">
+              <div class="chat-avatar chat-avatar--user">陳</div>
+              <div class="chat-bubble chat-bubble--user">幫我生成警告信給華興建築</div>
+            </div>
+            <div class="chat-msg">
+              <div class="chat-avatar chat-avatar--ai">赤</div>
+              <div class="chat-bubble chat-bubble--ai">
+                已為您準備警告信草稿 📄<br>
+                分判商：<b>華興建築</b> | 事項：<b>A1吊運區PPE違規</b><br>
+                截止日期：<b style="color:var(--brand-orange)">2025-06-19</b>
+              </div>
+            </div>
+            <div class="chat-input-area">
+              <input type="text" class="chat-input" placeholder="繼續對話...">
+              <button class="chat-send">→</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Weather & Quick Actions Widget -->
+      <article class="widget">
+        <header class="widget__header">
+          <div class="widget__title">
+            <span class="widget__title-icon">🌡️</span>
+            天氣與快捷操作
+          </div>
+        </header>
+        <div class="widget__body">
+          <div class="weather-panel" style="margin-bottom:16px;">
+            <div class="weather-main">
+              <span class="weather-icon">☀️</span>
+              <div>
+                <div class="weather-temp">33°C</div>
+                <div class="weather-desc">多雲 | 體感 37°C | UV 極強</div>
+              </div>
+            </div>
+            <div class="weather-alerts">
+              <span class="weather-alert-tag weather-alert-tag--hot">🔴 高溫黃色预警</span>
+              <span class="weather-alert-tag weather-alert-tag--rain">💧 降雨概率 30%</span>
+            </div>
+          </div>
+          
+          <div class="quick-actions">
+            <div class="qa-btn">
+              <div class="qa-btn__icon" style="background:rgba(231,0,18,0.1);color:var(--brand-red);">📝</div>
+              <div>
+                <div class="qa-btn__label">錄入隱患</div>
+                <div class="qa-btn__hint">文字/照片/語音</div>
+              </div>
+            </div>
+            <div class="qa-btn">
+              <div class="qa-btn__icon" style="background:rgba(15,158,213,0.1);color:var(--brand-cyan);">📷</div>
+              <div>
+                <div class="qa-btn__label">視覺巡檢</div>
+                <div class="qa-btn__hint">VLM 主動檢測</div>
+              </div>
+            </div>
+            <div class="qa-btn">
+              <div class="qa-btn__icon" style="background:rgba(78,167,46,0.1);color:var(--brand-green);">📄</div>
+              <div>
+                <div class="qa-btn__label">智能填表</div>
+                <div class="qa-btn__hint">AI 自動預填</div>
+              </div>
+            </div>
+            <div class="qa-btn">
+              <div class="qa-btn__icon" style="background:rgba(160,43,147,0.1);color:var(--brand-purple);">📋</div>
+              <div>
+                <div class="qa-btn__label">每日簡報</div>
+                <div class="qa-btn__hint">一鍵生成推送</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Weekly Trend Mini Chart -->
+          <div style="margin-top:16px;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">本週隱患趨勢</div>
+            <div style="display:flex;align-items:flex-end;gap:6px;height:50px;">
+              <div style="flex:1;background:linear-gradient(to top,var(--brand-red),rgba(231,0,18,0.3));border-radius:3px 3px 0 0;min-height:70%;" title="週一: 7"></div>
+              <div style="flex:1;background:linear-gradient(to top,var(--brand-red),rgba(231,0,18,0.3));border-radius:3px 3px 0 0;min-height:85%;" title="週二: 9"></div>
+              <div style="flex:1;background:linear-gradient(to top,var(--brand-orange),rgba(233,113,50,0.3));border-radius:3px 3px 0 0;min-height:55%;" title="週三: 5"></div>
+              <div style="flex:1;background:linear-gradient(to top,var(--brand-cyan),rgba(15,158,213,0.3));border-radius:3px 3px 0 0;min-height:40%;" title="週四: 4"></div>
+              <div style="flex:1;background:linear-gradient(to top,var(--brand-green),rgba(78,167,46,0.3));border-radius:3px 3px 0 0;min-height:25%;" title="週五: 2"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text-dim);">
+              <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+    </section>
+
+    <!-- Footer Skyline (HK Cityscape Silhouette) -->
+    <div class="skyline-footer">
+      <img src="assets/hk-skyline-wide.jpg" alt="" class="skyline-img" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;background:linear-gradient(90deg,transparent,var(--brand-red),transparent);opacity:0.08;\'></div>'">
+      <div class="footer-text">
+        <div class="footer-brand">
+          <img src="assets/logo-cscec.png" alt="CSCEC" class="footer-logo-tiny" onerror="this.outerHTML='CSCEC'">
+          <span>中國建築工程(香港)有限公司 · 基礎公司</span>
+        </div>
+        <div style="font-size:9px;color:var(--text-dim);">赤瞳安全智能平台 v2.0 © 2025</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

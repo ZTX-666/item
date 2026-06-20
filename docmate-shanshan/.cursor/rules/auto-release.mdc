@@ -1,0 +1,24 @@
+---
+description: 代码变更后自动 bump 版本并同步到 publish80
+alwaysApply: true
+---
+
+# DocMate 自动发布
+
+完成本项目的**功能性代码变更**后，在结束任务前必须执行：
+
+```bash
+npm run release
+```
+
+该命令会构建并同步到 `publish80/`（精简运行包）。
+
+**交付物**：双击 `publish80/DocMate.vbs`
+
+功能性变更 release 完成后，**自动启动**应用供用户验证：
+
+```powershell
+Start-Process "e:\ChinaOverseas Final\publish4\publish80\DocMate.vbs"
+```
+
+仅文档/注释改动可不 release，除非用户明确要求。

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>隱患台账 | 赤瞳安全智能平台 · 中國建築(香港)</title>
+<style>
+  :root {
+    --brand-red: #E70012; --brand-red-dark: #C4000F;
+    --brand-red-light: #FEF2F3; --brand-red-glow: rgba(231,0,18,0.2);
+    --brand-navy: #0E2841; --brand-navy-deep: #091B2D;
+    --brand-navy-mid: #142538; --brand-navy-light: #1A3652;
+    --brand-cyan: #0F9ED5; --brand-cyan-glow: rgba(15,158,213,0.15);
+    --brand-green: #4EA72E; --brand-orange: #E97132;
+    --brand-purple: #A02B93;
+    --bg-primary: #0a1521; --bg-secondary: #0F1D2E;
+    --bg-card: #152638; --bg-input: #0C1826;
+    --border-color: #1E3550; --border-hover: #2A5075;
+    --text-primary: #E4E9EF; --text-secondary: #889BB0;
+    --text-muted: #546B82;
+    --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px;
+    --font-sans: 'Inter','Noto Sans SC',system-ui,sans-serif;
+    --font-mono: 'JetBrains Mono',monospace;
+    transition-fast: 150ms ease;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:var(--font-sans); background:var(--bg-primary); color:var(--text-primary); min-height:100vh; }
+
+  /* Header */
+  .top-bar { height:56px; background:linear-gradient(135deg,var(--brand-navy),var(--brand-navy-deep)); border-bottom:1px solid var(--border-color); display:flex; align-items:center; padding:0 24px; position:sticky;top:0;z-index:100; }
+  .top-bar__logo { display:flex;align-items:center;gap:12px;text-decoration:none; }
+  .top-bar__logo-img { height:32px;width:auto; }
+  .top-bar__brand-text h1 { font-size:15px;font-weight:700;color:white;letter-spacing:1px;line-height:1.2; }
+  .top-bar__brand-text span { font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px; }
+  .top-bar__right { margin-left:auto;display:flex;align-items:center;gap:16px; }
+  .avatar { width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--brand-navy-light),var(--brand-cyan));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;border:2px solid var(--border-color); }
+
+  .app-body { display:flex;height:calc(100vh - 56px); }
+  .sidebar { width:64px;background:var(--bg-secondary);border-right:1px solid var(--border-color);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px; }
+  .nav-item { width:46px;height:46px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;transition:all var(--transition-fast);font-size:18px;border:1px solid transparent; }
+  .nav-item:hover{background:var(--bg-card);color:var(--text-primary);border-color:var(--border-color);}
+  .nav-item--active{background:var(--brand-red-glow);color:var(--brand-red);border-color:rgba(231,0,18,0.2);}
+  .nav-divider{width:28px;height:1px;background:var(--border-color);margin:8px 0;}
+
+  .main-content { flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px; }
+
+  /* Page Header */
+  .page-header { display:flex;align-items:center;justify-content:space-between; }
+  .page-header__title { font-size:22px;font-weight:800;color:white;letter-spacing:-0.3px;display:flex;align-items:center;gap:10px; }
+  .page-header__title-icon { color:var(--brand-red); }
+  .page-header__actions { display:flex;gap:8px; }
+  .btn { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all var(--transition-fast);white-space:nowrap;font-family:var(--font-sans); }
+  .btn--primary { background:linear-gradient(135deg,var(--brand-red),var(--brand-red-dark));color:white;box-shadow:0 2px 8px rgba(231,0,18,0.25); }
+  .btn--primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(231,0,18,0.35);}
+  .btn--secondary { background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color); }
+  .btn--secondary:hover{border-color:var(--brand-cyan);color:var(--brand-cyan); }
+
+  /* Stats Row */
+  .stats-row { display:grid;grid-template-columns:repeat(4,1fr);gap:12px; }
+  .stat-mini { background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:14px 16px;position:relative;overflow:hidden; }
+  .stat-mini::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;}
+  .stat-mini--red::before{background:var(--brand-red);} .stat-mini--orange::before{background:var(--brand-orange);}
+  .stat-mini--cyan::before{background:var(--brand-cyan);} .stat-mini--green::before{background:var(--brand-green);}
+  .stat-mini__val{ font-size:26px;font-weight:800; }
+  .stat-mini--red .stat-mini__val{color:var(--brand-red);} .stat-mini--orange .stat-mini__val{color:var(--brand-orange);}
+  .stat-mini--cyan .stat-mini__val{color:var(--brand-cyan);} .stat-mini--green .stat-mini__val{color:var(--brand-green);}
+  .stat-mini__label{font-size:11px;color:var(--text-muted);margin-top:2px;}
+
+  /* Filter Bar */
+  .filter-bar { display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:10px 16px; }
+  .search-box { flex:1;min-width:200px;height:34px;background:var(--bg-input);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:0 12px 0 36px;font-size:13px;color:var(--text-primary);outline:none;position:relative; }
+  .search-box:focus{border-color:var(--brand-cyan);box-shadow:0 0 0 3px var(--brand-cyan-glow); }
+  .filter-select { height:34px;background:var(--bg-input);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:0 30px 0 10px;font-size:12px;color:var(--text-primary);outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23546B82'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center; }
+  .filter-chip-group { display:flex;gap:6px; }
+  .chip { padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border-color);background:transparent;color:var(--text-secondary);transition:all var(--transition-fast); }
+  .chip:hover{border-color:var(--brand-cyan);color:var(--brand-cyan);}
+  .chip--active{background:rgba(231,0,18,0.12);color:var(--brand-red);border-color:rgba(231,0,18,0.3);}
+
+  /* Data Table */
+  .table-container { background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;flex:1; }
+  table { width:100%;border-collapse:collapse;font-size:13px; }
+  thead { background:var(--bg-secondary); }
+  th { padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border-color);white-space:nowrap; }
+  td { padding:12px 14px;border-bottom:1px solid rgba(30,53,80,0.4);vertical-align:middle; }
+  tr:hover td{background:var(--bg-secondary);}
+  .severity-dot { width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px; }
+  .severity-critical { background:var(--brand-red);box-shadow:0 0 6px var(--brand-red); }
+  .severity-high { background:var(--brand-orange); } .severity-medium { background:var(--brand-cyan); } .severity-low { background:var(--brand-green); }
+  .tag { display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap; }
+  .tag--status-open{background:rgba(231,0,18,0.12);color:var(--brand-red);border:1px solid rgba(231,0,18,0.25);}
+  .tag--status-progress{background:rgba(15,158,213,0.12);color:var(--brand-cyan);border:1px solid rgba(15,158,213,0.25);}
+  .tag--status-done{background:rgba(78,167,46,0.12);color:var(--brand-green);border:1px solid rgba(78,167,46,0.25);}
+  .tag--source-vlm{background:rgba(160,43,147,0.12);color:var(--brand-purple);border:1px solid rgba(160,43,147,0.25);}
+  .tag--source-wa{background:rgba(233,113,50,0.12);color:var(--brand-orange);border:1px solid rgba(233,113,50,0.25);}
+  .tag--source-manual{background:rgba(136,155,176,0.12);color:var(--text-secondary);border:1px solid rgba(136,155,176,0.25);}
+  .location-tag{background:var(--brand-navy-mid);color:var(--text-primary);padding:2px 8px;border-radius:4px;font-size:11px;}
+  .ai-action-btn { padding:3px 9px;font-size:10px;color:var(--brand-cyan);background:var(--brand-cyan-glow);border:1px solid rgba(15,158,213,0.3);border-radius:4px;cursor:pointer;transition:all var(--transition-fast); }
+  .ai-action-btn:hover{background:rgba(15,158,213,0.25); }
+
+  /* Footer */
+  .skyline-footer{margin-top:auto;padding:0;flex-shrink:0;position:relative;height:60px;overflow:hidden;border-top:1px solid var(--border-color);background:linear-gradient(to top,var(--bg-secondary),transparent);}
+  .skyline-img{width:100%;height:100%;object-fit:cover;object-position:bottom center;opacity:0.2;mask-image:linear-gradient(to top,black 40%,transparent 100%);-webkit-mask-image:linear-gradient(to top,black 40%,transparent 100%);}
+  .footer-info{position:absolute;bottom:6px;left:24px;right:24px;display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);z-index:1;}
+
+  ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <img src="assets/logo-cscec.png" alt="CSCEC" class="top-bar__logo-img" onerror="this.outerHTML='<div style=\'width:32px;height:32px;background:var(--brand-red);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:8px;font-weight:800\'>CSCEC</div>'">
+    <div class="top-bar__brand-text"><h1>赤瞳守護者</h1><span>隱患台账管理</span></div>
+  </div>
+  <div class="top-bar__right">
+    <div class="avatar">陳</div>
+  </div>
+</header>
+
+<div class="app-body">
+  <aside class="sidebar">
+    <div class="nav-item" title="工作台">📊</div>
+    <div class="nav-item nav-item--active" title="隱患台账">🚨</div>
+    <div class="nav-item" title="視覺巡檢">📷</div>
+    <div class="nav-item" title="WhatsApp">💬</div>
+    <div class="nav-item" title="智能填表">📝</div>
+    <div class="nav-item" title="整改通知">✉️</div>
+    <div class="nav-divider"></div>
+    <div class="nav-item" title="AI 助手">🤖</div>
+  </aside>
+
+  <main class="main-content">
+    <!-- Page Header -->
+    <section class="page-header">
+      <div class="page-header__title"><span class="page-header__title-icon">🚨</span> 隱患台账</div>
+      <div class="page-header__actions">
+        <button class="btn btn--primary">＋ 錄入新隱患</button>
+        <button class="btn btn--secondary">📥 匯出報告</button>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats-row">
+      <div class="stat-mini stat-mini--red"><div class="stat-mini__val">5</div><div class="stat-mini__label">未閉環</div></div>
+      <div class="stat-mini stat-mini--orange"><div class="stat-mini__val">2</div><div class="stat-mini__label">超期</div></div>
+      <div class="stat-mini stat-mini--cyan"><div class="stat-mini__val">3</div><div class="stat-mini__label">處理中</div></div>
+      <div class="stat-mini stat-mini--green"><div class="stat-mini__val">38</div><div class="stat-mini__label">本月已閉環</div></div>
+    </section>
+
+    <!-- Filter Bar -->
+    <section class="filter-bar">
+      <input type="text" placeholder="搜索隱患描述、地點、分判商..." class="search-box" style="padding-left:12px;">
+      <select class="filter-select"><option>全部嚴重級別</option><option>嚴重 🔴</option><option>高 🟠</option><option>中 🔵</option><option>低 🟢</option></select>
+      <select class="filter-select"><option>全部狀態</option><option>未處理</option><option>處理中</option><option>已閉環</option></select>
+      <select class="filter-select"><option>全部來源</option><option>VLM 檢測</option><option>WhatsApp</option><option>人工錄入</option></select>
+      <div class="filter-chip-group">
+        <span class="chip chip--active">全部</span>
+        <span class="chip">本週</span>
+        <span class="chip">本月</span>
+        <span class="chip">超期</span>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>狀態</th>
+            <th>嚴重級</th>
+            <th>隱患描述</th>
+            <th>地點</th>
+            <th>來源</th>
+            <th>責任方</th>
+            <th>截止日期</th>
+            <th>AI 操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="tag tag--status-open">未處理</span></td>
+            <td><span class="severity-dot severity-critical"></span>嚴重</td>
+            <td>A1吊運區人員未佩戴安全帽</td>
+            <td><span class="location-tag">A1 吊運區</span></td>
+            <td><span class="tag tag--source-vlm">VLM 自動</span></td>
+            <td>華興建築</td>
+            <td style="color:var(--brand-red);font-weight:600;">2025-06-17</td>
+            <td><button class="ai-action-btn">🤖 生成警告信</button></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag--status-open">未處理</span></td>
+            <td><span class="severity-dot severity-high"></span>高</td>
+            <td>B2臨邊圍封缺失 3 米（護欄被拆除）</td>
+            <td><span class="location-tag">B2 臨邊</span></td>
+            <td><span class="tag tag--source-wa">WhatsApp</span></td>
+            <td>永達工程</td>
+            <td style="color:var(--brand-orange);font-weight:600;">2025-06-18</td>
+            <td><button class="ai-action-btn">🤖 生成整改通知</button></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag--status-progress">處理中</span></td>
+            <td><span class="severity-dot severity-medium"></span>中</td>
+            <td>塔式起重機 LALG 證書即將到期</td>
+            <td><span class="location-tag">機械場地</span></td>
+            <td><span class="tag tag--source-manual">系統提醒</span></td>
+            <td>—</td>
+            <td style="color:var(--brand-orange);">2025-06-20</td>
+            <td><button class="ai-action-btn">🤖 發送提醒</button></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag--status-progress">處理中</span></td>
+            <td><span class="severity-dot severity-medium"></span>中</td>
+            <td>熱工序作業未設置防火監察員及滅火設備</td>
+            <td><span class="location-tag">C3 區域</span></td>
+            <td><span class="tag tag--source-manual">巡檢</span></td>
+            <td>華興建築</td>
+            <td>2025-06-21</td>
+            <td><button class="ai-action-btn">🤖 填寫熱工序表格</button></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag--status-open">未處理</span></td>
+            <td><span class="severity-dot severity-low"></span>低</td>
+            <td>PPE 存放區整潔度不達標，標識模糊</td>
+            <td><span class="location-tag">PPE 室</span></td>
+            <td><span class="tag tag--source-manual">巡查</span></td>
+            <td>—</td>
+            <td>2025-06-25</td>
+            <td><button class="ai-action-btn">🤖 記錄</button></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag--status-done">已閉環</span></td>
+            <td><span class="severity-dot severity-high"></span>高</td>
+            <td>電纜臨時佈線未套管保護</td>
+            <td><span class="location-tag">D1 電力間</span></td>
+            <td><span class="tag tag--source-vlm">VLM 自動</span></td>
+            <td>永達工程</td>
+            <td style="color:var(--text-muted);text-decoration:line-through;">2025-06-10</td>
+            <td><button class="ai-action-btn">👁 查看記錄</button></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag--status-done">已閉環</span></td>
+            <td><span class="severity-dot severity-medium"></span>中</td>
+            <td>吊運區警示標誌損壞缺失</td>
+            <td><span class="location-tag">A1 吊運區</span></td>
+            <td><span class="tag tag--source-wa">WhatsApp</span></td>
+            <td>華興建築</td>
+            <td style="color:var(--text-muted);text-decoration:line-through;">2025-06-08</td>
+            <td><button class="ai-action-btn">👁 查看記錄</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Footer Skyline -->
+    <div class="skyline-footer">
+      <img src="assets/hk-skyline-wide.jpg" alt="" class="skyline-img" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;background:linear-gradient(90deg,transparent,var(--brand-red),transparent);opacity:0.08;\'></div>'">
+      <div class="footer-info"><span>中國建築工程(香港)有限公司 · 基礎公司</span><span>赤瞳安全智能平台 © 2025</span></div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

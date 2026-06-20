@@ -1,0 +1,65 @@
+{
+  "id": "T130",
+  "index": 130,
+  "title": "地盤分判商安全打理人評審表",
+  "policy_context": "3. 公司安環部發出警告信、紅黃牌或地盤安全管理停工整改命令； > 4. 安全審核發現嚴重不符合點； > 5. 業主安全審核(PASS及CPR等)發現嚴重不符合點或扣分。",
+  "nearby_paragraphs": [
+    "分判商每日安全交底記錄",
+    "註：該安全交底記錄由分判商打理人於交底當日中午12時前交地盤分區負責人。",
+    "附表13.9",
+    "地盤分判商安全打理人評審表",
+    "現按《地盤分判商打理人安全管理辦法》，提名安全打理人如下：",
+    "地 盤：",
+    "分判商： 安全打理人姓名：",
+    "工 序： 分判商當月開工友數："
+  ],
+  "rows": 3,
+  "columns": 6,
+  "non_empty_cell_count": 6,
+  "first_row": [
+    "安全主任:",
+    "",
+    "地盤總管:",
+    "",
+    "地盤經理:",
+    ""
+  ],
+  "headers_guess": [
+    "安全主任:",
+    "",
+    "地盤總管:",
+    "",
+    "地盤經理:",
+    ""
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T130_地盤分判商安全打理人評審表.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T130_地盤分判商安全打理人評審表.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T130_地盤分判商安全打理人評審表.md",
+  "cells": [
+    [
+      "安全主任:",
+      "",
+      "地盤總管:",
+      "",
+      "地盤經理:",
+      ""
+    ],
+    [
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      "日 期:",
+      "",
+      "日 期:",
+      "",
+      "日 期:",
+      ""
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

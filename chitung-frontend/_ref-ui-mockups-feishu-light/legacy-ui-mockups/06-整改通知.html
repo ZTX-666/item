@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>整改通知 | 赤瞳安全智能平台 · 中國建築(香港)</title>
+<style>
+:root{
+  --brand-red:#E70012;--brand-red-dark:#C4000F;--brand-red-glow:rgba(231,0,18,0.15);
+  --brand-navy:#0E2841;--brand-navy-deep:#091B2D;--brand-navy-mid:#142538;--brand-navy-light:#1A3652;
+  --brand-cyan:#0F9ED5;--brand-cyan-glow:rgba(15,158,213,0.15);
+  --brand-green:#4EA72E;--brand-orange:#E97132;--brand-purple:#A02B93;
+  --bg-primary:#0a1521;--bg-secondary:#0F1D2E;--bg-card:#152638;--bg-input:#0C1826;
+  --border-color:#1E3550;--text-primary:#E4E9EF;--text-secondary:#889BB0;--text-muted:#546B82;
+  --radius-sm:6px;--radius-md:10px;--font-sans:'Inter','Noto Sans SC',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-sans);background:var(--bg-primary);color:var(--text-primary);min-height:100vh;}
+
+.top-bar{height:56px;background:linear-gradient(135deg,var(--brand-navy),var(--brand-navy-deep));border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:100;}
+.top-bar__logo{display:flex;align-items:center;gap:12px;}
+.top-bar__logo-img{height:32px;width:auto;}
+.top-bar__brand-text h1{font-size:15px;font-weight:700;color:white;letter-spacing:1px;line-height:1.2;}
+.top-bar__brand-text span{font-size:9px;color:var(--text-muted);text-transform:uppercase;}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--brand-navy-light),var(--brand-cyan));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;border:2px solid var(--border-color);}
+.top-bar__right{margin:left:auto;display:flex;align-items:center;gap:16px;}
+
+.app-body{display:flex;height:calc(100vh-56px);}
+.sidebar{width:64px;background:var(--bg-secondary);border-right:1px solid var(--border-color);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;}
+.nav-item{width:46px;height:46px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;transition:all .15s;font-size:18px;border:1px solid transparent;}
+.nav-item:hover{background:var(--bg-card);color:var(--text-primary);border-color:var(--border-color);}
+.nav-item--active{background:var(--brand-red-glow);color:var(--brand-red);border-color:rgba(231,0,18,0.2);}
+.nav-divider{width:28px;height:1px;background:var(--border-color);margin:8px 0;}
+
+.main-content{flex:1;display:flex;overflow:hidden;}
+
+/* Left: Type Selection */
+.col-types{width:260px;background:var(--bg-secondary);border-right:1px solid var(--border-color);overflow-y:auto;flex-shrink:0;}
+.type-header{padding:16px 16px 12px;font-size:13px;font-weight:700;color:white;border-bottom:1px solid var(--border-color);}
+.type-list{padding:10px;}
+.type-card{padding:14px 16px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);margin-bottom:8px;cursor:pointer;transition:all .15s;position:relative;}
+.type-card:hover{border-color:var(--border-color);transform:translateX(3px);}
+.type-card--active{border-color:var(--brand-red);background:linear-gradient(135deg,rgba(231,0,18,0.06),var(--bg-card));}
+.type-card--active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--brand-red);border-radius:3px 0 0 3px;}
+.type-icon{font-size:22px;margin-bottom:6px;} .type-name{font-size:13px;font-weight:600;color:white;} .type-desc{font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4;}
+.type-count{font-size:10px;color:var(--text-muted);margin-top:6px;padding-top:6px;border-top:1px solid rgba(30,53,80,0.4);}
+
+/* Right: Editor */
+.col-editor{flex:1;overflow-y:auto;padding:20px 28px;display:flex;flex-direction:column;gap:16px;}
+.page-header h1{font-size:20px;font-weight:800;color:white;display:flex;align-items:center;gap:10px;}
+.page-header p{font-size:12px;color:var(--text-secondary);margin-top:3px;}
+
+/* AI Params Panel */
+.params-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.param-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:12px 14px;}
+.param-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:6px;}
+.param-value{font-size:13px;font-weight:600;color:white;display:flex;align-items:center;gap:6px;}
+.param-select{height:30px;background:var(--bg-input);border:1px solid var(--border-color);border-radius:4px;padding:0 8px 0 10px;font-size:12px;color:var(--text-primary);outline:none;width:100%;appearance:none;font-family:var(--font-sans);}
+.param-select:focus{border-color:var(--brand-cyan);}
+
+/* Document Preview */
+.doc-preview-container{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;flex:1;display:flex;flex-direction:column;}
+.dp-toolbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border-color);}
+.dp-title{font-size:13px;font-weight:600;color:white;display:flex;align-items:center;gap:6px;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;font-family:var(--font-sans);}
+.btn--primary{background:linear-gradient(135deg,var(--brand-red),var(--brand-red-dark));color:white;}
+.btn--secondary{background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);}
+.btn--secondary:hover{border-color:var(--brand-cyan);color:var(--brand-cyan);}
+.btn--green{background:linear-gradient(135deg,var(--brand-green),#3a8a1f);color:white;}
+.btn--cyan{background:linear-gradient(135deg,var(--brand-cyan),#0C7FA8);color:white;}
+
+.dp-body{flex:1;padding:24px 28px;overflow-y:auto;background:white;color:#1a1a1a;}
+.doc-content{max-width:700px;margin:0 auto;font-family:'Noto Serif SC',serif;line-height:1.85;font-size:14px;}
+.doc-logo-area{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--brand-red);}
+.doc-logo-box{width:50px;height:50px;background:var(--brand-red);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:800;border-radius:4px;}
+.doc-org-name h2{font-size:18px;font-weight:800;color:var(--brand-red);} .doc-org-name p{font-size:11px;color:#666;}
+.doc-title{text-align:center;font-size:20px;font-weight:800;margin:20px 0 8px;color:#000;letter-spacing:2px;}
+.doc-subtitle{text-align:center;font-size:12px;color:#666;margin-bottom:20px;}
+.doc-section-title{font-size:14px;font-weight:700;background:#f5f5f5;padding:6px 12px;margin:14px 0 8px;border-left:3px solid var(--brand-red);}
+.doc-field{display:flex;margin-bottom:6px;font-size:13px;}
+.doc-field-label{width:120px;color:#555;flex-shrink:0;} .doc-field-value{flex:1;font-weight:500;color:#000;}
+.doc-highlight{background:rgba(231,0,18,0.08);border-bottom:2px solid var(--brand-red);padding:1px 3px;border-radius:2px;}
+.doc-body-text{margin:12px 0;text-indent:2em;line-height:1.9;}
+.doc-signature{text-align:right;margin-top:30px;padding-top:16px;border-top:1px solid #ccc;}
+
+.skyline-footer{flex-shrink:0;position:relative;height:45px;overflow:hidden;border-top:1px solid var(--border-color);background:linear-gradient(to top,var(--bg-secondary),transparent);}
+.skyline-img{width:100%;height:100%;object-fit:cover;object-position:bottom center;opacity:0.18;mask-image:linear-gradient(to top,black 35%,transparent 100%);-webkit-mask-image:linear-gradient(to top,black 35%,transparent 100%);}
+.footer-info{position:absolute;bottom:4px;left:28px;right:28px;display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);z-index:1;}
+::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <img src="assets/logo-cscec.png" alt="CSCEC" class="top-bar__logo-img" onerror="this.outerHTML='<div style=\'width:32px;height:32px;background:var(--brand-red);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:8px;font-weight:800\'>CSCEC</div>'">
+    <div class="top-bar__brand-text"><h1>赤瞳守護者</h1><span>整改通知生成系統</span></div>
+  </div>
+  <div class="top-bar__right"><div class="avatar">陳</div></div>
+</header>
+
+<div class="app-body">
+  <aside class="sidebar">
+    <div class="nav-item">📊</div><div class="nav-item">🚨</div><div class="nav-item">📷</div><div class="nav-item">💬</div><div class="nav-item">📝</div>
+    <div class="nav-item nav-item--active">✉️</div><div class="nav-divider"></div><div class="nav-item">🤖</div>
+  </aside>
+
+  <!-- Document Type Selector -->
+  <section class="col-types">
+    <div class="type-header">📄 文書類型</div>
+    <div class="type-list">
+      <div class="type-card type-card--active">
+        <div class="type-icon">⚠️</div>
+        <div class="type-name">安全警告信 (Warning Letter)</div>
+        <div class="type-desc">針對安全違規行為發出正式警告，要求限期整改</div>
+        <div class="type-count">本月已發出 7 封</div>
+      </div>
+      <div class="type-card">
+        <div class="type-icon">💰</div>
+        <div class="type-name">罰款通知書 (Penalty Notice)</div>
+        <div class="type-desc">對重複違規或嚴重違規處以經濟處罰</div>
+        <div class="type-count">本月已發出 2 封</div>
+      </div>
+      <div class="type-card">
+        <div class="type-icon">🛑</div>
+        <div class="type-name">停工整改命令 (Stop Work Order)</div>
+        <div class="type-desc">存在重大安全隱患時，立即停止相關作業直至整改完成</div>
+        <div class="type-count">本月已發出 1 封</div>
+      </div>
+      <div class="type-card">
+        <div class="type-icon">📊</div>
+        <div class="type-name">整改进展周报 (Weekly Report)</div>
+        <div class="type-desc">匯總本周所有整改項目的進展狀態和閉環情況</div>
+        <div class="type-count">自動生成中...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Editor Area -->
+  <section class="col-editor">
+    <div class="page-header">
+      <h1>⚠️ 安全警告信生成器</h1>
+      <p>AI 自動生成標準化整改通知文檔，支持一鍵下載 Word / 發送 WhatsApp / 歸檔至台账</p>
+    </div>
+
+    <!-- AI Parameters -->
+    <section style="font-size:12px;font-weight:700;color:var(--brand-cyan);margin-bottom:4px;">📝 生成參數（AI 自動填充，可手動調整）</section>
+    <section class="params-grid">
+      <div class="param-card">
+        <div class="param-label">關聯隱患</div>
+        <select class="param-select"><option>A1吊運區人員未佩戴安全帽（#H-2025-042）</option><option>B2臨邊圍封缺失（#H-2025-038）</option><option>熱工序未設防火監察（#H-2025-035）</option></select>
+      </div>
+      <div class="param-card">
+        <div class="param-label">責任分判商</div>
+        <select class="param-select"><option>華興建築有限公司</option><option>永達工程有限公司</option><option>協成建設集團</option></select>
+      </div>
+      <div class="param-card">
+        <div class="param-label">截止日期</div>
+        <select class="param-select"><option>2025-06-19（48小時）</option><option>2025-06-21（72小時）</option><option>2025-06-25（一週）</option></select>
+      </div>
+      <div class="param-card">
+        <div class="param-label">語氣強度</div>
+        <select class="param-select"><option>標準 — 正式但合理</option><option>嚴厲 — 強調後果</option><option>緩和 — 初次提醒</option></select>
+      </div>
+    </section>
+
+    <!-- Document Preview -->
+    <section class="doc-preview-container">
+      <div class="dp-toolbar">
+        <div class="dp-title">📄 文檔預覽 — 警告信草稿</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn--secondary">🔄 重新生成</button>
+          <button class="btn btn--secondary">✏️ 編輯修改</button>
+          <button class="btn btn--primary">💾 下載 Word</button>
+          <button class="btn btn--green">💬 發送 WA</button>
+          <button class="btn btn--cyan">📥 歸檔入庫</button>
+        </div>
+      </div>
+      <div class="dp-body">
+        <div class="doc-content">
+          <div class="doc-logo-area">
+            <div class="doc-logo-box">CSCEC</div>
+            <div class="doc-org-name">
+              <h2>中國建築工程(香港)有限公司</h2>
+              <p>基礎公司 · 地盤安全管理部</p>
+            </div>
+          </div>
+
+          <div class="doc-title">安 全 警 告 信</div>
+          <div class="doc-subtitle">SAFETY WARNING LETTER · No. SWL-2025-017</div>
+
+          <div class="doc-section-title">一、收件方信息</div>
+          <div class="doc-field"><span class="doc-field-label">致：</span><span class="doc-field-value doc-highlight">華興建築有限公司</span></div>
+          <div class="doc-field"><span class="doc-field-label">分判合約編號：</span><span class="doc-field-value">SC-HK-C01-2024-SW02</span></div>
+          <div class="doc-field"><span class="doc-field-label">日期：</span><span class="doc-field-value">二零二五年六月十七日</span></div>
+
+          <div class="doc-section-title">二、違規事實</div>
+          <p class="doc-body-text">
+            經我司安全巡檢及 VLM 視覺監控系統於 <span class="doc-highlight">2025年6月17日上午10時23分</span> 發現，<span class="doc-highlight">貴司人員在 A1 吊運區域作業期間，未按規定佩戴安全頭盔</span>。該違反《地盤安全守則》第3.2條（個人防護裝備）之規定。
+          </p>
+          <p class="doc-body-text" style="background:#fff8e1;padding:10px;border-left:3px solid var(--brand-orange);font-size:12px;">
+            <b>⚡ VLM 檢測記錄：</b>攝像頭 A1-CAM01 · 置信度 94% · 截圖已附
+          </p>
+
+          <div class="doc-section-title">三、整改要求</div>
+          <p class="doc-body-text">
+            貴司須在 <span class="doc-highlight" style="color:var(--brand-red);font-weight:800;">2025年6月19日下午5時前</span> 完成以下整改事項：
+          </p>
+          <ol style="margin:8px 0 8px 24px;">
+            <li>立即糾正涉事人員的 PPE 違規行為，確保全體作業人員配戴完整的安全裝備；</li>
+            <li>對 A1 吊運區域進行全面 PPE 檢查，提交檢查報告；</li>
+            <li>加強班前安全教育（Toolbox Talk），將此事件作為案例教導全體工人。</li>
+          </ol>
+
+          <div class="doc-section-title">四、後果聲明</div>
+          <p class="doc-body-text">
+            如貴司未能於上述期限內完成整改或再次發生類似違規行為，我司保留根據分判合約第12.3條採取進一步措施之權利，包括但不限於：發出停工命令、扣減工程款、以及向屋宇署/勞工處通報。
+          </p>
+
+          <div class="doc-signature">
+            <p style="text-align:left;">此致<br><br><br></p>
+            <table style="float:right;"><tr><td style="border:none;text-align:center;padding-right:40px;">
+              <div style="font-weight:700;">中國建築工程(香港)有限公司<br>基礎公司</div><br>
+              <div style="border-top:1px solid #000;padding-top:4px;width:140px;">陳志明<br><small style="color:#888;">安全主任</small></div>
+            </td></tr></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="skyline-footer">
+      <img src="assets/hk-skyline-wide.jpg" alt="" class="skyline-img" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;background:linear-gradient(90deg,transparent,var(--brand-red),transparent);opacity:0.08;\'></div>'">
+      <div class="footer-info"><span>中國建築工程(香港)有限公司 · 基礎公司</span><span>赤瞳安全智能平台 © 2025</span></div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

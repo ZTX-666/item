@@ -1,0 +1,67 @@
+{
+  "id": "T154",
+  "index": 154,
+  "title": "你所提供的個人資料，本公司只會用於因健康及安全的理由而評估閣下的工作性質的合適性。為達到以上所述之目的和為此而有需要時，你提供的個人資料或該等資料的副本，可能透露給相關保險公司。",
+  "policy_context": "5. 協助工友安裝幸福工友App，並向工友講解幸福工友App應用，包括行為安全之星、安全評核及個人違反地盤安全守則保證書等； > 6. 工友填寫的上述資料涉及個人隱私，所有資料不得外洩。 > 附件",
+  "nearby_paragraphs": [
+    "附件18.1",
+    "新入職地盤工友身體健康情況表",
+    "Personal Data Collection Statement 收集個人資料聲明",
+    "The personal data provided will only be used by The Company for the purposes of assessing the health and safety aspects of your position description to you. The collected data will be disclosed to the worker, employee compensation insurer and the parties, as required by the Laws of the Hong Kong SAR.",
+    "你所提供的個人資料，本公司只會用於因健康及安全的理由而評估閣下的工作性質的合適性。為達到以上所述之目的和為此而有需要時，你提供的個人資料或該等資料的副本，可能透露給相關保險公司。",
+    "地盤名稱：____________________________________",
+    "甲部",
+    "Personal Information 個人資料 ** to be completed by worker 由工友填寫**"
+  ],
+  "rows": 5,
+  "columns": 4,
+  "non_empty_cell_count": 10,
+  "first_row": [
+    "Name 姓名",
+    "",
+    "Date of Birth 出生日期",
+    ""
+  ],
+  "headers_guess": [
+    "Name 姓名",
+    "",
+    "Date of Birth 出生日期",
+    ""
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T154_你所提供的個人資料，本公司只會用於因健康及安全的理由而評估閣下的工作性質的合適性。為達到以上所述之目的和為此而有需要時，你提供的個人資料或該.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T154_你所提供的個人資料，本公司只會用於因健康及安全的理由而評估閣下的工作性質的合適性。為達到以上所述之目的和為此而有需要時，你提供的個人資料或該.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T154_你所提供的個人資料，本公司只會用於因健康及安全的理由而評估閣下的工作性質的合適性。為達到以上所述之目的和為此而有需要時，你提供的個人資料或該.md",
+  "cells": [
+    [
+      "Name 姓名",
+      "",
+      "Date of Birth 出生日期",
+      ""
+    ],
+    [
+      "Sex 性別",
+      "",
+      "Position 職業/工種",
+      ""
+    ],
+    [
+      "Contact Number 聯絡電話",
+      "",
+      "Sub-contractor 分判公司",
+      ""
+    ],
+    [
+      "HKID No. 身份證號碼",
+      "",
+      "Sub-contractor Supervisor’s Name & Contact 分判商打理人姓名及聯絡電話",
+      ""
+    ],
+    [
+      "Green Card No. 平安咭號碼",
+      "",
+      "Workers Registration Card No. 工友註冊證號碼",
+      ""
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

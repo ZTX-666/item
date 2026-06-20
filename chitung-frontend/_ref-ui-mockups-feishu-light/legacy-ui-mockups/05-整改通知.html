@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤瞳安全智能平台 - 整改通知</title>
+<style>
+  :root {
+    --bg-primary: #0f1923;
+    --bg-secondary: #1a2332;
+    --bg-card: #1e2d3d;
+    --bg-hover: #253545;
+    --bg-input: #15202b;
+    --border-color: #2a3f52;
+    --accent-red: #e94560;
+    --accent-orange: #f59e0b;
+    --accent-green: #10b981;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --accent-purple: #8b5cf6;
+    --text-primary: #e8edf2;
+    --text-secondary: #8899aa;
+    --text-muted: #5a6a7a;
+    --font-family: 'Inter', 'Noto Sans SC', sans-serif;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family: var(--font-family); background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+
+  .top-bar { height:52px; background: linear-gradient(180deg,#1a2332 0%,#15202b 100%); border-bottom:1px solid var(--border-color); display:flex; align-items:center; padding:0 20px; position:sticky; top:0; z-index:100; }
+  .top-bar__logo { display:flex; align-items:center; gap:10px; font-weight:700; font-size:15px; color:var(--accent-red); letter-spacing:1px; }
+  .top-bar__logo-icon { width:28px;height:28px; background:linear-gradient(135deg,var(--accent-red),#ff6b6b); border-radius:8px; display:flex;align-items:center;justify-content:center;font-size:14px; }
+  .top-bar__nav { display:flex; gap:2px; margin-left:40px; }
+  .top-bar__nav-item { padding:6px 14px;border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);cursor:pointer;transition:all 0.15s; }
+  .top-bar__nav-item:hover { color:var(--text-primary);background:var(--bg-hover); }
+  .top-bar__nav-item--active { color:var(--text-white);background:rgba(233,69,96,0.15);font-weight:600; }
+  .top-bar__right { margin-left:auto;display:flex;align-items:center;gap:12px; }
+  .avatar { width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent-cyan),var(--accent-blue));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white; }
+
+  .main-layout { display:flex; height:calc(100vh - 52px); }
+
+  /* 左侧：通知列表 */
+  .notice-list { width:340px; background:var(--bg-secondary); border-right:1px solid var(--border-color); display:flex; flex-direction:column; flex-shrink:0; }
+  .notice-list__header { padding:14px 16px; border-bottom:1px solid var(--border-color); display:flex;align-items:center;justify-content:space-between; }
+  .notice-list__title { font-size:14px;font-weight:600;color:var(--text-white); }
+  .notice-tabs { display:flex;gap:2px;padding:8px 16px;border-bottom:1px solid var(--border-color); }
+  .notice-tab { padding:5px 10px;border-radius:var(--radius-sm);font-size:11px;color:var(--text-muted);cursor:pointer;transition:all 0.12s; }
+  .notice-tab:hover { color:var(--text-primary);background:var(--bg-hover); }
+  .notice-tab--active { color:var(--accent-cyan);background:rgba(6,182,212,0.15);font-weight:600; }
+  .notice-items { flex:1;overflow-y:auto; }
+  .notice-item {
+    display:flex;gap:10px;padding:12px 16px;cursor:pointer;transition:background 0.12s;border-left:3px solid transparent;
+  }
+  .notice-item:hover { background:var(--bg-hover); }
+  .notice-item--active { background:var(--bg-hover);border-left-color:var(--accent-red); }
+  .notice-type-icon { width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0; }
+  .notice-type-icon--warning { background:rgba(233,69,96,0.2); }
+  .notice-type-icon--penalty { background:rgba(245,158,11,0.2); }
+  .notice-type-icon--notice { background:rgba(59,130,246,0.2); }
+  .notice-type-icon--report { background:rgba(139,92,246,0.2); }
+  .notice-info { flex:1;min-width:0; }
+  .notice-name { font-size:13px;font-weight:500;color:var(--text-white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .notice-meta { font-size:11px;color:var(--text-muted);margin-top:2px; }
+  .notice-status { font-size:10px;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;font-weight:600; }
+  .notice-status--draft { background:rgba(255,255,255,0.1);color:var(--text-muted); }
+  .notice-status--sent { background:rgba(59,130,246,0.2);color:var(--accent-blue); }
+  .notice-status--confirmed { background:rgba(16,185,129,0.2);color:var(--accent-green); }
+
+  /* 右侧：通知详情/编辑 */
+  .notice-detail { flex:1;display:flex;flex-direction:column;overflow:hidden; }
+  .notice-detail__header { padding:14px 20px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between; }
+  .notice-detail__title { font-size:16px;font-weight:700;color:var(--text-white); }
+  .notice-detail__actions { display:flex;gap:6px; }
+
+  .btn { display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s; }
+  .btn--primary { background:linear-gradient(135deg,var(--accent-red),#ff6b6b);color:white; }
+  .btn--secondary { background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color); }
+  .btn--ai { background:rgba(6,182,212,0.15);color:var(--accent-cyan);border:1px solid rgba(6,182,212,0.3); }
+  .btn--danger { background:rgba(233,69,96,0.15);color:var(--accent-red);border:1px solid rgba(233,69,96,0.3); }
+
+  /* 通知文档预览（模拟 Word 样式） */
+  .doc-preview {
+    flex:1;overflow-y:auto;padding:24px;background:var(--bg-input);
+  }
+  .doc-page {
+    background:#fff;color:#222;max-width:700px;margin:0 auto;
+    padding:40px 48px;border-radius:var(--radius-sm);
+    box-shadow:0 2px 16px rgba(0,0,0,0.3);font-size:13px;line-height:1.7;
+    min-height:600px;
+  }
+  .doc-page__header { text-align:center;margin-bottom:24px; }
+  .doc-page__header h2 { font-size:18px;color:#111;margin-bottom:4px; }
+  .doc-page__header .doc-ref { font-size:11px;color:#666; }
+  .doc-field { display:flex;margin-bottom:6px; }
+  .doc-field__label { font-weight:600;min-width:100px;color:#444; }
+  .doc-field__value { flex:1; }
+  .doc-table { width:100%;border-collapse:collapse;margin:12px 0;font-size:12px; }
+  .doc-table th { background:#f0f0f0;padding:6px 8px;border:1px solid #ccc;text-align:left; }
+  .doc-table td { padding:6px 8px;border:1px solid #ccc; }
+  .doc-highlight { background:#fff8e1;padding:2px 4px;border-radius:2px; }
+  .doc-ai-note {
+    display:inline-flex;align-items:center;gap:4px;
+    background:rgba(6,182,212,0.1);border:1px dashed var(--accent-cyan);
+    border-radius:4px;padding:1px 6px;font-size:11px;color:var(--accent-cyan);margin-left:4px;
+  }
+
+  /* AI 生成面板 */
+  .ai-gen-panel {
+    background:var(--bg-card);border:1px solid rgba(6,182,212,0.3);
+    border-radius:var(--radius-md);margin:16px 20px;padding:14px 16px;
+  }
+  .ai-gen-panel__header { display:flex;align-items:center;gap:8px;margin-bottom:10px; }
+  .ai-gen-panel__title { font-size:13px;font-weight:600;color:var(--accent-cyan); }
+  .ai-form-row { display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap; }
+  .ai-form-label { font-size:12px;color:var(--text-muted);min-width:70px; }
+  .ai-form-input {
+    flex:1;padding:6px 10px;background:var(--bg-input);border:1px solid var(--border-color);
+    border-radius:var(--radius-sm);color:var(--text-primary);font-size:12px;outline:none;
+  }
+  .ai-form-input:focus { border-color:var(--accent-cyan); }
+  .ai-form-select {
+    padding:6px 10px;background:var(--bg-input);border:1px solid var(--border-color);
+    border-radius:var(--radius-sm);color:var(--text-primary);font-size:12px;outline:none;
+  }
+
+  /* 发送记录 */
+  .send-log {
+    background:var(--bg-card);border:1px solid var(--border-color);
+    border-radius:var(--radius-md);margin:16px 20px;padding:12px 16px;font-size:12px;
+  }
+  .send-log__title { font-size:13px;font-weight:600;color:var(--text-white);margin-bottom:8px; }
+  .send-log__item { display:flex;gap:8px;padding:4px 0;color:var(--text-secondary); }
+  .send-log__time { font-family:monospace;color:var(--text-muted);min-width:60px; }
+  .send-log__status-dot { width:6px;height:6px;border-radius:50%;margin-top:4px;flex-shrink:0; }
+  .send-log__status-dot--ok { background:var(--accent-green); }
+  .send-log__status-dot--wait { background:var(--accent-orange); }
+
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border-color);border-radius:3px; }
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <div class="top-bar__logo-icon">👁</div>
+    <span>赤瞳安全智能平台</span>
+  </div>
+  <nav class="top-bar__nav">
+    <div class="top-bar__nav-item">📊 工作台</div>
+    <div class="top-bar__nav-item">📋 隐患台账</div>
+    <div class="top-bar__nav-item top-bar__nav-item--active">📝 整改通知</div>
+    <div class="top-bar__nav-item">🤖 AI 助手</div>
+  </nav>
+  <div class="top-bar__right"><div class="avatar">陈</div></div>
+</header>
+
+<div class="main-layout">
+
+  <!-- 左：通知列表 -->
+  <div class="notice-list">
+    <div class="notice-list__header">
+      <span class="notice-list__title">📝 整改通知</span>
+      <button class="btn btn--ai" style="font-size:11px;padding:5px 10px;">🤖 新通知</button>
+    </div>
+    <div class="notice-tabs">
+      <div class="notice-tab notice-tab--active">全部 12</div>
+      <div class="notice-tab">草稿</div>
+      <div class="notice-tab">已发送</div>
+      <div class="notice-tab">已确认</div>
+    </div>
+    <div class="notice-items">
+
+      <!-- 通知 1：警告信（草稿） -->
+      <div class="notice-item notice-item--active">
+        <div class="notice-type-icon notice-type-icon--warning">⚠️</div>
+        <div class="notice-info">
+          <div class="notice-name">警告信 — 宏基建筑</div>
+          <div class="notice-meta">HZ-20250612-001 · 临边围封缺失</div>
+          <span class="notice-status notice-status--draft">草稿</span>
+        </div>
+      </div>
+
+      <!-- 通知 2：罚款信（已发送） -->
+      <div class="notice-item">
+        <div class="notice-type-icon notice-type-icon--penalty">💰</div>
+        <div class="notice-info">
+          <div class="notice-name">罚款通知 — 永基工程</div>
+          <div class="notice-meta">HZ-20250610-003 · PPE 违规累计</div>
+          <span class="notice-status notice-status--sent">已发送</span>
+        </div>
+      </div>
+
+      <!-- 通知 3：整改通知（已确认） -->
+      <div class="notice-item">
+        <div class="notice-type-icon notice-type-icon--notice">📋</div>
+        <div class="notice-info">
+          <div class="notice-name">整改通知 — 联昌土建</div>
+          <div class="notice-meta">HZ-20250608-007 · 电箱未关闭</div>
+          <span class="notice-status notice-status--confirmed">已确认 ✅</span>
+        </div>
+      </div>
+
+      <!-- 通知 4：停工整改（草稿） -->
+      <div class="notice-item">
+        <div class="notice-type-icon notice-type-icon--report">🛑</div>
+        <div class="notice-info">
+          <div class="notice-name">停工整改命令 — 宏基建筑</div>
+          <div class="notice-meta">HZ-20250614-008 · 吊装违规严重</div>
+          <span class="notice-status notice-status--draft">草稿</span>
+        </div>
+      </div>
+
+      <!-- 通知 5：安全周报（已发送） -->
+      <div class="notice-item">
+        <div class="notice-type-icon notice-type-icon--report">📊</div>
+        <div class="notice-info">
+          <div class="notice-name">安全周报 — 第 24 周</div>
+          <div class="notice-meta">自动生成 · 2025-06-13</div>
+          <span class="notice-status notice-status--sent">已发送</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 右：通知详情 -->
+  <div class="notice-detail">
+
+    <!-- AI 生成参数面板 -->
+    <div class="ai-gen-panel">
+      <div class="ai-gen-panel__header">
+        <span style="font-size:16px;">🤖</span>
+        <span class="ai-gen-panel__title">AI 生成警告信 — 参数设置</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--accent-cyan);background:rgba(6,182,212,0.15);padding:2px 8px;border-radius:4px;">由隐患 HZ-20250612-001 自动生成</span>
+      </div>
+      <div class="ai-form-row">
+        <span class="ai-form-label">通知类型</span>
+        <select class="ai-form-select">
+          <option>⚠️ 警告信（首次违规）</option>
+          <option>💰 罚款通知（累计违规）</option>
+          <option>📋 整改通知（一般隐患）</option>
+          <option>🛑 停工整改命令（严重违规）</option>
+        </select>
+        <span class="ai-form-label">语气强度</span>
+        <select class="ai-form-select">
+          <option>标准（正式、客观）</option>
+          <option>严厉（强调后果）</option>
+          <option>温和（强调合作）</option>
+        </select>
+      </div>
+      <div class="ai-form-row">
+        <span class="ai-form-label">关联隐患</span>
+        <input class="ai-form-input" value="HZ-20250612-001, HZ-20250613-005" style="flex:1;" />
+        <span class="ai-form-label">整改期限</span>
+        <input class="ai-form-input" value="2025-06-18（2 个工作日内）" style="flex:1;" />
+      </div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button class="btn btn--ai" style="font-size:11px;">🔄 重新生成</button>
+        <button class="btn btn--primary" style="font-size:11px;">✅ 确认并生成文档</button>
+      </div>
+    </div>
+
+    <div class="notice-detail__header">
+      <div>
+        <div class="notice-detail__title">⚠️ 警告信 — 宏基建筑有限公司</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">编号：WARN-20250616-001 · 生成时间：2025-06-16 14:45</div>
+      </div>
+      <div class="notice-detail__actions">
+        <button class="btn btn--secondary" style="font-size:11px;">📥 下载 Word</button>
+        <button class="btn btn--ai" style="font-size:11px;">🤖 AI 润色</button>
+        <button class="btn btn--primary" style="font-size:11px;">📤 发送 WhatsApp</button>
+      </div>
+    </div>
+
+    <!-- 文档预览 -->
+    <div class="doc-preview">
+      <div class="doc-page">
+        <div class="doc-page__header">
+          <h2>安 全 警 告 信</h2>
+          <div class="doc-ref">编号：WARN-20250616-001 &nbsp;&nbsp;|&nbsp;&nbsp; 日期：2025年6月16日</div>
+        </div>
+
+        <div class="doc-field">
+          <span class="doc-field__label">致：</span>
+          <span class="doc-field__value"><strong>宏基建筑有限公司</strong>（分判商编号：SC-2023-089）</span>
+        </div>
+        <div class="doc-field">
+          <span class="doc-field__label">负责人：</span>
+          <span class="doc-field__value">李国强先生</span>
+        </div>
+        <div class="doc-field">
+          <span class="doc-field__label">抄送：</span>
+          <span class="doc-field__value">基础公司安全部、工地项目经理</span>
+        </div>
+
+        <hr style="margin:16px 0;border:none;border-top:1px solid #ddd;" />
+
+        <p><strong>主题：关于 B 区3楼临边围封缺失的安全警告</strong></p>
+
+        <p style="margin-top:12px;">根据本公司安全管理制度及《工厂及工业经营（安全工作）规例》，现就贵司在启德发展计划基础工程项目中存在的安全隐患，发出本警告信。</p>
+
+        <p style="margin-top:8px;"><strong>一、违规事项</strong></p>
+        <p>于2025年6月12日，本公司安全主任在巡查中发现：</p>
+        <table class="doc-table">
+          <tr>
+            <th style="width:40px;">项</th>
+            <th>违规描述</th>
+            <th style="width:80px;">级别</th>
+            <th style="width:100px;">地点</th>
+          </tr>
+          <tr>
+            <td>1</td>
+            <td>B区3楼临边护栏于上午被拆除后未恢复，形成约2米宽缺口，仅以警示带临时围封，不符合《临边作业安全管理规定》第5.2条</td>
+            <td style="color:#e00;">严重</td>
+            <td>B区3楼</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>现场观察到有工人穿越警示带进入临边区域，存在坠落风险</td>
+            <td style="color:#e00;">严重</td>
+            <td>B区3楼</td>
+          </tr>
+        </table>
+
+        <p style="margin-top:8px;"><strong>二、整改要求</strong></p>
+        <p>请贵司于<strong class="doc-highlight">2025年6月18日18:00前</strong>完成以下整改：</p>
+        <ol style="margin:8px 0 8px 20px;line-height:1.8;">
+          <li>恢复B区3楼临边护栏，符合《临边作业安全管理规定》要求</li>
+          <li>安排专人监督，防止工人穿越警示区域</li>
+          <li>提交整改照片及自检报告</li>
+        </ol>
+
+        <p><strong>三、后续处理</strong></p>
+        <p>若贵司未能于指定期限内完成整改，或同类违规再次发生，本公司将依据合约条款发出<strong style="color:#e00;">罚款通知</strong>，并保留暂停贵司相关作业的权利。</p>
+
+        <div style="margin-top:20px;padding:10px 14px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:12px;">
+          🤖 <strong>AI 附注：</strong>本文档根据隐患 HZ-20250612-001 自动生成，引用制度条款 T032 第5.2条。发出前请安全主任确认分判商联系信息。
+        </div>
+
+        <div style="margin-top:32px;display:flex;justify-content:space-between;">
+          <div>
+            <div style="font-size:11px;color:#666;">发出单位：</div>
+            <div style="font-weight:600;">中国建筑国际集团 — 基础公司</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px;color:#666;">安全主任签署：</div>
+            <div style="margin-top:24px;border-bottom:1px solid #333;width:120px;display:inline-block;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 发送记录 -->
+    <div class="send-log">
+      <div class="send-log__title">📤 发送记录</div>
+      <div class="send-log__item">
+        <span class="send-log__time">14:50</span>
+        <div class="send-log__status-dot send-log__status-dot--wait"></div>
+        <span>等待发送 — 需安全主任确认后发送 WhatsApp 通知</span>
+      </div>
+      <div class="send-log__item">
+        <span class="send-log__time">14:45</span>
+        <div class="send-log__status-dot send-log__status-dot--ok"></div>
+        <span>AI 生成完成 — 警告信草稿已生成，置信度 94%</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div style="position:fixed;bottom:12px;left:12px;background:rgba(0,0,0,0.8);color:#aaa;font-size:10px;padding:6px 10px;border-radius:6px;font-family:monospace;pointer-events:none;">
+  🎨 UI 设计稿 v2.0 — 整改通知模块 | 赤瞳安全智能平台
+</div>
+
+</body>
+</html>

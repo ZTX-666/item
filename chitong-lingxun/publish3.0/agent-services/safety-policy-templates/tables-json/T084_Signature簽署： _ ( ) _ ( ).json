@@ -1,0 +1,45 @@
+{
+  "id": "T084",
+  "index": 84,
+  "title": "Signature簽署： / ( ) / ( )",
+  "policy_context": "四、獨立第三方審核 > 五、其他事項 > 附件",
+  "nearby_paragraphs": [
+    "Acceptance of the Permit 接受有關許可證",
+    "I have read and understood this Permit and shall undertake to work in accordance with all the conditions laid down in it.",
+    "本人已細閱及明白有關許可證，並承諾於工作中謹遵有關條款。",
+    "Details of the work team 工作人員資料",
+    "Permit Cancellation 撤銷許可證",
+    "I certify that the work under this permit is completed. All workers, tools and equipment are cleared",
+    "from the job area.",
+    "本人證明此許可證內所述之工作經已完成。全部工友、工具及物料已搬離工作地點。"
+  ],
+  "rows": 2,
+  "columns": 3,
+  "non_empty_cell_count": 5,
+  "first_row": [
+    "Signature簽署：",
+    "( )",
+    "( )"
+  ],
+  "headers_guess": [
+    "Signature簽署：",
+    "( )",
+    "( )"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T084_Signature簽署： _ ( ) _ ( ).docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T084_Signature簽署： _ ( ) _ ( ).json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T084_Signature簽署： _ ( ) _ ( ).md",
+  "cells": [
+    [
+      "Signature簽署：",
+      "( )",
+      "( )"
+    ],
+    [
+      "",
+      "Supervisor (監督人員)",
+      "Permit Holder (持有許可證人士)"
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

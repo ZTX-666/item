@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤瞳安全智能平台 - 每日简报</title>
+<style>
+  :root {
+    --bg-primary: #0f1923;
+    --bg-secondary: #1a2332;
+    --bg-card: #1e2d3d;
+    --bg-hover: #253545;
+    --bg-input: #15202b;
+    --border-color: #2a3f52;
+    --accent-red: #e94560;
+    --accent-orange: #f59e0b;
+    --accent-green: #10b981;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --text-primary: #e8edf2;
+    --text-secondary: #8899aa;
+    --text-muted: #5a6a7a;
+    --font-family: 'Inter', 'Noto Sans SC', sans-serif;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family: var(--font-family); background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+
+  .top-bar { height:52px; background:linear-gradient(180deg,#1a2332 0%,#15202b 100%); border-bottom:1px solid var(--border-color); display:flex; align-items:center; padding:0 20px; position:sticky; top:0; z-index:100; }
+  .top-bar__logo { display:flex; align-items:center; gap:10px; font-weight:700; font-size:15px; color:var(--accent-red); letter-spacing:1px; }
+  .top-bar__logo-icon { width:28px;height:28px; background:linear-gradient(135deg,var(--accent-red),#ff6b6b); border-radius:8px; display:flex;align-items:center;justify-content:center;font-size:14px; }
+  .top-bar__nav { display:flex; gap:2px; margin-left:40px; }
+  .top-bar__nav-item { padding:6px 14px;border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);cursor:pointer;transition:all 0.15s; }
+  .top-bar__nav-item:hover { color:var(--text-primary);background:var(--bg-hover); }
+  .top-bar__nav-item--active { color:var(--text-white);background:rgba(233,69,96,0.15);font-weight:600; }
+  .top-bar__right { margin-left:auto;display:flex;align-items:center;gap:12px; }
+  .avatar { width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent-cyan),var(--accent-blue));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white; }
+
+  .main-layout { display:flex; height:calc(100vh - 52px); }
+
+  /* 左侧：简报日期列表 */
+  .briefing-dates { width:240px; background:var(--bg-secondary); border-right:1px solid var(--border-color); overflow-y:auto; flex-shrink:0; }
+  .briefing-dates__header { padding:12px 16px; border-bottom:1px solid var(--border-color); display:flex;align-items:center;justify-content:space-between; }
+  .briefing-dates__title { font-size:13px;font-weight:600;color:var(--text-white); }
+  .briefing-date-item {
+    padding:10px 16px; cursor:pointer; transition:background 0.12s; border-left:3px solid transparent;
+    display:flex; align-items:center; gap:10px;
+  }
+  .briefing-date-item:hover { background:var(--bg-hover); }
+  .briefing-date-item--active { background:var(--bg-hover); border-left-color:var(--accent-cyan); }
+  .briefing-date__day { font-size:11px;color:var(--text-muted);font-family:monospace; }
+  .briefing-date__label { font-size:13px;color:var(--text-primary); }
+  .briefing-date__badge {
+    margin-left:auto; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600;
+  }
+  .briefing-date__badge--new { background:rgba(233,69,96,0.2);color:var(--accent-red); }
+  .briefing-date__badge--ok { background:rgba(16,185,129,0.2);color:var(--accent-green); }
+
+  /* 右侧：简报内容 */
+  .briefing-content { flex:1; overflow-y:auto; padding:20px 24px; }
+  .briefing-header { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px; }
+  .briefing-header__left h1 { font-size:20px;font-weight:700;color:var(--text-white);margin-bottom:4px; }
+  .briefing-header__left p { font-size:13px;color:var(--text-secondary); }
+  .briefing-actions { display:flex;gap:8px; }
+
+  .btn { display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s; }
+  .btn--primary { background:linear-gradient(135deg,var(--accent-red),#ff6b6b);color:white; }
+  .btn--secondary { background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color); }
+  .btn--ai { background:rgba(6,182,212,0.15);color:var(--accent-cyan);border:1px solid rgba(6,182,212,0.3); }
+
+  /* 简报区块 */
+  .briefing-section {
+    background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);
+    margin-bottom:16px;overflow:hidden;
+  }
+  .briefing-section__header {
+    display:flex;align-items:center;gap:8px;padding:10px 16px;
+    background:var(--bg-secondary);border-bottom:1px solid var(--border-color);
+    font-size:13px;font-weight:600;color:var(--text-white);
+  }
+  .briefing-section__body { padding:14px 16px;font-size:13px;line-height:1.6;color:var(--text-secondary); }
+
+  /* 隐患摘要列表 */
+  .hazard-summary-item {
+    display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light,rgba(42,63,82,0.5));
+    align-items:flex-start;
+  }
+  .hazard-summary-item:last-child { border-bottom:none; }
+  .hazard-idx { font-size:11px;color:var(--text-muted);font-family:monospace;min-width:24px;padding-top:2px; }
+  .hazard-summary-text { flex:1;color:var(--text-primary); }
+  .hazard-summary-text strong { color:var(--accent-orange); }
+
+  /* 统计数据 */
+  .stats-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px; }
+  .stat-mini {
+    background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--radius-sm);
+    padding:10px 12px;text-align:center;
+  }
+  .stat-mini__value { font-size:22px;font-weight:700;color:var(--text-white); }
+  .stat-mini__label { font-size:11px;color:var(--text-muted);margin-top:2px; }
+
+  /* 明日提醒 */
+  .reminder-item {
+    display:flex;gap:10px;align-items:center;padding:8px 12px;
+    background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);
+    margin-bottom:6px;font-size:13px;
+  }
+  .reminder-item--urgent { background:rgba(233,69,96,0.08);border-color:rgba(233,69,96,0.2); }
+  .reminder-icon { font-size:16px;flex-shrink:0; }
+
+  /* AI 生成标记 */
+  .ai-tag { display:inline-flex;align-items:center;gap:3px;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:600;background:rgba(6,182,212,0.15);color:var(--accent-cyan); }
+
+  /* 天气预警条 */
+  .weather-alert {
+    background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(233,69,96,0.1));
+    border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-md);
+    padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:16px;
+  }
+  .weather-alert__icon { font-size:28px; }
+  .weather-alert__text { flex:1;font-size:13px;color:var(--text-primary);line-height:1.5; }
+
+  /* 趋势图（模拟） */
+  .trend-chart {
+    background:var(--bg-secondary);border-radius:var(--radius-sm);padding:12px;margin-top:10px;
+    height:120px;display:flex;align-items:flex-end;gap:6px;padding-bottom:24px;position:relative;
+  }
+  .trend-bar {
+    flex:1;background:linear-gradient(180deg,var(--accent-cyan),rgba(6,182,212,0.3));
+    border-radius:3px 3px 0 0;min-height:10px;position:relative;transition:all 0.3s;
+  }
+  .trend-bar--high { background:linear-gradient(180deg,var(--accent-red),rgba(233,69,96,0.3)); }
+  .trend-bar__label {
+    position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);
+    font-size:9px;color:var(--text-muted);white-space:nowrap;
+  }
+
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border-color);border-radius:3px; }
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <div class="top-bar__logo-icon">👁</div>
+    <span>赤瞳安全智能平台</span>
+  </div>
+  <nav class="top-bar__nav">
+    <div class="top-bar__nav-item">📊 工作台</div>
+    <div class="top-bar__nav-item">📋 隐患台账</div>
+    <div class="top-bar__nav-item top-bar__nav-item--active">📈 每日简报</div>
+    <div class="top-bar__nav-item">🤖 AI 助手</div>
+  </nav>
+  <div class="top-bar__right"><div class="avatar">陈</div></div>
+</header>
+
+<div class="main-layout">
+
+  <!-- 左侧：日期列表 -->
+  <div class="briefing-dates">
+    <div class="briefing-dates__header">
+      <span class="briefing-dates__title">📅 简报日期</span>
+      <button style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-size:12px;">🤖 生成今日</button>
+    </div>
+
+    <div class="briefing-date-item briefing-date-item--active">
+      <span style="font-size:20px;">📄</span>
+      <div>
+        <div class="briefing-date__label">今日简报</div>
+        <div class="briefing-date__day">2025-06-16 周一</div>
+      </div>
+      <span class="briefing-date__badge briefing-date__badge--new">NEW</span>
+    </div>
+
+    <div class="briefing-date-item">
+      <span style="font-size:20px;">📄</span>
+      <div>
+        <div class="briefing-date__label">上周简报</div>
+        <div class="briefing-date__day">2025-06-09 ~ 06-13</div>
+      </div>
+    </div>
+
+    <div class="briefing-date-item">
+      <span style="font-size:20px;">📄</span>
+      <div>
+        <div class="briefing-date__label">2025-06-15 周日</div>
+        <div class="briefing-date__day">周末简报</div>
+      </div>
+      <span class="briefing-date__badge briefing-date__badge--ok">✓</span>
+    </div>
+
+    <div class="briefing-date-item">
+      <span style="font-size:20px;">📄</span>
+      <div>
+        <div class="briefing-date__label">2025-06-14 周六</div>
+        <div class="briefing-date__day">简报已发送</div>
+      </div>
+    </div>
+
+    <div class="briefing-date-item">
+      <span style="font-size:20px;">📄</span>
+      <div>
+        <div class="briefing-date__label">2025-06-13 周五</div>
+        <div class="briefing-date__day">简报已发送</div>
+      </div>
+    </div>
+
+    <div style="padding:12px 16px;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-top:8px;">统计</div>
+    <div style="padding:8px 16px;font-size:12px;color:var(--text-secondary);line-height:1.6;">
+      📊 本月已生成 <span style="color:var(--accent-cyan);font-weight:600;">16</span> 份简报<br/>
+      🤖 AI 自动生成 <span style="color:var(--accent-cyan);font-weight:600;">14</span> 份<br/>
+      ✅ 已发送给管理层 <span style="color:var(--accent-green);font-weight:600;">12</span> 份
+    </div>
+  </div>
+
+  <!-- 右侧：简报内容 -->
+  <div class="briefing-content">
+
+    <div class="briefing-header">
+      <div class="briefing-header__left">
+        <h1>📈 每日安全简报</h1>
+        <p>2025年6月16日（周一）· 启德发展计划 — 基础工程</p>
+      </div>
+      <div class="briefing-actions">
+        <button class="btn btn--ai">🤖 AI 重新生成</button>
+        <button class="btn btn--secondary">📤 发送给管理层</button>
+        <button class="btn btn--primary">📥 导出 PDF</button>
+      </div>
+    </div>
+
+    <!-- 天气预警（如有） -->
+    <div class="weather-alert">
+      <span class="weather-alert__icon">🌡️</span>
+      <div class="weather-alert__text">
+        <strong style="color:var(--accent-orange);">高温预警：</strong>
+        香港天文台预报今日最高气温达 <strong>33°C</strong>，请各区域安全主任加强热应激检查，确保工人有充足饮水及休息时间。
+        <span class="ai-tag" style="margin-left:8px;">🤖 AI 自动关联</span>
+      </div>
+    </div>
+
+    <!-- 统计数据 -->
+    <div class="stats-grid">
+      <div class="stat-mini">
+        <div class="stat-mini__value" style="color:var(--accent-red);">5</div>
+        <div class="stat-mini__label">新增隐患</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini__value" style="color:var(--accent-orange);">7</div>
+        <div class="stat-mini__label">超期未结</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini__value" style="color:var(--accent-blue);">12</div>
+        <div class="stat-mini__label">整改中</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini__value" style="color:var(--accent-green);">8</div>
+        <div class="stat-mini__label">今日闭环</div>
+      </div>
+    </div>
+
+    <!-- 新增隐患摘要 -->
+    <div class="briefing-section">
+      <div class="briefing-section__header">⚠️ 今日新增隐患（5 项）</div>
+      <div class="briefing-section__body">
+        <div class="hazard-summary-item">
+          <span class="hazard-idx">1</span>
+          <div class="hazard-summary-text">
+            <strong style="color:var(--accent-red);">[严重]</strong> B区3楼临边护栏拆除后未恢复，宽度约2米，有工人穿越
+            <span style="font-size:11px;color:var(--text-muted);margin-left:6px;">— HZ-20250612-001（已升级处理）</span>
+          </div>
+        </div>
+        <div class="hazard-summary-item">
+          <span class="hazard-idx">2</span>
+          <div class="hazard-summary-text">
+            <strong style="color:var(--accent-orange);">[高风险]</strong> 吊装区域未设置警示带，有工人穿越
+            <span style="font-size:11px;color:var(--text-muted);margin-left:6px;">— HZ-20250613-005</span>
+          </div>
+        </div>
+        <div class="hazard-summary-item">
+          <span class="hazard-idx">3</span>
+          <div class="hazard-summary-text">
+            <strong style="color:var(--accent-blue);">[中风险]</strong> 工人未佩戴安全帽（VLM 自动检测）
+            <span class="ai-tag">🤖 VLM 检测</span>
+          </div>
+        </div>
+        <div class="hazard-summary-item">
+          <span class="hazard-idx">4</span>
+          <div class="hazard-summary-text">
+            <strong style="color:var(--accent-blue);">[中风险]</strong> D区电箱门未关闭，有积水痕迹
+            <span class="ai-tag">💬 WhatsApp 提取</span>
+          </div>
+        </div>
+        <div class="hazard-summary-item">
+          <span class="hazard-idx">5</span>
+          <div class="hazard-summary-text">
+            <strong style="color:var(--accent-orange);">[高风险]</strong> 挖掘机与人员距离小于2米（VLM 检测）
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 整改进展 -->
+    <div class="briefing-section">
+      <div class="briefing-section__header">🔄 整改进展</div>
+      <div class="briefing-section__body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="padding:10px;background:var(--bg-secondary);border-radius:var(--radius-sm);">
+            <div style="font-size:11px;color:var(--text-muted);">待处理</div>
+            <div style="font-size:20px;font-weight:700;color:var(--accent-red);">5</div>
+          </div>
+          <div style="padding:10px;background:var(--bg-secondary);border-radius:var(--radius-sm);">
+            <div style="font-size:11px;color:var(--text-muted);">整改中</div>
+            <div style="font-size:20px;font-weight:700;color:var(--accent-blue);">12</div>
+          </div>
+          <div style="padding:10px;background:var(--bg-secondary);border-radius:var(--radius-sm);">
+            <div style="font-size:11px;color:var(--text-muted);">今日闭环</div>
+            <div style="font-size:20px;font-weight:700;color:var(--accent-green);">8</div>
+          </div>
+          <div style="padding:10px;background:var(--bg-secondary);border-radius:var(--radius-sm);">
+            <div style="font-size:11px;color:var(--text-muted);">超期未结</div>
+            <div style="font-size:20px;font-weight:700;color:var(--accent-orange);">7 ⚠️</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:8px 12px;background:rgba(233,69,96,0.08);border:1px solid rgba(233,69,96,0.2);border-radius:var(--radius-sm);font-size:12px;color:var(--accent-red);">
+          🚨 注意：有 <strong>7</strong> 项隐患已超期，请优先跟进！
+        </div>
+      </div>
+    </div>
+
+    <!-- 明日提醒 -->
+    <div class="briefing-section">
+      <div class="briefing-section__header">🔔 明日重点关注</div>
+      <div class="briefing-section__body">
+        <div class="reminder-item reminder-item--urgent">
+          <span class="reminder-icon">⏰</span>
+          <span><strong>超期隐患跟进：</strong>HZ-20250612-001 已超期 3 天，明日须完成整改并复查</span>
+        </div>
+        <div class="reminder-item">
+          <span class="reminder-icon">🌡️</span>
+          <span><strong>高温作业检查：</strong>明日预报最高气温 33°C，请安排热应激检查及防暑物资盘点</span>
+        </div>
+        <div class="reminder-item">
+          <span class="reminder-icon">🏗️</span>
+          <span><strong>吊装作业监督：</strong>A区明日有大型吊装计划，安全主任须全程在场监督</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 趋势图 -->
+    <div class="briefing-section">
+      <div class="briefing-section__header">📊 本周隐患趋势 <span class="ai-tag">🤖 AI 分析</span></div>
+      <div class="briefing-section__body">
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">近 7 天隐患发现数量（AI 自动统计）</div>
+        <div class="trend-chart">
+          <div class="trend-bar" style="height:45%;"><span class="trend-bar__label">6/10</span></div>
+          <div class="trend-bar" style="height:70%;"><span class="trend-bar__label">6/11</span></div>
+          <div class="trend-bar trend-bar--high" style="height:90%;"><span class="trend-bar__label">6/12</span></div>
+          <div class="trend-bar trend-bar--high" style="height:85%;"><span class="trend-bar__label">6/13</span></div>
+          <div class="trend-bar" style="height:60%;"><span class="trend-bar__label">6/14</span></div>
+          <div class="trend-bar" style="height:40%;"><span class="trend-bar__label">6/15</span></div>
+          <div class="trend-bar" style="height:55%;"><span class="trend-bar__label">今日</span></div>
+        </div>
+        <div style="margin-top:8px;padding:8px 12px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2);border-radius:var(--radius-sm);font-size:12px;color:var(--accent-cyan);">
+          🤖 AI 洞察：6月12-13日为隐患高发期，主要与吊装作业及临边施工相关。建议加强该时段的安全巡查频次。
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div style="position:fixed;bottom:12px;left:12px;background:rgba(0,0,0,0.8);color:#aaa;font-size:10px;padding:6px 10px;border-radius:6px;font-family:monospace;pointer-events:none;">
+  🎨 UI 设计稿 v2.0 — 每日简报模块 | 赤瞳安全智能平台
+</div>
+
+</body>
+</html>

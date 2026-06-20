@@ -1,0 +1,67 @@
+{
+  "id": "T057",
+  "index": 57,
+  "title": "物料吊重機使用申請表",
+  "policy_context": "貨車式起重機安全吊運守則 > 2. 嚴禁使用葫蘆勾(如事先獲得《使用葫蘆勾工作許可證》者除外)。 > 物料吊重機使用流程",
+  "nearby_paragraphs": [
+    "______________ 先生：",
+    "現委任閣下由即日起擔任本地盤貨車式起重機文件檢查員，負責執行以下事項:",
+    "若閣下對上述工作有任何疑問，請與本地盤安全部聯絡。",
+    "附件6.14",
+    "物料吊重機使用流程",
+    "附件6.15",
+    "物料吊重機使用申請表",
+    "地盤名稱： 日期："
+  ],
+  "rows": 5,
+  "columns": 4,
+  "non_empty_cell_count": 11,
+  "first_row": [
+    "分判商名稱",
+    "",
+    "物料吊重機編號",
+    ""
+  ],
+  "headers_guess": [
+    "分判商名稱",
+    "",
+    "物料吊重機編號",
+    ""
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T057_物料吊重機使用申請表.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T057_物料吊重機使用申請表.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T057_物料吊重機使用申請表.md",
+  "cells": [
+    [
+      "分判商名稱",
+      "",
+      "物料吊重機編號",
+      ""
+    ],
+    [
+      "姓 名",
+      "",
+      "樓 層",
+      ""
+    ],
+    [
+      "日 期",
+      "",
+      "時 間",
+      "至"
+    ],
+    [
+      "物料吊重機 監督員",
+      "",
+      "物料吊重機 操作員",
+      ""
+    ],
+    [
+      "簽 署",
+      "",
+      "日 期",
+      ""
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

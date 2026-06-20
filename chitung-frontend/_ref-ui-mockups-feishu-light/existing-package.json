@@ -1,0 +1,52 @@
+{
+  "name": "chitung-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Chitung Safety Intelligence desktop workbench",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "desktop:dev": "concurrently -k \"npm run dev -- --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "desktop:build": "npm run build && electron-builder --dir",
+    "desktop:dist": "npm run build && electron-builder",
+    "smoke:backend": "node scripts/smoke-backend.mjs",
+    "smoke:workflow": "node scripts/smoke-workflows.mjs",
+    "smoke:ui": "node scripts/smoke-ui.mjs"
+  },
+  "build": {
+    "appId": "com.chitung.safety",
+    "productName": "赤瞳安全智能平台",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  },
+  "dependencies": {
+    "vue": "^3.5.34"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.3",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/tsconfig": "^0.9.1",
+    "concurrently": "^10.0.3",
+    "cross-env": "^10.1.0",
+    "electron": "^42.4.1",
+    "electron-builder": "^26.15.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.12",
+    "vue-tsc": "^3.2.8",
+    "wait-on": "^9.0.10"
+  }
+}

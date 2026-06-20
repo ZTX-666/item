@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "agent-toolbox": {
+      "command": "python",
+      "args": [
+        "J:\\China Oversea  Final\\FinalAgentSuite\\agent-toolbox\\run_mcp.py"
+      ]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+赤瞳灵讯 · HiAgent 联调说明（3 种办法）
+================================
+
+【结论】云端 HiAgent 无法访问 http://127.0.0.1:8787 ，这不是 bug。
+
+办法 1 · 本机先确认服务正常（必做）
+  双击 start.bat
+  浏览器打开 http://127.0.0.1:8787/health
+  或 PowerShell: .\verify_local.ps1
+
+办法 2 · 让云端能访问本机（联调推荐）
+  双击 start-with-cloudflared.bat
+  安装 cloudflared: winget install Cloudflare.cloudflared
+  复制窗口里的 https://xxxx.trycloudflare.com
+  在 HiAgent 配置 HTTP 工具，基础地址填该 HTTPS（不要填 127.0.0.1）
+  测试 URL: https://xxxx.trycloudflare.com/api/ping
+
+办法 3 · 不走网络（最快验证智能体能否处理数据）
+  python export_sample_json.py
+  把生成的 sample_messages.json 上传到 HiAgent 对话
+  让智能体总结/分析 JSON 内容
+
+若公司禁止内网穿透：只能采用「云端 MCP + 本地同步数据上云」，需 IT 提供云端 API。

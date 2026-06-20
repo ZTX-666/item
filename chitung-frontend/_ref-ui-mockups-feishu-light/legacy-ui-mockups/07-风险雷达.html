@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤瞳安全智能平台 - 风险雷达</title>
+<style>
+  :root {
+    --bg-primary: #0f1923;
+    --bg-secondary: #1a2332;
+    --bg-card: #1e2d3d;
+    --bg-hover: #253545;
+    --bg-input: #15202b;
+    --border-color: #2a3f52;
+    --accent-red: #e94560;
+    --accent-orange: #f59e0b;
+    --accent-green: #10b981;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --accent-purple: #8b5cf6;
+    --text-primary: #e8edf2;
+    --text-secondary: #8899aa;
+    --text-muted: #5a6a7a;
+    --font-family: 'Inter', 'Noto Sans SC', sans-serif;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family: var(--font-family); background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+
+  .top-bar { height:52px; background:linear-gradient(180deg,#1a2332 0%,#15202b 100%); border-bottom:1px solid var(--border-color); display:flex; align-items:center; padding:0 20px; position:sticky; top:0; z-index:100; }
+  .top-bar__logo { display:flex; align-items:center; gap:10px; font-weight:700; font-size:15px; color:var(--accent-red); letter-spacing:1px; }
+  .top-bar__logo-icon { width:28px;height:28px; background:linear-gradient(135deg,var(--accent-red),#ff6b6b); border-radius:8px; display:flex;align-items:center;justify-content:center;font-size:14px; }
+  .top-bar__nav { display:flex; gap:2px; margin-left:40px; }
+  .top-bar__nav-item { padding:6px 14px;border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);cursor:pointer;transition:all 0.15s; }
+  .top-bar__nav-item:hover { color:var(--text-primary);background:var(--bg-hover); }
+  .top-bar__nav-item--active { color:var(--text-white);background:rgba(233,69,96,0.15);font-weight:600; }
+  .top-bar__right { margin-left:auto;display:flex;align-items:center;gap:12px; }
+  .avatar { width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent-cyan),var(--accent-blue));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white; }
+
+  .main-layout { display:flex; height:calc(100vh - 52px); }
+
+  /* 主内容区 */
+  .main-content { flex:1; overflow-y:auto; padding:20px 24px; }
+
+  .page-header { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px; }
+  .page-header__left h1 { font-size:20px;font-weight:700;color:var(--text-white);margin-bottom:4px; }
+  .page-header__left p { font-size:13px;color:var(--text-secondary); }
+  .btn { display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s; }
+  .btn--primary { background:linear-gradient(135deg,var(--accent-red),#ff6b6b);color:white; }
+  .btn--secondary { background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color); }
+  .btn--ai { background:rgba(6,182,212,0.15);color:var(--accent-cyan);border:1px solid rgba(6,182,212,0.3); }
+
+  /* 风险等级总览 */
+  .risk-overview { display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px; }
+  .risk-card {
+    background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);
+    padding:14px 16px;display:flex;align-items:center;gap:12px;transition:all 0.2s;cursor:pointer;
+  }
+  .risk-card:hover { transform:translateY(-2px); }
+  .risk-card--critical { border-color:rgba(233,69,96,0.4); }
+  .risk-card--high { border-color:rgba(245,158,11,0.4); }
+  .risk-card--medium { border-color:rgba(59,130,246,0.4); }
+  .risk-card--low { border-color:rgba(16,185,129,0.4); }
+  .risk-card__icon { font-size:24px;flex-shrink:0; }
+  .risk-card__info { flex:1; }
+  .risk-card__label { font-size:11px;color:var(--text-muted);margin-bottom:2px; }
+  .risk-card__value { font-size:24px;font-weight:700; }
+  .risk-card--critical .risk-card__value { color:var(--accent-red); }
+  .risk-card--high .risk-card__value { color:var(--accent-orange); }
+  .risk-card--medium .risk-card__value { color:var(--accent-blue); }
+  .risk-card--low .risk-card__value { color:var(--accent-green); }
+  .risk-card__desc { font-size:11px;color:var(--text-muted);margin-top:2px; }
+
+  /* 雷达网格 */
+  .radar-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px; }
+
+  /* 预警卡片 */
+  .alert-card {
+    background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);
+    overflow:hidden;transition:all 0.2s;
+  }
+  .alert-card:hover { border-color:var(--accent-cyan); }
+  .alert-card--active { border-color:var(--accent-red);box-shadow:0 0 16px rgba(233,69,96,0.15); }
+  .alert-card__header {
+    display:flex;align-items:center;gap:10px;padding:12px 16px;
+    background:var(--bg-secondary);border-bottom:1px solid var(--border-color);
+  }
+  .alert-card__source-icon { font-size:18px;flex-shrink:0; }
+  .alert-card__title { font-size:13px;font-weight:600;color:var(--text-white);flex:1; }
+  .alert-card__time { font-size:11px;color:var(--text-muted);font-family:monospace; }
+  .alert-card__badge {
+    padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;
+  }
+  .alert-card__badge--new { background:rgba(233,69,96,0.2);color:var(--accent-red); }
+  .alert-card__badge--processing { background:rgba(59,130,246,0.2);color:var(--accent-blue); }
+  .alert-card__body { padding:12px 16px;font-size:13px;color:var(--text-secondary);line-height:1.6; }
+  .alert-card__action {
+    display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border-light,rgba(42,63,82,0.5));
+  }
+
+  /* 天气预警区 */
+  .weather-panel {
+    background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(233,69,96,0.05));
+    border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-md);
+    padding:16px;margin-bottom:20px;
+  }
+  .weather-panel__header { display:flex;align-items:center;gap:10px;margin-bottom:12px; }
+  .weather-panel__title { font-size:14px;font-weight:600;color:var(--accent-orange); }
+  .weather-items { display:flex;gap:12px; }
+  .weather-item {
+    flex:1;padding:10px;background:rgba(0,0,0,0.2);border-radius:var(--radius-sm);
+    text-align:center;
+  }
+  .weather-item__icon { font-size:24px;margin-bottom:4px; }
+  .weather-item__label { font-size:11px;color:var(--text-muted); }
+  .weather-item__value { font-size:18px;font-weight:700;color:var(--text-white);margin-top:2px; }
+  .weather-item__warning { font-size:10px;color:var(--accent-orange);margin-top:4px;font-weight:600; }
+
+  /* 新闻列表 */
+  .news-list { background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden; }
+  .news-list__header {
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border-color);
+  }
+  .news-list__title { font-size:14px;font-weight:600;color:var(--text-white); }
+  .news-item {
+    display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border-light,rgba(42,63,82,0.5));
+    transition:background 0.12s;cursor:pointer;
+  }
+  .news-item:hover { background:var(--bg-hover); }
+  .news-item:last-child { border-bottom:none; }
+  .news-item__time { font-size:11px;color:var(--text-muted);font-family:monospace;min-width:60px;padding-top:2px; }
+  .news-item__content { flex:1; }
+  .news-item__title { font-size:13px;color:var(--text-primary);margin-bottom:2px; }
+  .news-item__summary { font-size:12px;color:var(--text-secondary);line-height:1.4; }
+  .news-item__tag {
+    display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;margin-top:4px;
+  }
+  .news-item__tag--high { background:rgba(233,69,96,0.2);color:var(--accent-red); }
+  .news-item__tag--medium { background:rgba(245,158,11,0.2);color:var(--accent-orange); }
+  .news-item__ai-action { margin-left:auto;display:flex;align-items:center; }
+  .news-item__ai-btn {
+    padding:4px 8px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);
+    border-radius:4px;font-size:11px;color:var(--accent-cyan);cursor:pointer;transition:all 0.12s;
+  }
+  .news-item__ai-btn:hover { background:rgba(6,182,212,0.2); }
+
+  /* 设置面板 */
+  .settings-panel {
+    background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);
+    padding:16px;margin-top:20px;
+  }
+  .settings-panel__title { font-size:14px;font-weight:600;color:var(--text-white);margin-bottom:12px; }
+  .settings-row { display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px; }
+  .toggle-switch {
+    width:36px;height:20px;border-radius:10px;background:var(--bg-input);border:1px solid var(--border-color);
+    position:relative;cursor:pointer;transition:all 0.2s;flex-shrink:0;
+  }
+  .toggle-switch--on { background:var(--accent-cyan);border-color:var(--accent-cyan); }
+  .toggle-switch::after {
+    content:'';width:14px;height:14px;border-radius:50%;background:white;
+    position:absolute;top:2px;left:2px;transition:all 0.2s;
+  }
+  .toggle-switch--on::after { left:18px; }
+
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border-color);border-radius:3px; }
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="top-bar__logo">
+    <div class="top-bar__logo-icon">👁</div>
+    <span>赤瞳安全智能平台</span>
+  </div>
+  <nav class="top-bar__nav">
+    <div class="top-bar__nav-item">📊 工作台</div>
+    <div class="top-bar__nav-item">📋 隐患台账</div>
+    <div class="top-bar__nav-item top-bar__nav-item--active">📡 风险雷达</div>
+    <div class="top-bar__nav-item">🤖 AI 助手</div>
+  </nav>
+  <div class="top-bar__right"><div class="avatar">陈</div></div>
+</header>
+
+<div class="main-layout">
+  <div class="main-content">
+
+    <div class="page-header">
+      <div class="page-header__left">
+        <h1>📡 风险雷达</h1>
+        <p>实时监测外部风险源（天气、新闻、事故），自动关联本地作业计划</p>
+      </div>
+      <div class="page-header__actions">
+        <button class="btn btn--ai">🤖 立即扫描</button>
+        <button class="btn btn--secondary">⚙️ 雷达设置</button>
+      </div>
+    </div>
+
+    <!-- 风险等级总览 -->
+    <div class="risk-overview">
+      <div class="risk-card risk-card--critical">
+        <div class="risk-card__icon">🚨</div>
+        <div class="risk-card__info">
+          <div class="risk-card__label">严重预警</div>
+          <div class="risk-card__value">2</div>
+          <div class="risk-card__desc">需立即处理</div>
+        </div>
+      </div>
+      <div class="risk-card risk-card--high">
+        <div class="risk-card__icon">⚠️</div>
+        <div class="risk-card__info">
+          <div class="risk-card__label">高风险</div>
+          <div class="risk-card__value">4</div>
+          <div class="risk-card__desc">今日新增</div>
+        </div>
+      </div>
+      <div class="risk-card risk-card--medium">
+        <div class="risk-card__icon">ℹ️</div>
+        <div class="risk-card__info">
+          <div class="risk-card__label">关注事项</div>
+          <div class="risk-card__value">7</div>
+          <div class="risk-card__desc">建议留意</div>
+        </div>
+      </div>
+      <div class="risk-card risk-card--low">
+        <div class="risk-card__icon">✅</div>
+        <div class="risk-card__info">
+          <div class="risk-card__label">已处理</div>
+          <div class="risk-card__value">12</div>
+          <div class="risk-card__desc">本周已闭环</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 天气预警面板 -->
+    <div class="weather-panel">
+      <div class="weather-panel__header">
+        <span style="font-size:20px;">🌡️</span>
+        <span class="weather-panel__title">香港天文台实时预警</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">最后更新：2025-06-16 14:00</span>
+      </div>
+      <div class="weather-items">
+        <div class="weather-item">
+          <div class="weather-item__icon">🌡️</div>
+          <div class="weather-item__label">今日最高</div>
+          <div class="weather-item__value" style="color:var(--accent-orange);">33°C</div>
+          <div class="weather-item__warning">高温预警 🔥</div>
+        </div>
+        <div class="weather-item">
+          <div class="weather-item__icon">💧</div>
+          <div class="weather-item__label">湿度</div>
+          <div class="weather-item__value">78%</div>
+          <div class="weather-item__warning">闷热 · 热应激风险</div>
+        </div>
+        <div class="weather-item">
+          <div class="weather-item__icon">🌧️</div>
+          <div class="weather-item__label">降雨概率</div>
+          <div class="weather-item__value">40%</div>
+          <div class="weather-item__warning">午后可能有雷暴</div>
+        </div>
+        <div class="weather-item">
+          <div class="weather-item__icon">🌪️</div>
+          <div class="weather-item__label">台风预警</div>
+          <div class="weather-item__value" style="color:var(--accent-green);">无</div>
+          <div class="weather-item__warning" style="color:var(--text-muted);">暂无热带气旋</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:var(--radius-sm);font-size:12px;color:var(--accent-cyan);">
+        🤖 <strong>AI 建议：</strong>明日高温持续，请于 10:00 及 14:00 各安排一次热应激检查，确保工人有充足饮水及每2小时休息至少15分钟。相关检查表已自动关联至「健康声明」模板。
+      </div>
+    </div>
+
+    <!-- 预警卡片网格 -->
+    <div class="radar-grid">
+      <!-- 预警卡片 1：新闻关联 -->
+      <div class="alert-card alert-card--active">
+        <div class="alert-card__header">
+          <span class="alert-card__source-icon">📰</span>
+          <span class="alert-card__title">建造业事故新闻 — 吊装伤害</span>
+          <span class="alert-card__time">14:05</span>
+          <span class="alert-card__badge alert-card__badge--new">新预警</span>
+        </div>
+        <div class="alert-card__body">
+          <div style="margin-bottom:8px;">
+            <strong style="color:var(--text-white);">【明报】</strong>九龙湾地盘吊装事故，工人被吊物擦伤送院。原因：吊装路径未清场，警示带被风吹倒。
+          </div>
+          <div style="padding:8px 10px;background:rgba(233,69,96,0.08);border:1px solid rgba(233,69,96,0.2);border-radius:var(--radius-sm);font-size:12px;">
+            🤖 <strong style="color:var(--accent-red);">AI 自动关联：</strong>本地 A 区今日有吊装作业计划，安全风险等级相似。<strong>建议立即检查吊装区域警示带及清场情况。</strong>
+          </div>
+        </div>
+        <div class="alert-card__action">
+          <button class="btn btn--primary" style="font-size:11px;padding:5px 10px;">📋 关联检查表</button>
+          <button class="btn btn--ai" style="font-size:11px;padding:5px 10px;">🤖 AI 生成预防建议</button>
+          <button class="btn btn--secondary" style="font-size:11px;padding:5px 10px;">忽略</button>
+        </div>
+      </div>
+
+      <!-- 预警卡片 2：天文台预警 -->
+      <div class="alert-card">
+        <div class="alert-card__header">
+          <span class="alert-card__source-icon">🌡️</span>
+          <span class="alert-card__title">高温天气预警 — 热应激风险</span>
+          <span class="alert-card__time">12:00</span>
+          <span class="alert-card__badge alert-card__badge--processing">处理中</span>
+        </div>
+        <div class="alert-card__body">
+          <div style="margin-bottom:8px;">
+            香港天文台发出<strong style="color:var(--accent-orange);">高温天气警告</strong>，明日最高气温可达 33°C，湿度 78%，热应激风险为中高风险。
+          </div>
+          <div style="padding:8px 10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);font-size:12px;">
+            🤖 <strong style="color:var(--accent-orange);">AI 已自动执行：</strong>已向各区域安全主任推送热应激检查提醒，已关联 T032 表格「高温作业」检查项。
+          </div>
+        </div>
+        <div class="alert-card__action">
+          <button class="btn btn--secondary" style="font-size:11px;padding:5px 10px;">📊 查看执行记录</button>
+          <button class="btn btn--ai" style="font-size:11px;padding:5px 10px;">🤖 生成防暑指引</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 相关新闻列表 -->
+    <div class="news-list" style="margin-bottom:20px;">
+      <div class="news-list__header">
+        <span class="news-list__title">📰 近期建造业安全新闻（AI 筛选相关）</span>
+        <span style="font-size:12px;color:var(--text-muted);">过去 7 天 · 共 23 条，相关 8 条</span>
+      </div>
+      <div class="news-item">
+        <span class="news-item__time">06-16</span>
+        <div class="news-item__content">
+          <div class="news-item__title">九龙湾地盘吊装事故，工人被吊物擦伤</div>
+          <div class="news-item__summary">吊装路径未清场，警示带被风吹倒，与本地 A 区作业情况相似</div>
+          <span class="news-item__tag news-item__tag--high">🔴 高度相关</span>
+        </div>
+        <div class="news-item__ai-action">
+          <button class="news-item__ai-btn">🤖 关联隐患</button>
+        </div>
+      </div>
+      <div class="news-item">
+        <span class="news-item__time">06-15</span>
+        <div class="news-item__content">
+          <div class="news-item__title">建造业上个月意外率上升 12%，劳工处发出警告</div>
+          <div class="news-item__summary">主要与临边作业及吊装作业相关，建议加强相关培训</div>
+          <span class="news-item__tag news-item__tag--medium">🟡 中度相关</span>
+        </div>
+        <div class="news-item__ai-action">
+          <button class="news-item__ai-btn">🤖 生成趋势分析</button>
+        </div>
+      </div>
+      <div class="news-item">
+        <span class="news-item__time">06-14</span>
+        <div class="news-item__content">
+          <div class="news-item__title">新高温指引生效，建筑业需加强热应激预防</div>
+          <div class="news-item__summary">新指引要求高温天气下每2小时休息至少15分钟，并提供防暑物资</div>
+          <span class="news-item__tag news-item__tag--medium">🟡 中度相关</span>
+        </div>
+        <div class="news-item__ai-action">
+          <button class="news-item__ai-btn">🤖 更新检查表</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 雷达设置 -->
+    <div class="settings-panel">
+      <div class="settings-panel__title">⚙️ 风险雷达设置</div>
+      <div class="settings-row">
+        <div class="toggle-switch toggle-switch--on"></div>
+        <span>🌡️ 香港天文台天气预警</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">每 30 分钟检查</span>
+      </div>
+      <div class="settings-row">
+        <div class="toggle-switch toggle-switch--on"></div>
+        <span>📰 建造业新闻自动抓取</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">每 2 小时检查</span>
+      </div>
+      <div class="settings-row">
+        <div class="toggle-switch toggle-switch--on"></div>
+        <span>🚨 事故新闻自动关联本地作业</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--accent-green);">✅ AI 分析已启用</span>
+      </div>
+      <div class="settings-row">
+        <div class="toggle-switch"></div>
+        <span>📊 每周风险趋势报告</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">每周一 09:00 自动生成</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div style="position:fixed;bottom:12px;left:12px;background:rgba(0,0,0,0.8);color:#aaa;font-size:10px;padding:6px 10px;border-radius:6px;font-family:monospace;pointer-events:none;">
+  🎨 UI 设计稿 v2.0 — 风险雷达模块 | 赤瞳安全智能平台
+</div>
+
+</body>
+</html>

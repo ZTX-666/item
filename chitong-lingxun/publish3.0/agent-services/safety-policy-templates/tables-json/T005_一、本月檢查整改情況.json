@@ -1,0 +1,70 @@
+{
+  "id": "T005",
+  "index": 5,
+  "title": "一、本月檢查整改情況",
+  "policy_context": "安全施工計劃 > 年 月至 月安全施工計劃 > 一、本月檢查整改情況",
+  "nearby_paragraphs": [
+    "年 月至 月安全施工計劃",
+    "地盤名稱： 填表日期： / /",
+    "附件1.4",
+    "年 月",
+    "安全施工計劃自檢報告",
+    "年 月安全施工計劃自檢報告",
+    "地盤名稱： 填表日期：20 / /",
+    "一、本月檢查整改情況"
+  ],
+  "rows": 7,
+  "columns": 3,
+  "non_empty_cell_count": 21,
+  "first_row": [
+    "序號",
+    "上月不安全事項",
+    "完成整改情況"
+  ],
+  "headers_guess": [
+    "序號",
+    "上月不安全事項",
+    "完成整改情況"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T005_一、本月檢查整改情況.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T005_一、本月檢查整改情況.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T005_一、本月檢查整改情況.md",
+  "cells": [
+    [
+      "序號",
+      "上月不安全事項",
+      "完成整改情況"
+    ],
+    [
+      "1",
+      "相片",
+      "相片"
+    ],
+    [
+      "1",
+      "文字描述",
+      "文字描述"
+    ],
+    [
+      "2",
+      "相片",
+      "相片"
+    ],
+    [
+      "2",
+      "文字描述",
+      "文字描述"
+    ],
+    [
+      "3",
+      "相片",
+      "相片"
+    ],
+    [
+      "3",
+      "文字描述",
+      "文字描述"
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

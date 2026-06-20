@@ -1,0 +1,55 @@
+{
+  "id": "T085",
+  "index": 85,
+  "title": "風險類別 / A / B / C",
+  "policy_context": "四、搭建臨時支架(紅架)安全施工程序(附件11.14) > 五、安全管理 > 附件",
+  "nearby_paragraphs": [
+    "附件11.10：《合資格建造/拆卸督導員委任書 - 臨時支架》",
+    "附件11.11:《合資格的人(金屬棚架)委任書》",
+    "附件11.12:《曾受訓練的人(金屬棚架工)委任書》",
+    "附件11.13:《搭建臨時支架安全守則》",
+    "附件11.14:《搭建臨時支架(紅架)安全施工程序》",
+    "附件11.15:《工作台/臨時支架負載許可證》",
+    "附件11.1",
+    "臨時工程(側向承托)風險類別"
+  ],
+  "rows": 3,
+  "columns": 4,
+  "non_empty_cell_count": 12,
+  "first_row": [
+    "風險類別",
+    "A",
+    "B",
+    "C"
+  ],
+  "headers_guess": [
+    "風險類別",
+    "A",
+    "B",
+    "C"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T085_風險類別 _ A _ B _ C.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T085_風險類別 _ A _ B _ C.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T085_風險類別 _ A _ B _ C.md",
+  "cells": [
+    [
+      "風險類別",
+      "A",
+      "B",
+      "C"
+    ],
+    [
+      "臨時工程結構 (側向承托)",
+      "大型/複雜",
+      "中型",
+      "簡單/小型"
+    ],
+    [
+      "深度",
+      "大於4.5米",
+      "2米至4.5米",
+      "小於2米"
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

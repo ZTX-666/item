@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Node / Electron
+node_modules/
+dist/
+release/
+.vite/
+*.log
+
+# .NET (Chitong Lingxun)
+bin/
+obj/
+*.user
+*.suo
+
+# Secrets & local config
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Runtime data & outputs
+**/workspace/
+**/data/audit.jsonl
+**/data/*.db
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+patrol-output/
+logs/
+*.log
+
+# Models & large binaries
+*.pt
+*.pth
+*.onnx
+*.zip
+*.7z
+*.rar
+*.exe
+*.dll
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Migration backups & non-core
+_migration_backup_*/
+Chitong Final/
+
+# Temp
+*.tmp
+*.bak

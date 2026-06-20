@@ -1,0 +1,26 @@
+VLM Detection - construction site dual YOLO inference (detect only)
+
+Recommended project path (ASCII, no Chinese):
+  E:\VLMDetection
+
+Why not only rename the old folder?
+  - Parent E:\VLM检测 cannot rename while Cursor/IDE has it open.
+  - pip .venv + torch often fails on this PC (WinError 1114), even on ASCII paths.
+  - Use conda env instead (yolo_v8 or vlm_detection).
+
+First-time setup
+  powershell -ExecutionPolicy Bypass -File setup_env.ps1
+  conda activate vlm_detection
+
+Or use existing env (already tested):
+  conda activate yolo_v8
+
+Run detection
+  cd /d E:\VLMDetection
+  python detect.py --source input\demo.jpg --save-img --export-json
+
+Weights
+  weights\worker\yolo26x_worker.pt
+  weights\machinery\yolo26l_machinery.pt
+
+Optional: close Cursor, then rename E:\VLM检测 -> E:\VLM Detection for the whole workspace.
