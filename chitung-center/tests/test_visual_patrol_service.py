@@ -14,6 +14,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "chitung-center"))
 
 from chitung_center.visual_patrol_service import (
+    build_visual_patrol_draft,
+    confirm_visual_patrol_candidate,
     _extract_crops_from_yolo,
     _flatten_yolo_detections,
     _build_candidates,
@@ -25,7 +27,7 @@ from chitung_center.visual_patrol_service import (
     _tool_data,
     _first_file_path,
 )
-from chitung_center.models import VisualPatrolDraftRequest
+from chitung_center.models import VisualPatrolConfirmRequest, VisualPatrolDraftRequest
 
 
 # ── _extract_crops_from_yolo tests ───────────────────────────────
@@ -425,6 +427,107 @@ class TestBuildCandidatesYoloFallback:
         assert candidates[0]["source_mix"] == "hybrid"
         assert candidates[0]["severity"] == "high"
         assert len(candidates[0]["detection_details"]) == 1
+
+
+# ── Service flow tests ───────────────────────────────────────────
+
+
+def test_build_visual_patrol_draft_uses_local_source_without_snapshot():
+    fake_vlm = {
+        "ok": True,
+        "task_id": "vlm-test-1",
+        "data": {
+            "detections": {
+                "images": [
+                    {
+                        "image": "/tmp/site.jpg",
+                        "detections": [
+                            {
+                                "class_name": "NO-Hardhat",
+                                "confidence": 0.91,
+                                "bbox_xyxy": [10, 20, 80, 120],
+                            }
+                        ],
+                    }
+                ]
+            }
+        },
+    }
+
+    with patch("chitung_center.visual_patrol_service.toolbox_client.call_tool", new_callable=AsyncMock) as call_tool:
+        call_tool.return_value = fake_vlm
+        result = asyncio.run(
+            build_visual_patrol_draft(
+                VisualPatrolDraftRequest(
+                    source="/tmp/site.jpg",
+                    area="B2",
+                    contractor="Demo Contractor",
+                    analysis_mode="yolo_only",
+                    vlm_enabled=False,
+                )
+            )
+        )
+
+    assert result["ok"] is True
+    assert result["snapshot"] is None
+    assert result["source"] == "/tmp/site.jpg"
+    assert result["candidates"]
+    assert result["confirm_payload"]["detections"] == fake_vlm["data"]["detections"]
+    assert result["confirm_payload"]["task_id"] == "vlm-test-1"
+    call_tool.assert_awaited_once_with(
+        "run_vlm_detection_batch",
+        {"source": "/tmp/site.jpg", "conf": None, "worker_only": False, "machinery_only": False},
+    )
+
+
+def test_confirm_visual_patrol_candidate_rejects_empty_payload():
+    result = asyncio.run(confirm_visual_patrol_candidate(VisualPatrolConfirmRequest()))
+
+    assert result["ok"] is False
+    assert result["error"] == "missing_visual_evidence"
+    assert "No visual detections" in result["message"]
+
+
+def test_confirm_visual_patrol_candidate_returns_created_case_id():
+    tool_result = {
+        "ok": True,
+        "data": {
+            "case": {
+                "data": {
+                    "case_id": 42,
+                    "case_key": "abc123",
+                }
+            }
+        },
+    }
+    request = VisualPatrolConfirmRequest(
+        detections={"images": [{"image": "/tmp/site.jpg", "detections": []}]},
+        task_id="vlm-test-1",
+        image_path="/tmp/site.jpg",
+        area="B2",
+        contractor="Demo Contractor",
+        description="B2 visual safety candidate",
+    )
+
+    with patch("chitung_center.visual_patrol_service.toolbox_client.call_tool", new_callable=AsyncMock) as call_tool:
+        call_tool.return_value = tool_result
+        result = asyncio.run(confirm_visual_patrol_candidate(request))
+
+    assert result["ok"] is True
+    assert result["case_id"] == 42
+    assert result["message"] == "Visual patrol candidate confirmed and converted to safety case."
+    call_tool.assert_awaited_once_with(
+        "create_case_from_vlm",
+        {
+            "detections": request.detections,
+            "vlm_result_path": None,
+            "task_id": "vlm-test-1",
+            "image_path": "/tmp/site.jpg",
+            "area": "B2",
+            "contractor": "Demo Contractor",
+            "description": "B2 visual safety candidate",
+        },
+    )
 
 
 # ── VisualPatrolDraftRequest model tests ─────────────────────────

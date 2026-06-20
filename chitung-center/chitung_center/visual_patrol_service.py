@@ -155,6 +155,14 @@ async def build_visual_patrol_draft(request: VisualPatrolDraftRequest) -> dict[s
 
 async def confirm_visual_patrol_candidate(request: VisualPatrolConfirmRequest) -> dict[str, Any]:
     """Confirm a visual patrol candidate and create a safety case."""
+    if not _has_visual_evidence(request):
+        return {
+            "ok": False,
+            "message": "No visual detections or evidence were provided for confirmation.",
+            "error": "missing_visual_evidence",
+            "tool_result": None,
+        }
+
     result = await toolbox_client.call_tool(
         "create_case_from_vlm",
         {
@@ -167,11 +175,43 @@ async def confirm_visual_patrol_candidate(request: VisualPatrolConfirmRequest) -
             "description": request.description,
         },
     )
+    case_id = _extract_created_case_id(result)
+    audit_logger.write(
+        "visual_candidate_confirmed",
+        {
+            "ok": bool(result.get("ok")),
+            "case_id": case_id,
+            "task_id": request.task_id,
+            "image_path": request.image_path,
+            "area": request.area,
+        },
+    )
     return {
         "ok": bool(result.get("ok")),
-        "message": "Visual patrol candidate confirmed and converted to a safety case.",
+        "message": "Visual patrol candidate confirmed and converted to safety case.",
+        "case_id": case_id,
         "tool_result": result,
     }
+
+
+def _has_visual_evidence(request: VisualPatrolConfirmRequest) -> bool:
+    return bool(request.detections or request.vlm_result_path or request.task_id or request.image_path)
+
+
+def _extract_created_case_id(result: dict[str, Any]) -> int | None:
+    data = result.get("data")
+    if not isinstance(data, dict):
+        return None
+    case = data.get("case")
+    if isinstance(case, dict):
+        case_data = case.get("data")
+        if isinstance(case_data, dict) and case_data.get("case_id") is not None:
+            return int(case_data["case_id"])
+        if case.get("case_id") is not None:
+            return int(case["case_id"])
+    if data.get("case_id") is not None:
+        return int(data["case_id"])
+    return None
 
 
 # ── Helper functions ────────────────────────────────────────────
