@@ -125,6 +125,35 @@ const centerStatusText = computed(() => {
   return `中台已连接 · ${llmText}`
 })
 
+function createFallbackDocumentRevision(): DocumentRevisionPreview {
+  return {
+    id: `local-revision-${Date.now()}`,
+    title: 'B2 区临边防护整改通知',
+    source: '本地示例',
+    instruction: '生成安全表格草稿，并保留人工采纳确认。',
+    additions: 2,
+    deletions: 1,
+    status: 'draft',
+    lines: [
+      {
+        id: 'fallback-removed-1',
+        type: 'removed',
+        text: '现场有些护栏没弄好，需要尽快处理。',
+      },
+      {
+        id: 'fallback-added-1',
+        type: 'added',
+        text: 'B2 区临边防护存在缺口，请责任单位立即补齐围栏、踢脚板及警示标识。',
+      },
+      {
+        id: 'fallback-added-2',
+        type: 'added',
+        text: '整改完成后须提交现场照片，并由安全主任复核确认。',
+      },
+    ],
+  }
+}
+
 async function refreshWorkbenchSummary() {
   summaryLoadError.value = ''
   try {
@@ -660,7 +689,9 @@ async function openSmartFormRevision(templateId?: string) {
     aiMessages.value.unshift('赤瞳：已完成模板搜索、字段预填和 DOCX 草稿生成，点击采纳后才写入表单记录。')
   } catch (error) {
     smartFormDraft.value = null
-    documentRevision.value = { ...documentRevision.value, status: 'draft' }
+    documentRevision.value = documentRevision.value
+      ? { ...documentRevision.value, status: 'draft' }
+      : createFallbackDocumentRevision()
     workflowSteps.value = [
       { id: 'intent', label: '识别意图', status: 'done' },
       { id: 'tool', label: '生成文档 Diff', status: 'done' },

@@ -9,6 +9,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   patrol: [cameraId?: string]
+  evidence: [cameraId: string]
 }>()
 
 const displayCameras = computed(() => {
@@ -53,7 +54,10 @@ const displayCameras = computed(() => {
           <span class="camera-status" :class="`camera-status--${camera.tone}`">{{ camera.status }}</span>
         </div>
         <p>{{ camera.note }}</p>
-        <button class="mini-button camera-card__action" @click="emit('patrol', camera.id)">巡检此摄像头</button>
+        <div class="camera-card__actions">
+          <button class="mini-button camera-card__action" @click="emit('patrol', camera.id)">巡检此摄像头</button>
+          <button class="mini-button camera-card__action" @click="emit('evidence', camera.id)">打开证据</button>
+        </div>
       </article>
     </div>
   </section>
@@ -70,5 +74,11 @@ const displayCameras = computed(() => {
 .camera-empty__hint {
   margin-top: 8px;
   font-size: 12px;
+}
+
+.camera-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 </style>
