@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 from chitung_center.audit import audit_logger
-from chitung_center.models import ActionCard, ChatMessageRequest
+from chitung_center.models import ActionCard, ChatMessageRequest, VisualPatrolDraftRequest
 from chitung_center.toolbox_client import toolbox_client
 from chitung_center import workflow_store
+from chitung_center.visual_patrol_service import build_visual_patrol_draft
 from chitung_center.workflow_templates import (
     WORKFLOW_TEMPLATES,
     WorkflowTemplate,
@@ -248,6 +249,37 @@ class WorkflowEngine:
         request: ChatMessageRequest,
         workflow_run_id: str,
     ) -> tuple[str, list[dict[str, Any]], list[ActionCard]]:
+        source = request.metadata.get("source") or request.metadata.get("image_path")
+        if source:
+            draft = await build_visual_patrol_draft(
+                VisualPatrolDraftRequest(
+                    source=str(source),
+                    area=request.metadata.get("area"),
+                    contractor=request.metadata.get("contractor"),
+                    conf=request.metadata.get("conf"),
+                    analysis_mode=request.metadata.get("analysis_mode", "hybrid"),
+                    vlm_enabled=bool(request.metadata.get("vlm_enabled", True)),
+                    yolo_conf_threshold=float(request.metadata.get("yolo_conf_threshold", 0.45)),
+                )
+            )
+            await workflow_store.link_event(
+                workflow_run_id=workflow_run_id,
+                event_type="visual_patrol_draft_created",
+                source_type="image",
+                source_id=str(source),
+                payload={"ok": draft.get("ok"), "candidate_count": len(draft.get("candidates") or [])},
+            )
+            cards = [
+                ActionCard(
+                    card_type="visual_patrol",
+                    title="视觉巡检候选",
+                    summary=str(draft.get("message") or "已生成视觉巡检候选，等待人工确认。"),
+                    actions=[{"id": "confirm_visual_candidate", "label": "确认入库"}],
+                    data={"workflow_run_id": workflow_run_id, "draft": draft},
+                )
+            ]
+            return "已基于本地图片生成视觉巡检候选，请人工确认后入库。", [draft], cards
+
         step = await _start_step(workflow_run_id, "patrol_draft", "赤瞳守护者", None)
         await workflow_store.update_step(
             workflow_step_id=step["workflow_step_id"],
