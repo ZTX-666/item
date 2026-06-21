@@ -247,24 +247,25 @@ function fillSample() {
 
 <style scoped>
 .table-mapping-page {
-  background: #0f1117;
-  color: #d6deeb;
+  background: var(--bg-page);
+  color: var(--text-primary);
   display: grid;
-  gap: 14px;
-  grid-template-columns: 300px minmax(360px, 1fr) 360px;
+  gap: 16px;
+  grid-template-columns: 320px minmax(360px, 1fr) 380px;
   height: 100%;
   overflow: hidden;
-  padding: 16px;
+  padding: 20px;
 }
 
 .mapping-card {
-  background: #171b22;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 14px;
+  background: var(--bg-white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 16px;
+  padding: 18px;
 }
 
 .mapping-card__header {
@@ -276,15 +277,18 @@ function fillSample() {
 }
 
 .mapping-card__header h2 {
-  color: #f8fafc;
+  color: var(--text-primary);
   font-size: 18px;
-  margin: 2px 0 0;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  margin: 3px 0 0;
 }
 
 .eyebrow {
-  color: #60a5fa;
+  color: var(--brand-cyan) !important;
   font-size: 12px;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   margin: 0;
   text-transform: uppercase;
 }
@@ -292,37 +296,40 @@ function fillSample() {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
   margin-bottom: 14px;
 }
 
 .field span,
 .hint,
 .mapping-row__source {
-  color: #8b949e;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
 .input {
-  background: #0f131a;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 8px;
-  color: #e5e7eb;
-  min-height: 36px;
-  padding: 8px 10px;
+  background: var(--bg-white);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  min-height: 38px;
+  outline: none;
+  padding: 8px 11px;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
 .input:focus {
-  border-color: #60a5fa;
-  outline: none;
+  border-color: var(--brand-cyan);
+  box-shadow: var(--ring);
 }
 
 .form-summary,
 .preview-box,
 .result-box,
 .error-card {
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -330,10 +337,17 @@ function fillSample() {
   padding: 12px;
 }
 
+.form-summary strong,
+.preview-box strong,
+.result-box strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
 .form-summary span,
 .preview-box p,
 .result-box p {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 12px;
   margin: 0;
 }
@@ -346,55 +360,87 @@ function fillSample() {
 }
 
 .options {
-  color: #94a3b8;
+  color: var(--text-secondary);
   flex-direction: column;
   font-size: 12px;
+  gap: 6px;
+}
+
+.options label {
+  align-items: center;
+  display: flex;
+  gap: 6px;
 }
 
 .btn {
-  background: rgba(148, 163, 184, 0.12);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 8px;
-  color: #dbeafe;
+  background: var(--bg-white);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
   cursor: pointer;
-  padding: 9px 12px;
+  font-weight: 600;
+  padding: 9px 14px;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
 }
 
 .btn:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
+  opacity: 0.5;
 }
 
 .btn--primary {
-  background: rgba(37, 99, 235, 0.85);
-  border-color: rgba(96, 165, 250, 0.45);
+  background: linear-gradient(135deg, var(--brand-red), var(--brand-red-dark));
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgb(231 0 18 / 20%);
+  color: var(--text-white);
+}
+
+.btn--primary:hover:not(:disabled) {
+  box-shadow: 0 4px 14px rgb(231 0 18 / 30%);
+  transform: translateY(-1px);
 }
 
 .btn--accent {
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  background: linear-gradient(135deg, var(--brand-cyan), var(--brand-cyan-dark));
   border: 0;
+  box-shadow: 0 2px 8px rgb(15 158 213 / 22%);
+  color: var(--text-white);
   font-weight: 700;
   width: 100%;
 }
 
+.btn--accent:hover:not(:disabled) {
+  box-shadow: 0 4px 14px rgb(15 158 213 / 32%);
+  transform: translateY(-1px);
+}
+
 .status-pill,
 .counter {
-  border: 1px solid rgba(248, 113, 113, 0.4);
-  border-radius: 999px;
-  color: #fca5a5;
+  border: 1px solid rgb(231 0 18 / 30%);
+  border-radius: var(--radius-round);
+  color: var(--brand-red);
   font-size: 12px;
-  padding: 4px 8px;
+  font-weight: 600;
+  padding: 4px 10px;
   white-space: nowrap;
 }
 
 .status-pill--ok {
-  border-color: rgba(34, 197, 94, 0.4);
-  color: #86efac;
+  background: #ecf6e8;
+  border-color: rgb(63 158 45 / 35%);
+  color: var(--brand-green);
 }
 
 .counter {
-  border-color: rgba(96, 165, 250, 0.38);
-  color: #93c5fd;
+  background: var(--bg-active);
+  border-color: rgb(15 158 213 / 35%);
+  color: var(--brand-cyan-dark);
 }
 
 .field-list {
@@ -410,13 +456,14 @@ function fillSample() {
 .mapping-row {
   align-items: center;
   display: grid;
-  gap: 8px;
+  gap: 10px;
   grid-template-columns: 130px minmax(160px, 1fr) 58px;
 }
 
 .mapping-row__name {
-  color: #cbd5e1;
+  color: var(--text-primary);
   font-size: 13px;
+  font-weight: 500;
 }
 
 .preview-box {
@@ -430,29 +477,36 @@ function fillSample() {
 }
 
 .result-box--ok {
-  border: 1px solid rgba(34, 197, 94, 0.35);
+  background: #ecf6e8;
+  border-color: rgb(63 158 45 / 35%);
 }
 
 .log-box {
-  background: #090b10;
-  border-radius: 10px;
-  color: #cbd5e1;
+  background: #0f1117;
+  border-radius: var(--radius-md);
+  color: #cdd3dc;
   flex: 1;
+  font-family: var(--font-mono);
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.55;
   min-height: 0;
   overflow: auto;
   padding: 12px;
   white-space: pre-wrap;
 }
 
-.log-box--error,
+.log-box--error {
+  color: #ff9aa2;
+}
+
 .error-card {
-  color: #fca5a5;
+  background: var(--brand-red-light);
+  border-color: rgb(231 0 18 / 22%);
+  color: var(--brand-red);
 }
 
 .empty-state {
-  color: #64748b;
+  color: var(--text-muted);
   margin: auto;
 }
 </style>

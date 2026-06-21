@@ -230,26 +230,28 @@ defineExpose({ syncPlan, pushLog })
 }
 
 .hybrid-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 12px;
-  background: rgba(6, 10, 18, 0.32);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  background: var(--bg-subtle);
 }
 
 .hybrid-card h3 {
   margin: 0 0 10px;
-  font-size: 15px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 label span {
   display: block;
-  margin-bottom: 4px;
-  color: var(--text-secondary, #9aa6bf);
+  margin-bottom: 5px;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -257,11 +259,19 @@ input,
 select,
 textarea {
   width: 100%;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(7, 11, 20, 0.55);
-  color: inherit;
-  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-normal);
+  background: var(--bg-white);
+  color: var(--text-primary);
+  padding: 8px 11px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--brand-cyan);
+  box-shadow: var(--ring);
+  outline: none;
 }
 
 .inline-check {
@@ -272,6 +282,7 @@ textarea {
 
 .inline-check span {
   margin: 0;
+  color: var(--text-primary);
 }
 
 .inline-check input {
@@ -279,18 +290,19 @@ textarea {
 }
 
 .muted {
-  color: #8e9ab0;
+  color: var(--text-muted);
 }
 
 .plan-summary p {
   margin: 4px 0;
   font-size: 13px;
+  color: var(--text-primary);
 }
 
 .log-list {
   margin: 0;
   padding-left: 18px;
-  color: #9eb0c9;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 

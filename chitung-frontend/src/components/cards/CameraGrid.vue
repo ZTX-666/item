@@ -62,13 +62,15 @@ const displayCameras = computed(() => {
 <style scoped>
 .camera-empty {
   padding: 20px;
-  color: var(--text-muted, #9aa4b2);
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
 }
 
 .camera-empty__hint {
   margin-top: 8px;
   font-size: 12px;
+  color: var(--text-muted);
 }
 </style>

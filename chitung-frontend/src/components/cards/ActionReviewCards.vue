@@ -56,20 +56,22 @@ const emit = defineEmits<{
 }
 
 .review-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
   padding: 14px;
   margin-top: 10px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-subtle);
 }
 
 .review-card h3 {
+  color: var(--text-primary);
+  font-size: 14px;
   margin: 0 0 6px;
 }
 
 .review-card p {
   margin: 0;
-  color: var(--text-muted, #9aa4b2);
+  color: var(--text-secondary);
 }
 
 .review-card__actions {

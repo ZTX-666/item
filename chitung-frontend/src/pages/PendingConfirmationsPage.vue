@@ -142,10 +142,16 @@ watch(
 }
 
 .confirmation-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  background: var(--bg-white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
   padding: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  transition: box-shadow var(--dur) var(--ease);
+}
+
+.confirmation-card:hover {
+  box-shadow: var(--shadow-sm);
 }
 
 .confirmation-card__header {
@@ -156,54 +162,78 @@ watch(
 }
 
 .confirmation-card__header h3 {
+  color: var(--text-primary);
+  font-size: 15px;
   margin: 0 0 4px;
 }
 
 .confirmation-card__header p {
+  color: var(--text-secondary);
   margin: 0;
-  color: var(--text-muted, #9aa4b2);
 }
 
 .confirmation-card__meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px 16px;
-  margin: 0 0 12px;
+  gap: 10px 16px;
+  margin: 0 0 14px;
 }
 
 .confirmation-card__meta dt {
-  font-size: 12px;
-  color: var(--text-muted, #9aa4b2);
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
 }
 
 .confirmation-card__meta dd {
-  margin: 2px 0 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  margin: 3px 0 0;
 }
 
 .confirmation-card__actions {
+  border-top: 1px solid var(--border-light);
   display: flex;
   gap: 8px;
+  padding-top: 12px;
 }
 
 .risk-pill {
   align-self: flex-start;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
+  border-radius: var(--radius-round);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 3px 10px;
   text-transform: uppercase;
 }
 
-.risk-pill--red { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
-.risk-pill--orange { background: rgba(249, 115, 22, 0.15); color: #fdba74; }
-.risk-pill--green { background: rgba(34, 197, 94, 0.15); color: #86efac; }
+.risk-pill--red {
+  background: var(--brand-red-light);
+  color: var(--brand-red);
+}
 
-.empty-state,
-.error-text {
-  color: var(--text-muted, #9aa4b2);
+.risk-pill--orange {
+  background: #fef2e9;
+  color: var(--brand-orange);
+}
+
+.risk-pill--green {
+  background: #ecf6e8;
+  color: var(--brand-green);
+}
+
+.empty-state {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 28px 0;
+  text-align: center;
 }
 
 .error-text {
+  color: var(--brand-red);
+  font-size: 13px;
   margin-top: 8px;
-  color: #fca5a5;
 }
 </style>

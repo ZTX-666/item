@@ -343,7 +343,7 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 .mode-switch button.active {
-  background: #3b82f6;
+  background: var(--brand-red);
   color: #fff;
 }
 
@@ -387,8 +387,8 @@ function handleKeydown(event: KeyboardEvent) {
 
 .chatbot-message--user {
   align-self: flex-end;
-  background: rgba(59, 130, 246, 0.16);
-  color: #93c5fd;
+  background: rgb(231 0 18 / 18%);
+  color: #ff9aa2;
 }
 
 .chatbot-panel__diff {

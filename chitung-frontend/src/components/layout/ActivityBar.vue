@@ -28,11 +28,13 @@ const panels = [
         @click="emit('select', panel.id)"
       >
         <span class="activity-bar__emoji">{{ panel.icon }}</span>
+        <span class="activity-bar__label">{{ panel.label }}</span>
       </button>
     </div>
     <div class="activity-bar__bottom">
       <button class="activity-bar__item" title="AI 助手" @click="emit('select', 'chatbot')">
         <span class="activity-bar__emoji">🤖</span>
+        <span class="activity-bar__label">助手</span>
       </button>
     </div>
   </div>
@@ -41,15 +43,15 @@ const panels = [
 <style scoped>
 .activity-bar {
   align-items: center;
-  background: #16181d;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: linear-gradient(180deg, var(--rail-bg-2) 0%, var(--rail-bg) 100%);
+  border-right: 1px solid var(--rail-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   height: 100%;
   justify-content: space-between;
-  padding: 8px 0;
-  width: 48px;
+  padding: 10px 0;
+  width: 64px;
 }
 
 .activity-bar__top,
@@ -57,47 +59,64 @@ const panels = [
   align-items: center;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  width: 100%;
 }
 
 .activity-bar__item {
   align-items: center;
   background: transparent;
   border: 0;
-  color: #8b949e;
+  border-radius: var(--radius-md);
+  color: var(--rail-text-muted);
   display: flex;
-  height: 48px;
+  flex-direction: column;
+  gap: 3px;
   justify-content: center;
+  margin: 0 8px;
+  padding: 8px 0;
   position: relative;
-  transition: color 0.15s, background 0.15s;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
   width: 48px;
 }
 
-.activity-bar__item:hover,
+.activity-bar__item:hover {
+  background: var(--rail-hover);
+  color: var(--rail-text);
+}
+
 .activity-bar__item--active {
-  color: #e2e8f0;
+  background: var(--rail-active-bg);
+  color: var(--rail-active-text);
 }
 
 .activity-bar__item--active::before {
-  background: #60a5fa;
-  border-radius: 0 2px 2px 0;
-  bottom: 8px;
+  background: var(--rail-accent);
+  border-radius: 0 3px 3px 0;
+  bottom: 10px;
   content: '';
-  left: 0;
+  left: -8px;
   position: absolute;
-  top: 8px;
-  width: 2px;
+  top: 10px;
+  width: 3px;
 }
 
 .activity-bar__emoji {
   font-size: 20px;
-  opacity: 0.78;
-  transition: opacity 0.15s, transform 0.15s;
+  line-height: 1;
+  opacity: 0.82;
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 
 .activity-bar__item:hover .activity-bar__emoji,
 .activity-bar__item--active .activity-bar__emoji {
   opacity: 1;
-  transform: scale(1.08);
+  transform: scale(1.1);
+}
+
+.activity-bar__label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
 }
 </style>

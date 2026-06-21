@@ -247,9 +247,9 @@ onUnmounted(() => {
       <p class="hint">输入香港手机号后可走配对码模式；不输入也可以直接启动二维码登录。扫码/确认后，wacli 会持续同步 WhatsApp 数据。</p>
       <div class="ops-row">
         <input v-model="hkPhone" placeholder="香港手机号，如 91234567 或 +85291234567" />
-        <button :disabled="authLoading" @click="startQrLogin('qr')">生成二维码</button>
-        <button :disabled="authLoading || !hkPhone" @click="startQrLogin('phone')">手机号配对</button>
-        <button @click="stopLogin">停止</button>
+        <button class="primary-soft-button" :disabled="authLoading" @click="startQrLogin('qr')">生成二维码</button>
+        <button class="secondary-button" :disabled="authLoading || !hkPhone" @click="startQrLogin('phone')">手机号配对</button>
+        <button class="ghost-button" @click="stopLogin">停止</button>
         <button class="danger-button" @click="logoutLogin">退出登录</button>
       </div>
       <div class="login-grid">
@@ -300,7 +300,7 @@ onUnmounted(() => {
       <h3>出站发送（人工确认）</h3>
       <div class="ops-row">
         <input v-model="sendChat" placeholder="WhatsApp 群组/Chat ID" />
-        <button :disabled="sending" @click="sendDraft">生成草稿</button>
+        <button class="secondary-button" :disabled="sending" @click="sendDraft">生成草稿</button>
         <button class="danger-button" :disabled="sending" @click="sendConfirmed">确认发送</button>
       </div>
       <textarea v-model="sendText" rows="3" placeholder="输入要发送的 WhatsApp 消息" />
@@ -331,24 +331,37 @@ onUnmounted(() => {
 
 <style scoped>
 .whats-page { min-height: calc(100vh - 110px); }
-.ops-row { display: flex; gap: 8px; margin-bottom: 10px; }
-input { flex: 1; border: 1px solid #d9dee7; border-radius: 8px; padding: 10px; }
-textarea { width: 100%; border: 1px solid #d9dee7; border-radius: 8px; padding: 10px; resize: vertical; }
+.ops-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: stretch; }
+input, textarea {
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  outline: none;
+  padding: 9px 11px;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+input { flex: 1; }
+textarea { width: 100%; resize: vertical; line-height: 1.6; }
+input:focus, textarea:focus { border-color: var(--brand-cyan); box-shadow: var(--ring); }
 .send-box { margin-bottom: 12px; }
 .login-box { margin-bottom: 12px; min-height: auto; }
-.hint { color: #64748b; font-size: 13px; margin-top: 0; }
+.box h3 { font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px; }
+.hint { color: var(--text-secondary); font-size: 13px; margin: 0 0 10px; }
 .login-grid { display: grid; grid-template-columns: 280px 1fr; gap: 14px; align-items: start; }
-.qr-card { display: grid; place-items: center; min-height: 260px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 12px; }
-.qr-card img { width: 240px; height: 240px; }
-.qr-placeholder { color: #94a3b8; }
-.pair-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 24px; font-weight: 700; color: #b91c1c; letter-spacing: 1px; }
+.login-grid p { margin: 0 0 6px; color: var(--text-primary); }
+.qr-card { display: grid; place-items: center; min-height: 260px; background: var(--bg-subtle); border: 1.5px dashed var(--border-strong); border-radius: var(--radius-lg); }
+.qr-card img { width: 240px; height: 240px; border-radius: var(--radius-sm); }
+.qr-placeholder { color: var(--text-muted); font-size: 13px; }
+.pair-code { font-family: var(--font-mono); font-size: 24px; font-weight: 700; color: var(--brand-red); letter-spacing: 1px; }
 .split { display: grid; grid-template-columns: 1fr 2fr; gap: 12px; }
-.box { border: 1px solid #e3e8f0; border-radius: 10px; padding: 10px; min-height: 360px; }
-.box ul { margin: 8px 0 0 18px; }
-.box li { cursor: pointer; margin-bottom: 6px; }
-.box li:hover { color: #b91c1c; }
-.err { color: #c91b1b; margin-bottom: 10px; }
-pre { white-space: pre-wrap; background: #f7f9fc; border: 1px solid #e3e8f0; border-radius: 8px; padding: 8px; max-height: 220px; overflow: auto; }
-.danger-button { background: #d7263d; color: #fff; }
+.box { border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 14px; min-height: 360px; background: var(--bg-white); }
+.box ul { margin: 8px 0 0; padding: 0; list-style: none; }
+.box li { cursor: pointer; margin-bottom: 4px; padding: 6px 8px; border-radius: var(--radius-sm); transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+.box li:hover { background: var(--bg-hover); color: var(--brand-red); }
+.err { color: var(--brand-red); font-size: 13px; margin-bottom: 10px; }
+details summary { color: var(--text-secondary); cursor: pointer; font-size: 12px; }
+pre { white-space: pre-wrap; background: var(--bg-subtle); border: 1px solid var(--border-light); border-radius: var(--radius-md); color: var(--text-secondary); padding: 10px; max-height: 220px; overflow: auto; font-family: var(--font-mono); font-size: 12px; }
+.danger-button { background: linear-gradient(135deg, #ef2034, var(--brand-red-dark)); border: 0; box-shadow: 0 2px 8px rgb(231 0 18 / 22%); color: #fff; }
+.danger-button:hover:not(:disabled) { box-shadow: 0 4px 14px rgb(231 0 18 / 32%); transform: translateY(-1px); }
 @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
 </style>

@@ -225,15 +225,24 @@ onMounted(refresh)
 
 .rag-dropzone {
   align-items: center;
-  background: linear-gradient(135deg, #111827, #1f2937);
-  border: 1px dashed rgba(96, 165, 250, 0.5);
-  border-radius: 14px;
-  color: #dbeafe;
+  background: var(--bg-subtle);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  cursor: pointer;
   display: flex;
   justify-content: center;
   min-height: 150px;
   padding: 24px;
   text-align: center;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.rag-dropzone:hover {
+  background: var(--bg-active);
+  border-color: var(--brand-cyan);
+  color: var(--text-primary);
 }
 
 .rag-dropzone input {
@@ -241,8 +250,10 @@ onMounted(refresh)
 }
 
 .rag-dropzone--active {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  background: var(--bg-active);
+  border-color: var(--brand-cyan);
+  box-shadow: var(--ring);
+  color: var(--text-primary);
 }
 
 .rag-success {

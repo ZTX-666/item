@@ -31,8 +31,8 @@ const query = ref('临边 整改')
 
     <div class="template-list">
       <article v-for="template in templates" :key="template.id" class="template-row">
-        <div>
-          <strong>{{ template.id }} · {{ template.title || '未命名模板' }}</strong>
+        <div class="template-row__text">
+          <strong class="template-row__title">{{ template.id }} · {{ template.title || '未命名模板' }}</strong>
           <p>{{ template.policy_context || template.docx_path || '暂无上下文' }}</p>
         </div>
         <button class="mini-button" @click="emit('useTemplate', template.id)">用于填表</button>

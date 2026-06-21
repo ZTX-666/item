@@ -409,9 +409,10 @@ function sourceText(source: string | undefined): string {
 }
 
 .vlm-toggle__label { font-weight: 600; font-size: 14px; }
-.vlm-toggle__hint { font-size: 12px; color: #888; }
+.vlm-toggle__hint { font-size: 12px; color: var(--text-secondary); }
 .vlm-threshold { display: flex; align-items: center; gap: 6px; }
-.vlm-threshold__value { font-weight: 700; color: #2563eb; }
+.vlm-threshold__label { font-size: 13px; color: var(--text-secondary); }
+.vlm-threshold__value { font-weight: 700; color: var(--brand-cyan-dark); }
 
 .image-panel { margin-top: 16px; }
 .patrol-image {
@@ -429,7 +430,7 @@ function sourceText(source: string | undefined): string {
 }
 
 .history-empty {
-  color: #888;
+  color: var(--text-secondary);
   font-size: 13px;
   padding: 8px 0;
 }
@@ -444,28 +445,41 @@ function sourceText(source: string | undefined): string {
   text-align: left;
   padding: 10px 12px;
   margin-top: 8px;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
-  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.history-item:hover,
+.history-camera:hover {
+  background: var(--bg-white);
+  border-color: rgb(15 158 213 / 40%);
+  box-shadow: var(--shadow-xs);
+}
+
+.history-item strong,
+.history-camera span:first-child {
+  color: var(--text-primary);
 }
 
 .history-item span,
 .history-camera span {
   font-size: 12px;
-  color: #9aa4b2;
+  color: var(--text-secondary);
 }
 
 .history-cameras {
   margin-top: 16px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid var(--border-light);
   padding-top: 12px;
 }
 
 .history-cameras h3 {
   margin: 0 0 8px;
   font-size: 13px;
-  color: #9aa4b2;
+  color: var(--text-secondary);
 }
 
 .candidate-panel { padding: 20px; margin-top: 16px; }
