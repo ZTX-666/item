@@ -1,0 +1,85 @@
+{
+  "id": "T156",
+  "index": 156,
+  "title": "Working Records in Last 6 months最近6個月工作記錄 ** to be completed by worker 由工友填寫**",
+  "policy_context": "5. 協助工友安裝幸福工友App，並向工友講解幸福工友App應用，包括行為安全之星、安全評核及個人違反地盤安全守則保證書等； > 6. 工友填寫的上述資料涉及個人隱私，所有資料不得外洩。 > 附件",
+  "nearby_paragraphs": [
+    "甲部",
+    "Personal Information 個人資料 ** to be completed by worker 由工友填寫**",
+    "乙部",
+    "Health Declaration and Assessment 健康聲明及檢查 **to be completed by SO 由安全主任填寫**",
+    "*備註：血壓的上壓>140mmHg，下壓>90mmHg，則為高血壓；血壓的上壓<90mmHg，下壓<60mmHg，則為低血壓；體温>攝氏37.5度，則視為發燒；如發現工友有上述情況，則應要求其立即離開地盤就醫，待身體好轉後並持最新醫生證明到地盤重新檢查並填報資料",
+    "轉後頁",
+    "丙部",
+    "Working Records in Last 6 months最近6個月工作記錄 ** to be completed by worker 由工友填寫**"
+  ],
+  "rows": 8,
+  "columns": 4,
+  "non_empty_cell_count": 11,
+  "first_row": [
+    "Date of Work 工作日期",
+    "Site Name 曾工作過的地盤名稱",
+    "Type of Work 工種/工作內容",
+    "Days of Work 開工天數"
+  ],
+  "headers_guess": [
+    "Date of Work 工作日期",
+    "Site Name 曾工作過的地盤名稱",
+    "Type of Work 工種/工作內容",
+    "Days of Work 開工天數"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T156_Working Records in Last 6 months最近6個月工作記錄 _ to be completed by worker.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T156_Working Records in Last 6 months最近6個月工作記錄 _ to be completed by worker.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T156_Working Records in Last 6 months最近6個月工作記錄 _ to be completed by worker.md",
+  "cells": [
+    [
+      "Date of Work 工作日期",
+      "Site Name 曾工作過的地盤名稱",
+      "Type of Work 工種/工作內容",
+      "Days of Work 開工天數"
+    ],
+    [
+      "至",
+      "",
+      "",
+      ""
+    ],
+    [
+      "至",
+      "",
+      "",
+      ""
+    ],
+    [
+      "至",
+      "",
+      "",
+      ""
+    ],
+    [
+      "至",
+      "",
+      "",
+      ""
+    ],
+    [
+      "至",
+      "",
+      "",
+      ""
+    ],
+    [
+      "至",
+      "",
+      "",
+      ""
+    ],
+    [
+      "至",
+      "",
+      "",
+      ""
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

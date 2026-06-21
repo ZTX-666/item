@@ -1,0 +1,50 @@
+{
+  "id": "T023",
+  "index": 23,
+  "title": "Signature簽名： / ( ) / ( )",
+  "policy_context": "5.6其他 > 附件 > Implement hot work permitsystem執行熱工序許可證制度",
+  "nearby_paragraphs": [
+    "Implement hot work permitsystem執行熱工序許可證制度",
+    "Other, please specify 其他請注明_______________________",
+    "外牆棚工作許可證",
+    "Permit to Work (External Scaffold Work)",
+    "Permit No.許可證號碼: _______________",
+    "Certification 證明",
+    "I certify that the above precautions have already been taken. I had briefed the safety procedures to all workers involved in the work and they will be strictly followed in the duration of the work.",
+    "本人證明前述安全措施已全部妥善執行。本人已清楚向下列工作人員講解有關安全工作步驟，並保證遵守。"
+  ],
+  "rows": 3,
+  "columns": 3,
+  "non_empty_cell_count": 6,
+  "first_row": [
+    "Signature簽名：",
+    "( )",
+    "( )"
+  ],
+  "headers_guess": [
+    "Signature簽名：",
+    "( )",
+    "( )"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T023_Signature簽名： _ ( ) _ ( ).docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T023_Signature簽名： _ ( ) _ ( ).json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T023_Signature簽名： _ ( ) _ ( ).md",
+  "cells": [
+    [
+      "Signature簽名：",
+      "( )",
+      "( )"
+    ],
+    [
+      "",
+      "Permit holder (持有許可證人士)",
+      "Supervisor of Contractor (承建商監督人員)"
+    ],
+    [
+      "Time 時間：",
+      "",
+      ""
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

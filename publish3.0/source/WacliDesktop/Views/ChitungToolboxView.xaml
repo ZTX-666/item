@@ -1,0 +1,123 @@
+<UserControl x:Class="WacliDesktop.Views.ChitungToolboxView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- Status bar -->
+    <Border Grid.Row="0" Style="{StaticResource SgCard}" Margin="0,0,0,8" Padding="8">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Ellipse x:Name="AgentToolboxDot" Width="8" Height="8" Fill="#E24B4A" Margin="0,0,6,0"/>
+        <TextBlock Text="AgentToolbox" FontWeight="SemiBold" Foreground="{StaticResource SgTextBrush}" Margin="0,0,4,0"/>
+        <TextBlock x:Name="AgentToolboxStatus" Text="检测中…" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,16,0"/>
+
+        <Ellipse x:Name="LocalApiDot" Width="8" Height="8" Fill="#E24B4A" Margin="0,0,6,0"/>
+        <TextBlock Text="本地消息 API" FontWeight="SemiBold" Foreground="{StaticResource SgTextBrush}" Margin="0,0,4,0"/>
+        <TextBlock x:Name="LocalApiStatus" Text="检测中…" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,16,0"/>
+
+        <Button Content="启动本地 API" Click="BtnStartLocalApi_Click" Style="{StaticResource CompactButton}"/>
+        <Button Content="刷新状态" Click="BtnRefreshStatus_Click" Style="{StaticResource CompactButton}" Margin="8,0,0,0"/>
+      </StackPanel>
+    </Border>
+
+    <TabControl Grid.Row="1">
+      <!-- WhatsApp 搜索 -->
+      <TabItem Header="WhatsApp 搜索">
+        <Grid Margin="4">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <Border Grid.Row="0" Style="{StaticResource SgCard}" Padding="8" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="关键词" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,6,0"/>
+              <TextBox x:Name="WaSearchInput" Width="220" VerticalContentAlignment="Center" Margin="0,0,12,0"/>
+              <TextBlock Text="聊天" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,6,0"/>
+              <TextBox x:Name="WaChatInput" Width="140" VerticalContentAlignment="Center" Margin="0,0,12,0"/>
+              <TextBlock Text="数量" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,6,0"/>
+              <TextBox x:Name="WaLimitInput" Width="50" Text="20" VerticalContentAlignment="Center" Margin="0,0,12,0"/>
+              <Button Content="搜索" Style="{StaticResource PrimaryButton}" Click="BtnWaSearch_Click"/>
+            </StackPanel>
+          </Border>
+
+          <TextBlock Grid.Row="1" x:Name="WaSummary" Text="" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,0,6" TextWrapping="Wrap"/>
+
+          <Border Grid.Row="2" Style="{StaticResource SgCard}" Padding="2">
+            <DataGrid x:Name="WaResultGrid" AutoGenerateColumns="True" IsReadOnly="True"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <!-- 隐患案例 -->
+      <TabItem Header="隐患案例">
+        <Grid Margin="4">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <Border Grid.Row="0" Style="{StaticResource SgCard}" Padding="8" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="状态" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,6,0"/>
+              <TextBox x:Name="CaseStatusInput" Width="100" VerticalContentAlignment="Center" Margin="0,0,12,0" ToolTip="如 candidate / confirmed / closed"/>
+              <TextBlock Text="场景" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,6,0"/>
+              <TextBox x:Name="CaseSceneInput" Width="140" VerticalContentAlignment="Center" Margin="0,0,12,0"/>
+              <TextBlock Text="风险等级" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,6,0"/>
+              <TextBox x:Name="CaseRiskInput" Width="80" VerticalContentAlignment="Center" Margin="0,0,12,0" ToolTip="如 high / medium / low"/>
+              <TextBlock Text="数量" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,6,0"/>
+              <TextBox x:Name="CaseLimitInput" Width="50" Text="50" VerticalContentAlignment="Center" Margin="0,0,12,0"/>
+              <Button Content="查询" Style="{StaticResource PrimaryButton}" Click="BtnCaseQuery_Click"/>
+            </StackPanel>
+          </Border>
+
+          <TextBlock Grid.Row="1" x:Name="CaseSummary" Text="" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,0,6" TextWrapping="Wrap"/>
+
+          <Border Grid.Row="2" Style="{StaticResource SgCard}" Padding="2">
+            <DataGrid x:Name="CaseResultGrid" AutoGenerateColumns="True" IsReadOnly="True"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <!-- 表格模板 -->
+      <TabItem Header="表格模板">
+        <Grid Margin="4">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <Border Grid.Row="0" Style="{StaticResource SgCard}" Padding="8" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="关键词" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,6,0"/>
+              <TextBox x:Name="FormQueryInput" Width="220" VerticalContentAlignment="Center" Margin="0,0,12,0"/>
+              <TextBlock Text="场景" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,6,0"/>
+              <TextBox x:Name="FormSceneInput" Width="140" VerticalContentAlignment="Center" Margin="0,0,12,0" ToolTip="如 lifting / electrical / fire"/>
+              <TextBlock Text="数量" VerticalAlignment="Center" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,6,0"/>
+              <TextBox x:Name="FormLimitInput" Width="50" Text="20" VerticalContentAlignment="Center" Margin="0,0,12,0"/>
+              <Button Content="搜索" Style="{StaticResource PrimaryButton}" Click="BtnFormSearch_Click"/>
+            </StackPanel>
+          </Border>
+
+          <TextBlock Grid.Row="1" x:Name="FormSummary" Text="" Foreground="{StaticResource SgMutedBrush}" Margin="0,0,0,6" TextWrapping="Wrap"/>
+
+          <Border Grid.Row="2" Style="{StaticResource SgCard}" Padding="2">
+            <DataGrid x:Name="FormResultGrid" AutoGenerateColumns="True" IsReadOnly="True"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+          </Border>
+        </Grid>
+      </TabItem>
+    </TabControl>
+  </Grid>
+</UserControl>

@@ -1,0 +1,53 @@
+{
+  "id": "T063",
+  "index": 63,
+  "title": "註：其他危險品的豁免量可參考消防處-《危險品清單》內的列表。",
+  "policy_context": "7.4充電安全 > 7.5 辦公室 > 7.6 危險品貯存倉",
+  "nearby_paragraphs": [
+    "7.6 危險品貯存倉",
+    "引言",
+    "易燃液體及壓縮氣體是建築地盤常用的物品，根據香港法例第295章《危險品條例》第6條，除非獲得消防處處長(主管當局)發出牌照，否則任何人不得在任何處所或地方貯存超過豁免量的危險品。",
+    "豁免量",
+    "以下是建築地盤內一些常用危險品及其豁免量﹕",
+    "註：其他危險品的豁免量可參考消防處-《危險品清單》內的列表。",
+    "網址：https://es.hkfsd.gov.hk/dg/zh-hant/administration/dg_list/",
+    "此外，同時貯存同一類危險品，亦有總豁免量限制，詳情如下："
+  ],
+  "rows": 5,
+  "columns": 2,
+  "non_empty_cell_count": 10,
+  "first_row": [
+    "危險品(種類)",
+    "工業處所總豁免量"
+  ],
+  "headers_guess": [
+    "危險品(種類)",
+    "工業處所總豁免量"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T063_註：其他危險品的豁免量可參考消防處-《危險品清單》內的列表。.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T063_註：其他危險品的豁免量可參考消防處-《危險品清單》內的列表。.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T063_註：其他危險品的豁免量可參考消防處-《危險品清單》內的列表。.md",
+  "cells": [
+    [
+      "危險品(種類)",
+      "工業處所總豁免量"
+    ],
+    [
+      "第2類",
+      "450公升(容水量)"
+    ],
+    [
+      "第3類(漆油物料除外)",
+      "150公升"
+    ],
+    [
+      "第4/ 5/ 6.1/ 8/ 9類",
+      "1,000公升(液體)/1,000公斤(固體)"
+    ],
+    [
+      "漆油物料",
+      "250公升"
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

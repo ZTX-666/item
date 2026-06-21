@@ -1,0 +1,45 @@
+{
+  "id": "T128",
+  "index": 128,
+  "title": "分判商每日安全交底記錄",
+  "policy_context": "3. 公司安環部發出警告信、紅黃牌或地盤安全管理停工整改命令； > 4. 安全審核發現嚴重不符合點； > 5. 業主安全審核(PASS及CPR等)發現嚴重不符合點或扣分。",
+  "nearby_paragraphs": [
+    "5. 業主安全審核(PASS及CPR等)發現嚴重不符合點或扣分。",
+    "附件13.7",
+    "地盤安環管理分區責任人告示板",
+    "分區名稱：____________________",
+    "地盤分區示意圖 (標明本區位置和範圍)",
+    "責任人資料",
+    "附表13.8",
+    "分判商每日安全交底記錄"
+  ],
+  "rows": 2,
+  "columns": 3,
+  "non_empty_cell_count": 3,
+  "first_row": [
+    "工作內容",
+    "危害識別",
+    "預防措施"
+  ],
+  "headers_guess": [
+    "工作內容",
+    "危害識別",
+    "預防措施"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T128_分判商每日安全交底記錄.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T128_分判商每日安全交底記錄.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T128_分判商每日安全交底記錄.md",
+  "cells": [
+    [
+      "工作內容",
+      "危害識別",
+      "預防措施"
+    ],
+    [
+      "",
+      "",
+      ""
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

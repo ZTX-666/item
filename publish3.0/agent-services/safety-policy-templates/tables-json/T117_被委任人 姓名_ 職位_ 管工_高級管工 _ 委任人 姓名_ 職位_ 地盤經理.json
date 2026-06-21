@@ -1,0 +1,45 @@
+{
+  "id": "T117",
+  "index": 117,
+  "title": "被委任人 姓名: 職位: 管工/高級管工 / 委任人 姓名: 職位: 地盤經理",
+  "policy_context": "六、獎勵標准 > 審批流程 > 附件",
+  "nearby_paragraphs": [
+    "日期： 日期： 日期：",
+    "附件13.3",
+    "地盤安環管理分區責任人委任書",
+    "地盤名稱：",
+    "先生：",
+    "現委任閣下由即日起擔任本地盤_______分區安環管理責任人，負責執行以下事項：",
+    "地盤會按《地盤前線管理人員安環管理分區責任制度》的要求，對分區責任人執行獎罰制度。",
+    "(簽署) (簽署)"
+  ],
+  "rows": 2,
+  "columns": 3,
+  "non_empty_cell_count": 4,
+  "first_row": [
+    "被委任人 姓名: 職位: 管工/高級管工",
+    "",
+    "委任人 姓名: 職位: 地盤經理"
+  ],
+  "headers_guess": [
+    "被委任人 姓名: 職位: 管工/高級管工",
+    "",
+    "委任人 姓名: 職位: 地盤經理"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T117_被委任人 姓名_ 職位_ 管工_高級管工 _ 委任人 姓名_ 職位_ 地盤經理.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T117_被委任人 姓名_ 職位_ 管工_高級管工 _ 委任人 姓名_ 職位_ 地盤經理.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T117_被委任人 姓名_ 職位_ 管工_高級管工 _ 委任人 姓名_ 職位_ 地盤經理.md",
+  "cells": [
+    [
+      "被委任人 姓名: 職位: 管工/高級管工",
+      "",
+      "委任人 姓名: 職位: 地盤經理"
+    ],
+    [
+      "年 月 日",
+      "",
+      "年 月 日"
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

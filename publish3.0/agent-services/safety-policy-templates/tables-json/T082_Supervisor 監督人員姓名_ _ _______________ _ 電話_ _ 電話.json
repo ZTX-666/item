@@ -1,0 +1,61 @@
+{
+  "id": "T082",
+  "index": 82,
+  "title": "Supervisor 監督人員姓名: / _______________ / 電話: / 電話:",
+  "policy_context": "四、獨立第三方審核 > 五、其他事項 > 附件",
+  "nearby_paragraphs": [
+    "Certification 證明",
+    "I certify that the above precautions have already been taken. I had briefed the safety procedures to all workers involved in the work and they will be strictly followed in the duration of the work.",
+    "本人證明前述安全措施已全部妥善執行。本人已清楚向下列工作人員講解有關安全工作步驟，並保證遵守。",
+    "(to be signed before commencement of works 開工前簽發)",
+    "Acceptance of the Permit 接受有關許可證",
+    "I have read and understood this Permit and shall undertake to work in accordance with all the conditions laid down in it.",
+    "本人已細閱及明白有關許可證，並承諾於工作中謹遵有關條款。",
+    "Details of the work team 工作人員資料"
+  ],
+  "rows": 4,
+  "columns": 4,
+  "non_empty_cell_count": 14,
+  "first_row": [
+    "Supervisor 監督人員姓名:",
+    "_______________",
+    "電話:",
+    "電話:"
+  ],
+  "headers_guess": [
+    "Supervisor 監督人員姓名:",
+    "_______________",
+    "電話:",
+    "電話:"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T082_Supervisor 監督人員姓名_ _ _______________ _ 電話_ _ 電話.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T082_Supervisor 監督人員姓名_ _ _______________ _ 電話_ _ 電話.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T082_Supervisor 監督人員姓名_ _ _______________ _ 電話_ _ 電話.md",
+  "cells": [
+    [
+      "Supervisor 監督人員姓名:",
+      "_______________",
+      "電話:",
+      "電話:"
+    ],
+    [
+      "Workman 工作人員姓名:",
+      "1. _____________,",
+      "2. ______________,",
+      "3. ______________"
+    ],
+    [
+      "",
+      "4. _____________,",
+      "5. ______________,",
+      "6. ______________"
+    ],
+    [
+      "",
+      "7. _____________,",
+      "8. ______________,",
+      "9. ______________"
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

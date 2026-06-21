@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "WacliDesktop.ApiHost": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://127.0.0.1:8790",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "CHITONG_APP_ROOT": "..\\..\\.."
+      }
+    }
+  }
+}

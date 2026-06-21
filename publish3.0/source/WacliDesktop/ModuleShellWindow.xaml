@@ -1,0 +1,28 @@
+<Window x:Class="WacliDesktop.ModuleShellWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        MinWidth="640" MinHeight="420"
+        Icon="/Assets/app-icon.ico"
+        ResizeMode="CanMinimize"
+        Background="{StaticResource SgBgBrush}">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <Border Grid.Row="0" Background="{StaticResource SgHeaderGradient}" Padding="12,8"
+            BorderBrush="#ffffff22" BorderThickness="0,0,0,1">
+      <DockPanel LastChildFill="True">
+        <Button DockPanel.Dock="Right" Content="关闭" Click="Close_Click"
+                Style="{StaticResource HeaderCloseButton}" VerticalAlignment="Center"/>
+        <TextBlock x:Name="ModuleTitle" FontSize="17" FontWeight="SemiBold" Foreground="White"
+                   VerticalAlignment="Center"/>
+      </DockPanel>
+    </Border>
+
+    <Border Grid.Row="1" Padding="8">
+      <ContentControl x:Name="ModuleContent"/>
+    </Border>
+  </Grid>
+</Window>

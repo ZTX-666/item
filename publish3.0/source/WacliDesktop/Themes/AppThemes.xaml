@@ -1,0 +1,383 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- publish22 UI palette (aligned to 主界面.html) -->
+  <Color x:Key="SgPrimary">#C8102E</Color>
+  <Color x:Key="SgPrimaryLight">#E0304A</Color>
+  <Color x:Key="SgSecondary">#8B0000</Color>
+  <Color x:Key="SgBg">#EAEAEA</Color>
+  <Color x:Key="SgCardColor">#ffffff</Color>
+  <Color x:Key="SgText">#333333</Color>
+  <Color x:Key="SgMuted">#888888</Color>
+  <Color x:Key="SgBorder">#ECECEC</Color>
+  <Color x:Key="SgBrandTop">#F5F6F8</Color>
+
+  <SolidColorBrush x:Key="SgPrimaryBrush" Color="{StaticResource SgPrimary}"/>
+  <SolidColorBrush x:Key="SgBgBrush" Color="{StaticResource SgBg}"/>
+  <SolidColorBrush x:Key="SgCardBrush" Color="{StaticResource SgCardColor}"/>
+  <SolidColorBrush x:Key="SgTextBrush" Color="{StaticResource SgText}"/>
+  <SolidColorBrush x:Key="SgMutedBrush" Color="{StaticResource SgMuted}"/>
+  <SolidColorBrush x:Key="SgBorderBrush" Color="{StaticResource SgBorder}"/>
+
+  <SolidColorBrush x:Key="SgSecondaryBrush" Color="{StaticResource SgSecondary}"/>
+
+  <LinearGradientBrush x:Key="SgHeaderGradient" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#8B0000" Offset="0"/>
+    <GradientStop Color="#C8102E" Offset="0.5"/>
+    <GradientStop Color="#8B0000" Offset="1"/>
+  </LinearGradientBrush>
+
+  <Style TargetType="Window">
+    <Setter Property="Background" Value="{StaticResource SgBgBrush}"/>
+    <Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei"/>
+    <Setter Property="Foreground" Value="{StaticResource SgTextBrush}"/>
+    <Setter Property="FontSize" Value="14"/>
+  </Style>
+
+  <Style TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource SgTextBrush}"/>
+    <Setter Property="FontSize" Value="14"/>
+  </Style>
+
+  <Style TargetType="Button">
+    <Setter Property="Padding" Value="11,6"/>
+    <Setter Property="Margin" Value="0,0,6,6"/>
+    <Setter Property="Background" Value="{StaticResource SgCardBrush}"/>
+    <Setter Property="Foreground" Value="{StaticResource SgTextBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="6" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter Property="BorderBrush" Value="{StaticResource SgPrimaryBrush}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Background" Value="{StaticResource SgPrimaryBrush}"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgSecondaryBrush}"/>
+  </Style>
+
+  <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="BorderBrush" Value="#b01010"/>
+    <Setter Property="Foreground" Value="#b01010"/>
+  </Style>
+
+  <Style TargetType="TextBox">
+    <Setter Property="Background" Value="White"/>
+    <Setter Property="Foreground" Value="{StaticResource SgTextBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgBorderBrush}"/>
+    <Setter Property="Padding" Value="8,5"/>
+    <Setter Property="FontSize" Value="13"/>
+  </Style>
+
+  <Style TargetType="PasswordBox">
+    <Setter Property="Background" Value="White"/>
+    <Setter Property="Foreground" Value="{StaticResource SgTextBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgBorderBrush}"/>
+    <Setter Property="Padding" Value="8,5"/>
+    <Setter Property="FontSize" Value="13"/>
+  </Style>
+
+  <Style TargetType="ComboBox">
+    <Setter Property="Background" Value="White"/>
+    <Setter Property="Foreground" Value="{StaticResource SgTextBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgBorderBrush}"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Padding" Value="6,4"/>
+  </Style>
+
+  <Style TargetType="TabControl">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+
+  <Style TargetType="TabItem">
+    <Setter Property="Padding" Value="15,9"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Foreground" Value="{StaticResource SgMutedBrush}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TabItem">
+          <Border x:Name="Bd" Margin="0,0,4,0" CornerRadius="8,8,0,0"
+                  Background="#F4F4F4" BorderBrush="{StaticResource SgBorderBrush}" BorderThickness="1,1,1,0"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="White"/>
+              <Setter Property="Foreground" Value="{StaticResource SgPrimaryBrush}"/>
+              <Setter Property="FontWeight" Value="SemiBold"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="SgCard" TargetType="Border">
+    <Setter Property="Background" Value="White"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1.5"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="10"/>
+    <Setter Property="Effect">
+      <Setter.Value>
+        <DropShadowEffect BlurRadius="8" ShadowDepth="1" Opacity="0.08" Color="Black"/>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="SgStatusBar" TargetType="Border">
+    <Setter Property="Background" Value="White"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="12,8"/>
+  </Style>
+
+  <Style x:Key="SgSectionTitle" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{StaticResource SgPrimaryBrush}"/>
+    <Setter Property="Margin" Value="0,0,0,4"/>
+  </Style>
+
+  <Style TargetType="ListView">
+    <Setter Property="Background" Value="White"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgBorderBrush}"/>
+    <Setter Property="Foreground" Value="{StaticResource SgTextBrush}"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+    <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+  </Style>
+
+  <Style x:Key="CompactListView" TargetType="ListView" BasedOn="{StaticResource {x:Type ListView}}">
+    <Setter Property="FontSize" Value="13"/>
+  </Style>
+
+  <Style x:Key="CompactButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Padding" Value="10,5"/>
+    <Setter Property="Margin" Value="0,0,5,5"/>
+    <Setter Property="FontSize" Value="13"/>
+  </Style>
+
+  <Style x:Key="BrowseColumnHeaderGrid" TargetType="Grid">
+    <Setter Property="Height" Value="28"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <Style x:Key="BrowseHeaderFilterSpacer" TargetType="Border">
+    <Setter Property="Width" Value="14"/>
+    <Setter Property="Height" Value="14"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+  </Style>
+
+  <Style x:Key="BrowseHeaderText" TargetType="TextBlock">
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Foreground" Value="{StaticResource SgPrimaryBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <Style x:Key="FilterHeaderButton" TargetType="Button">
+    <Setter Property="Width" Value="14"/>
+    <Setter Property="Height" Value="14"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="2,0,0,0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Foreground" Value="{StaticResource SgMutedBrush}"/>
+    <Setter Property="FontSize" Value="9"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+    <Setter Property="ToolTip" Value="筛选"/>
+    <Setter Property="Content" Value="▾"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="2"
+                  Padding="0" Width="{TemplateBinding Width}" Height="{TemplateBinding Height}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="#fdeaea"/>
+              <Setter Property="Foreground" Value="{StaticResource SgPrimaryBrush}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="ProjectIconButton" TargetType="Button">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" Background="#fafafa" CornerRadius="4" Width="38" Height="38"
+                  BorderBrush="{StaticResource SgBorderBrush}" BorderThickness="1">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource SgPrimaryBrush}"/>
+              <Setter TargetName="Bd" Property="Background" Value="#fff8f8"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Cursor" Value="Arrow"/>
+              <Setter TargetName="Bd" Property="Opacity" Value="0.65"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="GridViewColumnHeader">
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{StaticResource SgPrimaryBrush}"/>
+    <Setter Property="Padding" Value="6,4"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Height" Value="32"/>
+  </Style>
+
+  <Style TargetType="DataGrid">
+    <Setter Property="Background" Value="White"/>
+    <Setter Property="Foreground" Value="{StaticResource SgTextBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgBorderBrush}"/>
+    <Setter Property="RowBackground" Value="White"/>
+    <Setter Property="AlternatingRowBackground" Value="#faf8f8"/>
+    <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+    <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource SgBorderBrush}"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="RowHeight" Value="28"/>
+  </Style>
+
+  <Style TargetType="ListBox">
+    <Setter Property="Background" Value="White"/>
+    <Setter Property="Foreground" Value="{StaticResource SgTextBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgBorderBrush}"/>
+    <Setter Property="FontSize" Value="15"/>
+  </Style>
+
+  <Style TargetType="ListBoxItem">
+    <Setter Property="Padding" Value="6,4"/>
+    <Setter Property="FontSize" Value="15"/>
+  </Style>
+
+  <Style x:Key="ModuleTileButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Margin" Value="4"/>
+    <Setter Property="Padding" Value="14,12"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="MinHeight" Value="72"/>
+    <Setter Property="Background" Value="White"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgBorderBrush}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="10" Padding="{TemplateBinding Padding}">
+            <Grid>
+              <Border Width="3" HorizontalAlignment="Left" Background="{StaticResource SgPrimaryBrush}" CornerRadius="2"/>
+              <ContentPresenter Margin="8,0,0,0" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource SgPrimaryBrush}"/>
+              <Setter TargetName="Bd" Property="Background" Value="#FFF8F8"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="#fdeaea"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="ModuleTileTitle" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{StaticResource SgPrimaryBrush}"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="TextAlignment" Value="Left"/>
+  </Style>
+
+  <Style x:Key="ModuleTileDesc" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{StaticResource SgMutedBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="TextAlignment" Value="Left"/>
+    <Setter Property="Margin" Value="0,3,0,0"/>
+  </Style>
+
+  <Style x:Key="HeaderCloseButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="Padding" Value="14,5"/>
+    <Setter Property="Background" Value="#ffffff22"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="BorderBrush" Value="#ffffff55"/>
+    <Setter Property="FontSize" Value="14"/>
+  </Style>
+
+  <Style x:Key="FooterMiniButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Margin" Value="4,0,0,0"/>
+    <Setter Property="Padding" Value="10,4"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{StaticResource SgPrimaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource SgPrimaryBrush}"/>
+    <Setter Property="Background" Value="White"/>
+    <Setter Property="MinWidth" Value="78"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="6" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="#fff5f5"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+</ResourceDictionary>
