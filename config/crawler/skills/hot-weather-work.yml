@@ -1,0 +1,67 @@
+name: hot-weather-work
+display_name: 酷热天气作业
+description: 监听酷热天气、热压力、中暑、户外作业、饮水休息安排和相关职安健要求。
+enabled: true
+
+source_scope:
+  include_sources:
+    - hko_warnsum
+    - hko_warning_info
+    - gov_press_rss
+    - gov_press_api
+    - labour_work_safety_alert
+    - housing_site_safety_alerts
+    - devb_technical_circulars
+    - cic_safety_messages
+
+keywords:
+  include:
+    - 酷热天气
+    - 酷热天气警告
+    - 热压力
+    - 中暑
+    - 户外工作
+    - 高温
+    - 饮水
+    - 休息
+    - 轮班
+    - 通风
+    - 暑热压力
+    - 热疾病
+  exclude:
+    - 旅游
+    - 消闲
+    - 广告
+
+entities:
+  work_process:
+    - 户外工作
+    - 高处工作
+    - 密闭空间
+    - 体力劳动
+  hazard:
+    - 热压力
+    - 中暑
+    - 脱水
+
+severity_rules:
+  p0:
+    combined_keywords:
+      - [酷热天气, 死亡]
+      - [中暑, 地盘]
+      - [热压力, 严重工伤]
+  p1:
+    any_keywords:
+      - 酷热天气警告
+      - 热压力
+      - 中暑
+      - 户外工作
+      - 饮水
+      - 休息
+  p2:
+    default_for_matched_items: true
+
+recommended_actions:
+  - 通知现场负责人检查饮水、休息、遮阴和通风安排。
+  - 对户外、高处、密闭空间和重体力工序进行热压力风险评估。
+  - 按项目热压力程序调整轮班和作业节奏。

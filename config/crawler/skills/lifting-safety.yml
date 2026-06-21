@@ -1,0 +1,73 @@
+name: lifting-safety
+display_name: 天秤与吊运安全
+description: 监听天秤、塔式起重机、吊运、吊臂、吊索、起重机和物件堕下相关事故或监管消息。
+enabled: true
+
+source_scope:
+  include_sources:
+    - gov_press_rss
+    - gov_press_api
+    - labour_work_safety_alert
+    - housing_site_safety_alerts
+    - devb_technical_circulars
+    - cic_safety_messages
+    - hk01_industrial_accident_search
+    - stheadline_industrial_accident_search
+
+keywords:
+  include:
+    - 天秤
+    - 塔式起重机
+    - 起重机
+    - 流动式起重机
+    - 吊运
+    - 吊臂
+    - 吊索
+    - 吊钩
+    - 吊重
+    - 物件堕下
+    - 被夹
+    - 被压
+  exclude:
+    - 招聘
+    - 二手买卖
+    - 广告
+
+entities:
+  work_process:
+    - 吊运
+    - 安装
+    - 拆卸
+    - 维修
+  hazard:
+    - 物件堕下
+    - 倒塌
+    - 被夹
+    - 被压
+    - 强风
+
+severity_rules:
+  p0:
+    combined_keywords:
+      - [天秤, 死亡]
+      - [塔式起重机, 死亡]
+      - [吊运, 死亡]
+      - [起重机, 严重工伤]
+      - [物件堕下, 地盘]
+  p1:
+    any_keywords:
+      - 职安警示
+      - 吊运安全
+      - 天秤
+      - 塔式起重机
+      - 起重机
+      - 物件堕下
+      - 强烈季候风信号
+      - 雷暴
+  p2:
+    default_for_matched_items: true
+
+recommended_actions:
+  - 检查吊运计划、吊具证书、讯号员和指定吊运区域。
+  - 如有强风、雷暴或热带气旋信号，复核暂停吊运条件。
+  - 对同类吊运工序安排即时工具箱会议或安全提示。

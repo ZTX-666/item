@@ -1,0 +1,96 @@
+name: site-safety
+display_name: 香港地盘安全总览
+description: 默认监听工业意外、地盘工伤、恶劣天气、监管行动和重要安全政策。
+enabled: true
+
+source_scope:
+  include_categories:
+    - weather
+    - official
+    - policy
+    - industry
+    - media
+  include_sources:
+    - hko_warnsum
+    - hko_warning_info
+    - gov_press_rss
+    - gov_press_api
+    - labour_work_safety_alert
+    - buildings_department_circulars
+    - buildings_department_practice_notes
+    - housing_site_safety_alerts
+    - devb_technical_circulars
+    - cic_safety_messages
+    - hk01_industrial_accident_search
+    - stheadline_industrial_accident_search
+
+keywords:
+  include:
+    - 致命工作意外
+    - 严重工作意外
+    - 工业意外
+    - 工伤
+    - 地盘
+    - 工友
+    - 暂时停工通知书
+    - 暂停投标
+    - 承建商
+    - 分判商
+    - 棚架
+    - 竹棚架
+    - 高处工作
+    - 吊运
+    - 天秤
+    - 塔式起重机
+    - 密闭空间
+    - 触电
+    - 酷热天气
+    - 黑色暴雨
+    - 红色暴雨
+    - 八号烈风或暴风信号
+    - 智慧工地安全系统
+    - Smart Site Safety System
+  exclude:
+    - 招聘
+    - 广告
+    - 娱乐
+
+severity_rules:
+  p0:
+    any_keywords:
+      - 致命工作意外
+      - 暂时停工通知书
+      - 暂停投标
+      - 黑色暴雨
+      - 八号烈风或暴风信号
+      - 九号烈风或暴风风力增强信号
+      - 十号飓风信号
+    combined_keywords:
+      - [地盘, 死亡]
+      - [工友, 不治]
+      - [棚架, 死亡]
+      - [天秤, 严重工伤]
+      - [吊运, 死亡]
+  p1:
+    any_keywords:
+      - 职安警示
+      - 安全讯息
+      - 工地安全提示
+      - 严重工伤
+      - 红色暴雨
+      - 雷暴
+      - 山泥倾泻
+      - 酷热天气
+      - 技术通告
+      - 作业备考
+    media_requires_review: true
+  p2:
+    default_for_matched_items: true
+
+output:
+  summary_language: zh-HK
+  max_summary_bullets: 5
+  require_original_url: true
+  require_human_review_for:
+    - P0
+    - media_lead
