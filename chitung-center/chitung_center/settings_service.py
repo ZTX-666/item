@@ -20,9 +20,12 @@ def get_llm_settings_status() -> dict[str, object]:
 
 
 def save_llm_settings(request: LlmSettingsRequest) -> dict[str, object]:
+    api_key = request.api_key.strip()
+    if not api_key or "••••" in api_key:
+        api_key = settings.llm_api_key
     values = {
         "LLM_BASE_URL": request.base_url.strip(),
-        "LLM_API_KEY": request.api_key.strip(),
+        "LLM_API_KEY": api_key,
         "LLM_MODEL": request.model.strip(),
     }
     _write_env_values(ENV_PATH, values)

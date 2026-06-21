@@ -8,6 +8,7 @@ export type AppPage =
   | 'smart-form'
   | 'shanshan-doc'
   | 'yaoyao-structured-input'
+  | 'external-risk'
 
 export const navigateKey: InjectionKey<(page: AppPage) => void> = Symbol('navigate')
 export const confirmationsRefreshKey: InjectionKey<Ref<number>> = Symbol('confirmationsRefresh')

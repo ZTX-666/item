@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "hko_weather",
+      "name": "香港天文台开放数据",
+      "type": "api",
+      "category": "safe",
+      "enabled": true,
+      "adapter": "hko_weather",
+      "urls": [
+        "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=tc",
+        "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warningInfo&lang=tc"
+      ],
+      "allowed_fields": ["warning_code", "warning_message", "update_time"],
+      "poll_interval_seconds": 1800,
+      "reliability": "official_api"
+    },
+    {
+      "id": "gov_press_rss",
+      "name": "政府新闻公报 RSS",
+      "type": "rss",
+      "category": "safe",
+      "enabled": true,
+      "adapter": "government_rss",
+      "urls": ["https://www.info.gov.hk/gia/rss/general_zh.xml"],
+      "allowed_fields": ["title", "link", "published_at", "description"],
+      "poll_interval_seconds": 3600,
+      "reliability": "official_rss"
+    },
+    {
+      "id": "labour_department",
+      "name": "劳工处职安警示",
+      "type": "html",
+      "category": "official_public",
+      "enabled": true,
+      "adapter": "html_index",
+      "urls": ["https://www.labour.gov.hk/tc/news/work_safety_alert.htm"],
+      "allowed_fields": ["title", "link", "published_at", "snippet"],
+      "poll_interval_seconds": 21600,
+      "reliability": "official_html"
+    },
+    {
+      "id": "buildings_department",
+      "name": "屋宇署通告及新闻",
+      "type": "html",
+      "category": "official_public",
+      "enabled": true,
+      "adapter": "html_index",
+      "urls": [
+        "https://www.bd.gov.hk/tc/resources/codes-and-references/practice-notes-and-circular-letters/index_circulars.html",
+        "https://www.bd.gov.hk/tc/whats-new/press-releases/index.html"
+      ],
+      "allowed_fields": ["title", "link", "published_at", "snippet"],
+      "poll_interval_seconds": 21600,
+      "reliability": "official_html"
+    },
+    {
+      "id": "housing_authority",
+      "name": "房屋署/房委会工地安全",
+      "type": "html",
+      "category": "official_public",
+      "enabled": true,
+      "adapter": "html_index",
+      "urls": [
+        "https://www.housingauthority.gov.hk/mini-site/site-safety/tc/publications/alerts/index.html"
+      ],
+      "allowed_fields": ["title", "link", "published_at", "snippet"],
+      "poll_interval_seconds": 21600,
+      "reliability": "official_html"
+    },
+    {
+      "id": "development_bureau",
+      "name": "发展局工务技术通告",
+      "type": "html_pdf",
+      "category": "official_public",
+      "enabled": true,
+      "adapter": "pdf_index",
+      "urls": [
+        "https://www.devb.gov.hk/tc/publications_and_press_releases/technical_circulars/technical_circulars_um/index.html"
+      ],
+      "allowed_fields": ["title", "link", "published_at", "snippet", "pdf_url"],
+      "poll_interval_seconds": 43200,
+      "reliability": "official_html_pdf"
+    },
+    {
+      "id": "cic",
+      "name": "建造业议会安全提示",
+      "type": "html",
+      "category": "official_public",
+      "enabled": true,
+      "adapter": "html_index",
+      "urls": ["https://www.cic.hk/zh-hk/safety/alerts-messages"],
+      "allowed_fields": ["title", "link", "published_at", "snippet"],
+      "poll_interval_seconds": 21600,
+      "reliability": "official_html"
+    },
+    {
+      "id": "hk01",
+      "name": "香港01公开列表",
+      "type": "media_list",
+      "category": "cautious_media",
+      "enabled": false,
+      "adapter": "media_list",
+      "urls": ["https://www.hk01.com/tag/5985", "https://www.hk01.com/tag/28789"],
+      "allowed_fields": ["title", "link", "published_at", "short_summary"],
+      "poll_interval_seconds": 21600,
+      "reliability": "media_metadata"
+    },
+    {
+      "id": "sing_tao",
+      "name": "星岛公开列表",
+      "type": "media_list",
+      "category": "cautious_media",
+      "enabled": false,
+      "adapter": "media_list",
+      "urls": ["https://std.stheadline.com/realtime/%E5%8D%B3%E6%99%82-%E6%B8%AF%E8%81%9E"],
+      "allowed_fields": ["title", "link", "published_at", "short_summary"],
+      "poll_interval_seconds": 21600,
+      "reliability": "media_metadata"
+    },
+    {
+      "id": "ming_pao",
+      "name": "明报公开列表",
+      "type": "media_list",
+      "category": "cautious_media",
+      "enabled": false,
+      "adapter": "media_list",
+      "urls": ["https://news.mingpao.com/ins/%e6%b8%af%e8%81%9e"],
+      "allowed_fields": ["title", "link", "published_at", "short_summary"],
+      "poll_interval_seconds": 21600,
+      "reliability": "media_metadata"
+    },
+    {
+      "id": "oriental_daily",
+      "name": "东方日报公开列表",
+      "type": "media_list",
+      "category": "cautious_media",
+      "enabled": false,
+      "adapter": "media_list",
+      "urls": ["https://hk.on.cc/hk/news/index.html"],
+      "allowed_fields": ["title", "link", "published_at", "short_summary"],
+      "poll_interval_seconds": 21600,
+      "reliability": "media_metadata"
+    },
+    {
+      "id": "hkcd",
+      "name": "香港商报公开列表",
+      "type": "media_list",
+      "category": "cautious_media",
+      "enabled": false,
+      "adapter": "media_list",
+      "urls": ["https://www.hkcd.com.hk/hkcdweb/index"],
+      "allowed_fields": ["title", "link", "published_at", "short_summary"],
+      "poll_interval_seconds": 21600,
+      "reliability": "media_metadata"
+    }
+  ],
+  "keyword_groups": [
+    {
+      "category": "construction_safety",
+      "include": ["地盘", "地盤", "工地", "建造业", "建造業", "承建商", "劳工处", "勞工處", "职安", "職安"],
+      "exclude": ["自杀", "自殺", "交通意外", "住宅坠楼", "住宅墮樓"],
+      "default_severity": "medium",
+      "context_required": true
+    },
+    {
+      "category": "fatal_incident",
+      "include": ["工业意外", "工業意外", "工伤", "工傷", "死亡", "不治", "压毙", "壓斃", "夹毙", "夾斃"],
+      "exclude": ["自杀", "自殺"],
+      "default_severity": "high",
+      "context_required": true
+    },
+    {
+      "category": "weather",
+      "include": ["暴雨", "酷热", "酷熱", "台风", "颱風", "雷暴", "山泥倾泻", "山泥傾瀉"],
+      "exclude": [],
+      "default_severity": "medium",
+      "context_required": false
+    }
+  ],
+  "media_policy": {
+    "enabled": false,
+    "metadata_only": true,
+    "no_detail_fetch": true,
+    "no_paywall": true,
+    "no_captcha": true,
+    "max_frequency": "low",
+    "max_items_per_source": 10
+  },
+  "severity_rules": [
+    {
+      "when": "official_source and fatal_incident",
+      "severity": "critical"
+    },
+    {
+      "when": "media_source and fatal_incident and construction_context",
+      "severity": "high"
+    },
+    {
+      "when": "weather_warning in ['WTCSGNL', 'WRAIN', 'WL']",
+      "severity": "high"
+    },
+    {
+      "when": "media_source and exclusion_context",
+      "severity": "low"
+    }
+  ]
+}

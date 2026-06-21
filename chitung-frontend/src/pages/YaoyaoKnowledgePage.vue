@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import {
+  askRag,
   deleteRagDocument,
   getRagStats,
   listRagDocuments,
   queryRag,
   uploadRagDocument,
 } from '../services/chitungApi'
-import type { RagDocument, RagQueryMatch, RagStats } from '../types/domain'
+import type { RagAskResponse, RagDocument, RagQueryMatch, RagStats } from '../types/domain'
 
 const documents = ref<RagDocument[]>([])
 const results = ref<RagQueryMatch[]>([])
@@ -16,12 +17,37 @@ const queryText = ref('')
 const isDragging = ref(false)
 const isUploading = ref(false)
 const isSearching = ref(false)
+const isAnswering = ref(false)
 const deletingId = ref('')
 const error = ref('')
 const lastMessage = ref('')
+const ragAnswer = ref<RagAskResponse | null>(null)
+const hasRawSearch = ref(false)
 
 const isFeedMode = computed(() => location.hash.includes('/feed'))
 const mode = computed(() => (isFeedMode.value ? '舆情规范知识库' : 'RAG 知识库'))
+const answerReferences = computed(() => {
+  const answer = ragAnswer.value
+  if (!answer) return []
+  const matches = answer.matches ?? []
+  const citations = answer.citations ?? []
+  const selected = citations
+    .map((citation) =>
+      matches.find(
+        (match) =>
+          match.source_file_name === citation.source_file_name && match.chunk_index === citation.chunk_index,
+      ),
+    )
+    .filter((item): item is RagQueryMatch => Boolean(item))
+  const fallback = selected.length ? selected : matches.slice(0, 5)
+  const seen = new Set<string>()
+  return fallback.filter((item) => {
+    const key = `${item.source_file_name}-${item.chunk_index}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  }).slice(0, 5)
+})
 
 async function refresh() {
   error.value = ''
@@ -87,7 +113,9 @@ async function search() {
   const value = queryText.value.trim()
   if (!value || isSearching.value) return
   isSearching.value = true
+  hasRawSearch.value = true
   error.value = ''
+  ragAnswer.value = null
   results.value = []
   try {
     results.value = await queryRag({
@@ -99,6 +127,28 @@ async function search() {
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
     isSearching.value = false
+  }
+}
+
+async function answerQuestion() {
+  const value = queryText.value.trim()
+  if (!value || isAnswering.value) return
+  isAnswering.value = true
+  error.value = ''
+  ragAnswer.value = null
+  results.value = []
+  hasRawSearch.value = false
+  try {
+    const answer = await askRag({
+      query: value,
+      topK: 5,
+      collection: isFeedMode.value ? 'feed' : undefined,
+    })
+    ragAnswer.value = answer
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    isAnswering.value = false
   }
 }
 
@@ -194,22 +244,57 @@ onMounted(refresh)
             v-model="queryText"
             rows="4"
             placeholder="例如：临边作业护栏高度和整改闭环要求是什么？"
-            @keydown.ctrl.enter="search"
+            @keydown.ctrl.enter="answerQuestion"
           />
-          <button class="primary-soft-button" :disabled="isSearching || !queryText.trim()" @click="search">
-            {{ isSearching ? '检索中...' : '检索' }}
-          </button>
+          <div class="knowledge-actions">
+            <button class="primary-soft-button" :disabled="isAnswering || !queryText.trim()" @click="answerQuestion">
+              {{ isAnswering ? '回答中...' : '生成回答' }}
+            </button>
+            <button class="secondary-soft-button" :disabled="isSearching || !queryText.trim()" @click="search">
+              {{ isSearching ? '检索中...' : '仅检索原文' }}
+            </button>
+          </div>
         </div>
-        <div class="rag-results">
-          <article v-for="(item, index) in results" :key="`${item.doc_id}-${item.chunk_index}-${index}`" class="rag-result-card">
-            <div class="rag-result-card__meta">
-              <strong>{{ item.source_file_name || '未知来源' }}</strong>
-              <span>chunk {{ item.chunk_index }}</span>
-            </div>
-            <p>{{ item.text }}</p>
-          </article>
-          <p v-if="!results.length && queryText" class="smart-form-empty">暂无结果。</p>
-        </div>
+        <section v-if="ragAnswer" class="rag-answer">
+          <div class="rag-answer__header">
+            <strong>知识库回答</strong>
+            <span>{{ ragAnswer.citations.length }} 个引用</span>
+          </div>
+          <p>{{ ragAnswer.answer }}</p>
+          <div v-if="answerReferences.length" class="rag-answer__references">
+            <details
+              v-for="reference in answerReferences"
+              :key="`${reference.source_file_name}-${reference.chunk_index}`"
+              class="rag-reference"
+            >
+              <summary>
+                <strong>{{ reference.source_file_name }}</strong>
+                <span>chunk {{ reference.chunk_index }}</span>
+              </summary>
+              <p>{{ reference.display_text || reference.text }}</p>
+            </details>
+          </div>
+          <p v-if="ragAnswer.llm_error" class="knowledge-error">{{ ragAnswer.llm_error }}</p>
+        </section>
+        <details v-if="results.length" class="rag-raw-results" open>
+          <summary>原文检索结果（{{ results.length }}）</summary>
+          <div class="rag-results">
+            <article
+              v-for="(item, index) in results"
+              :key="`${item.doc_id}-${item.chunk_index}-${index}`"
+              class="rag-result-card"
+              :class="{ 'rag-result-card--garbled': item.text_quality === 'garbled' }"
+            >
+              <div class="rag-result-card__meta">
+                <strong>{{ item.source_file_name || '未知来源' }}</strong>
+                <span>chunk {{ item.chunk_index }}</span>
+              </div>
+              <p>{{ item.display_text || item.text }}</p>
+              <small v-if="item.text_quality === 'garbled'">原始 PDF 片段解析质量较低，未直接展示乱码。</small>
+            </article>
+          </div>
+        </details>
+        <p v-if="hasRawSearch && !results.length && !isSearching" class="smart-form-empty">暂无原文检索结果。</p>
       </section>
     </section>
   </main>
@@ -255,6 +340,12 @@ onMounted(refresh)
   gap: 10px;
 }
 
+.knowledge-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .knowledge-box textarea {
   border: 1px solid var(--border-light);
   border-radius: 10px;
@@ -262,10 +353,94 @@ onMounted(refresh)
   resize: vertical;
 }
 
+.rag-answer {
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.rag-answer__header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.rag-answer__header span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.rag-answer p {
+  line-height: 1.7;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.rag-answer__references {
+  display: grid;
+  gap: 8px;
+}
+
+.rag-reference {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.rag-reference summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.rag-reference summary span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.rag-reference p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.secondary-soft-button {
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.secondary-soft-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .rag-document-list,
 .rag-results {
   display: grid;
   gap: 10px;
+}
+
+.rag-raw-results {
+  margin-top: 12px;
+}
+
+.rag-raw-results > summary {
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  margin-bottom: 10px;
 }
 
 .rag-document-row,
@@ -287,6 +462,17 @@ onMounted(refresh)
 
 .rag-result-card {
   background: var(--bg-subtle);
+}
+
+.rag-result-card--garbled {
+  background: #fff7ed;
+  border-color: rgba(245, 158, 11, 0.38);
+}
+
+.rag-result-card small {
+  color: var(--text-secondary);
+  display: block;
+  margin-top: 8px;
 }
 
 .rag-result-card__meta {

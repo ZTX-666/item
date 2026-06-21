@@ -27,6 +27,7 @@ from chitung_center.docmate_service import (
     preview_changeset,
     read_docx,
 )
+from chitung_center.external_briefing_store import get_external_briefing_report, list_external_briefing_reports
 from chitung_center.integrations import list_integrations
 from chitung_center.hybrid_orchestration import hybrid_orchestration_service
 from chitung_center.models import (
@@ -49,8 +50,10 @@ from chitung_center.models import (
     HybridPlanRequest,
     LlmSettingsRequest,
     NotificationSendRequest,
+    RagAskRequest,
     RagQueryRequest,
     ReportGenerateRequest,
+    SkillConfigSaveRequest,
     SkillEnableRequest,
     SkillImportRequest,
     SmartFormAcceptRequest,
@@ -62,6 +65,7 @@ from chitung_center.models import (
     VisualPatrolBatchRequest,
     VisualPatrolConfirmRequest,
     VisualPatrolDraftRequest,
+    WorkbenchVideoDetectionRequest,
     WorkflowEnableRequest,
     WorkflowImportRequest,
     WorkflowRunRequest,
@@ -100,6 +104,11 @@ from chitung_center.visual_patrol_batch_service import (
     run_guardian_patrol,
 )
 from chitung_center.workbench_service import build_workbench_summary, update_hazard_status
+from chitung_center.workbench_video_detection_service import (
+    list_video_detection_reports,
+    preview_workbench_detection_prompt,
+    run_workbench_video_detection,
+)
 from chitung_center.workflow_engine import workflow_engine
 from chitung_center.workflows import workflow_loader
 from chitung_center.yaoyao_structured_service import (
@@ -199,7 +208,19 @@ async def skill_detail(name: str) -> dict[str, object]:
     if content is None:
         raise HTTPException(status_code=404, detail=f"Skill not found: {name}")
     info = skill_loader.get_info(name)
-    return {"name": name, "content": content, "meta": info.to_dict() if info else None}
+    return {
+        "name": name,
+        "content": content,
+        "meta": info.to_dict() if info else None,
+        "config": skill_loader.read_config(name) or {},
+    }
+
+
+@app.put("/api/skills/{name}/config")
+async def skill_config_save(name: str, request: SkillConfigSaveRequest) -> dict[str, object]:
+    if not skill_loader.write_config(name, request.config):
+        raise HTTPException(status_code=404, detail=f"Skill not found: {name}")
+    return {"ok": True, "name": name, "config": skill_loader.read_config(name) or {}}
 
 
 @app.get("/api/workbench/summary")
@@ -389,6 +410,21 @@ async def visual_patrol_batch(request: VisualPatrolBatchRequest) -> dict[str, ob
     )
 
 
+@app.post("/api/visual/workbench-prompt")
+async def visual_workbench_prompt(request: WorkbenchVideoDetectionRequest) -> dict[str, object]:
+    return await preview_workbench_detection_prompt(request)
+
+
+@app.post("/api/visual/workbench-detect")
+async def visual_workbench_detect(request: WorkbenchVideoDetectionRequest) -> dict[str, object]:
+    return await run_workbench_video_detection(request)
+
+
+@app.get("/api/visual/workbench-detections")
+async def visual_workbench_detection_reports(limit: int = 20) -> dict[str, object]:
+    return list_video_detection_reports(limit=max(1, min(limit, 100)))
+
+
 @app.get("/api/visual/patrol-runs")
 async def visual_patrol_runs(limit: int = 20) -> dict[str, object]:
     return list_patrol_runs(limit=max(1, min(limit, 100)))
@@ -452,6 +488,19 @@ async def card_action(request: CardActionRequest) -> dict[str, object]:
         user_id=request.user_id,
         channel=request.channel,
     )
+
+
+@app.get("/api/external-risk/briefing-reports")
+async def external_risk_briefing_reports(limit: int = 20) -> dict[str, object]:
+    return list_external_briefing_reports(limit=max(1, min(limit, 100)))
+
+
+@app.get("/api/external-risk/briefing-reports/{report_id}")
+async def external_risk_briefing_report(report_id: int) -> dict[str, object]:
+    report = get_external_briefing_report(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Briefing report not found: {report_id}")
+    return {"ok": True, "item": report}
 
 
 @app.get("/api/confirmations")
@@ -588,6 +637,20 @@ async def rag_query(request: RagQueryRequest) -> dict[str, object]:
     try:
         return await rag_service.query(
             query=request.query,
+            top_k=request.top_k,
+            collection=request.collection,
+        )
+    except RagDependencyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except RagServiceError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/rag/ask")
+async def rag_ask(request: RagAskRequest) -> dict[str, object]:
+    try:
+        return await rag_service.answer_question(
+            question=request.query,
             top_k=request.top_k,
             collection=request.collection,
         )

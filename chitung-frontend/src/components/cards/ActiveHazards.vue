@@ -8,6 +8,7 @@ defineProps<{
 const emit = defineEmits<{
   confirm: [caseId: string]
   workflow: [action: 'rectification-notice' | 'contractor-confirm' | 'close-review', caseId: string]
+  viewAll: []
 }>()
 </script>
 
@@ -18,7 +19,7 @@ const emit = defineEmits<{
         <h2>活跃隐患</h2>
         <p>优先处理超期和高风险事项</p>
       </div>
-      <button class="link-button">查看全部</button>
+      <button class="link-button" @click="emit('viewAll')">查看全部</button>
     </div>
 
     <div class="hazard-list">

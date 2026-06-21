@@ -29,10 +29,8 @@ const panels: Record<string, PanelDef> = {
     tagline: '赤瞳守护者',
     items: [
       { icon: '📊', label: '工作台总览', path: '/guardian/dashboard' },
-      { icon: '✅', label: '待确认事项', path: '/guardian/confirmations' },
       { icon: '📋', label: '隐患台账', path: '/guardian/hazards' },
       { icon: '📷', label: '视觉巡检', path: '/guardian/patrol' },
-      { icon: '🎥', label: 'CCTV 实时播放', path: '/guardian/cctv', note: 'C-SMART' },
     ],
   },
   docmate: {
@@ -76,7 +74,7 @@ const panels: Record<string, PanelDef> = {
     items: [
       { icon: '📸', label: 'OCR 结构化', path: '/yaoyao/structured' },
       { icon: '🔎', label: 'RAG 检索', path: '/yaoyao/rag', note: '预留' },
-      { icon: '🌐', label: '舆情规范', path: '/yaoyao/feed', note: '预留' },
+      { icon: '🌐', label: '外部舆情监听', path: '/yaoyao/feed', note: '简报' },
     ],
   },
 }

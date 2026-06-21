@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { deleteSkill, getSkillDetail, getSkills, importSkill, toggleSkill } from '../services/chitungApi'
+import { deleteSkill, getSkillDetail, getSkills, importSkill, saveSkillConfig, toggleSkill } from '../services/chitungApi'
 import type { SkillDetail, SkillInfo } from '../types/domain'
 
 const skills = ref<SkillInfo[]>([])
@@ -10,6 +10,8 @@ const query = ref('')
 const error = ref('')
 const importName = ref('')
 const importContent = ref('')
+const configText = ref('')
+const isSavingConfig = ref(false)
 
 const filteredSkills = computed(() => {
   const value = query.value.trim().toLowerCase()
@@ -34,6 +36,7 @@ async function refresh() {
 async function openSkill(name: string) {
   try {
     selected.value = await getSkillDetail(name)
+    configText.value = selected.value.config ? JSON.stringify(selected.value.config, null, 2) : ''
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }
@@ -66,6 +69,22 @@ async function handleDelete(skill: SkillInfo) {
     await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+async function handleSaveConfig() {
+  if (!selected.value || isSavingConfig.value) return
+  isSavingConfig.value = true
+  error.value = ''
+  try {
+    const parsed = configText.value.trim() ? JSON.parse(configText.value) : {}
+    const result = await saveSkillConfig(selected.value.name, parsed)
+    selected.value.config = (result.config as Record<string, unknown> | undefined) ?? parsed
+    configText.value = JSON.stringify(selected.value.config, null, 2)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    isSavingConfig.value = false
   }
 }
 
@@ -141,6 +160,18 @@ onMounted(refresh)
         <button class="mini-button" @click="selected = null">关闭</button>
       </div>
       <pre class="compat-markdown">{{ selected.content }}</pre>
+      <div class="compat-config">
+        <div class="panel__header">
+          <div>
+            <h2>配置 JSON</h2>
+            <p>用于来源、关键词、媒体抓取边界等 sidecar 配置。</p>
+          </div>
+          <button class="mini-button" :disabled="isSavingConfig" @click="handleSaveConfig">
+            {{ isSavingConfig ? '保存中...' : '保存配置' }}
+          </button>
+        </div>
+        <textarea v-model="configText" rows="12" placeholder="{ }" />
+      </div>
     </section>
   </main>
 </template>
@@ -212,5 +243,20 @@ onMounted(refresh)
   overflow: auto;
   padding: 16px;
   white-space: pre-wrap;
+}
+
+.compat-config {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.compat-config textarea {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  padding: 12px;
+  resize: vertical;
 }
 </style>

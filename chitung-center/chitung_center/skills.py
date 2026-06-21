@@ -104,6 +104,25 @@ class SkillLoader:
             return None
         return path.read_text(encoding="utf-8", errors="ignore")
 
+    def read_config(self, name: str) -> dict[str, Any] | None:
+        if self.read_skill(name) is None:
+            return None
+        path = self.skills_dir / name / "config.json"
+        if not path.exists():
+            return {}
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def write_config(self, name: str, config: dict[str, Any]) -> bool:
+        if self.read_skill(name) is None:
+            return False
+        path = self.skills_dir / name / "config.json"
+        path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+        return True
+
     def set_enabled(self, name: str, enabled: bool) -> bool:
         if self.read_skill(name) is None:
             return False

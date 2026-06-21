@@ -86,6 +86,8 @@ from .tools.feishu import (
     FeishuNotifyRequest,
     FeishuSafetyCardRequest,
     FeishuSendCardRequest,
+    FeishuSendFileRequest,
+    FeishuSendImageRequest,
     FeishuSendMessageRequest,
     FeishuTenantTokenRequest,
     feishu_archive_event,
@@ -94,6 +96,8 @@ from .tools.feishu import (
     feishu_get_tenant_access_token,
     feishu_handle_event_callback,
     feishu_list_chats,
+    feishu_send_file_message,
+    feishu_send_image_message,
     feishu_send_interactive_card,
     feishu_send_text_message,
     notify_feishu,
@@ -244,6 +248,10 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return feishu_get_tenant_access_token(FeishuTenantTokenRequest(**arguments)).model_dump()
     if name == "feishu_send_text_message":
         return feishu_send_text_message(FeishuSendMessageRequest(**arguments)).model_dump()
+    if name == "feishu_send_image_message":
+        return feishu_send_image_message(FeishuSendImageRequest(**arguments)).model_dump()
+    if name == "feishu_send_file_message":
+        return feishu_send_file_message(FeishuSendFileRequest(**arguments)).model_dump()
     if name == "feishu_send_interactive_card":
         return feishu_send_interactive_card(FeishuSendCardRequest(**arguments)).model_dump()
     if name == "feishu_build_safety_review_card":

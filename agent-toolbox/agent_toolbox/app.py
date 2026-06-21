@@ -116,6 +116,8 @@ from .tools.feishu import (
     FeishuEventArchiveRequest,
     FeishuEventCallbackRequest,
     FeishuEventToPlatformEventRequest,
+    FeishuSendFileRequest,
+    FeishuSendImageRequest,
     FeishuNotifyRequest,
     FeishuSafetyCardRequest,
     FeishuSendCardRequest,
@@ -127,6 +129,8 @@ from .tools.feishu import (
     feishu_get_tenant_access_token,
     feishu_handle_event_callback,
     feishu_list_chats,
+    feishu_send_file_message,
+    feishu_send_image_message,
     feishu_send_interactive_card,
     feishu_send_text_message,
     notify_feishu,
@@ -335,6 +339,16 @@ def feishu_tenant_access_token(req: FeishuTenantTokenRequest):
 @app.post("/tools/feishu_send_text_message")
 def feishu_text_message_send(req: FeishuSendMessageRequest):
     return feishu_send_text_message(req)
+
+
+@app.post("/tools/feishu_send_image_message")
+def feishu_image_message_send(req: FeishuSendImageRequest):
+    return feishu_send_image_message(req)
+
+
+@app.post("/tools/feishu_send_file_message")
+def feishu_file_message_send(req: FeishuSendFileRequest):
+    return feishu_send_file_message(req)
 
 
 @app.post("/tools/feishu_send_interactive_card")

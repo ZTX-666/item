@@ -15,7 +15,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'confirmations', name: 'guardian-confirmations', component: () => import('../pages/PendingConfirmationsPage.vue') },
       { path: 'hazards', name: 'guardian-hazards', component: () => import('../pages/HazardLedgerPage.vue') },
       { path: 'patrol', name: 'guardian-patrol', component: () => import('../pages/VisualPatrolPage.vue') },
-      { path: 'cctv', name: 'guardian-cctv', component: () => import('../pages/CctvPlayerPage.vue') },
+      { path: 'cctv', redirect: '/guardian/patrol' },
     ],
   },
   {
@@ -26,7 +26,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'documents', name: 'docmate-documents', component: () => import('../pages/ShanshanDocPage.vue') },
       { path: 'forms', name: 'docmate-forms', component: () => import('../pages/SmartFormPage.vue') },
       { path: 'table-mapping', name: 'docmate-table-mapping', component: () => import('../pages/TableMappingPage.vue') },
-      { path: 'reports', name: 'docmate-reports', component: () => import('../pages/WorkbenchPage.vue') },
+      { path: 'reports', name: 'docmate-reports', component: () => import('../pages/ReportsPage.vue') },
     ],
   },
   {
@@ -55,7 +55,7 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: 'structured', name: 'yaoyao-structured', component: () => import('../pages/YaoyaoStructuredInputPage.vue') },
       { path: 'rag', name: 'yaoyao-rag', component: () => import('../pages/YaoyaoKnowledgePage.vue') },
-      { path: 'feed', name: 'yaoyao-feed', component: () => import('../pages/YaoyaoKnowledgePage.vue') },
+      { path: 'feed', name: 'yaoyao-feed', component: () => import('../pages/ExternalRiskMonitorPage.vue') },
     ],
   },
   { path: '/', redirect: '/guardian/dashboard' },

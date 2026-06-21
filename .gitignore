@@ -11,6 +11,7 @@ env/
 
 # Node / Electron
 node_modules/
+.local-tools/
 dist/
 release/
 .vite/

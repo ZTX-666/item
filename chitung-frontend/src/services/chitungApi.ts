@@ -10,6 +10,7 @@ import type {
   DocumentRevisionPreview,
   GeneratedReport,
   HybridPlan,
+  ExternalRiskBriefingReport,
   LlmTestResult,
   LlmSettingsStatus,
   RuntimeStatus,
@@ -19,9 +20,12 @@ import type {
   SkillDetail,
   SkillInfo,
   VisualPatrolDraft,
+  WorkbenchVideoDetectionPrompt,
+  WorkbenchVideoDetectionReport,
   PatrolRunReport,
   PatrolRunSummary,
   PendingConfirmation,
+  RagAskResponse,
   RagDocument,
   RagQueryMatch,
   RagStats,
@@ -97,6 +101,16 @@ export async function getSkillDetail(name: string): Promise<SkillDetail> {
   const response = await fetch(`${CENTER_BASE_URL}/api/skills/${encodeURIComponent(name)}`)
   await ensureOk(response, 'Skill detail failed')
   return response.json() as Promise<SkillDetail>
+}
+
+export async function saveSkillConfig(name: string, config: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/skills/${encodeURIComponent(name)}/config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ config }),
+  })
+  await ensureOk(response, 'Skill config save failed')
+  return response.json() as Promise<Record<string, unknown>>
 }
 
 export async function toggleSkill(name: string, enabled: boolean): Promise<Record<string, unknown>> {
@@ -248,10 +262,43 @@ export async function queryRag(request: {
   return data.items ?? []
 }
 
+export async function askRag(request: {
+  query: string
+  topK?: number
+  collection?: string
+}): Promise<RagAskResponse> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/rag/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query: request.query,
+      top_k: request.topK ?? 5,
+      collection: request.collection || undefined,
+    }),
+  })
+  await ensureOk(response, 'RAG answer failed')
+  return response.json() as Promise<RagAskResponse>
+}
+
 export async function getRagStats(): Promise<RagStats> {
   const response = await fetch(`${CENTER_BASE_URL}/api/rag/stats`)
   await ensureOk(response, 'RAG stats failed')
   return response.json() as Promise<RagStats>
+}
+
+export async function listExternalRiskBriefingReports(limit = 20): Promise<ExternalRiskBriefingReport[]> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/external-risk/briefing-reports?limit=${encodeURIComponent(String(limit))}`)
+  await ensureOk(response, 'External risk briefing reports failed')
+  const data = (await response.json()) as { items?: ExternalRiskBriefingReport[] }
+  return data.items ?? []
+}
+
+export async function getExternalRiskBriefingReport(reportId: number): Promise<ExternalRiskBriefingReport> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/external-risk/briefing-reports/${encodeURIComponent(String(reportId))}`)
+  await ensureOk(response, 'External risk briefing report failed')
+  const data = (await response.json()) as { item?: ExternalRiskBriefingReport }
+  if (!data.item) throw new Error('External risk briefing report not found')
+  return data.item
 }
 
 export async function getHealth(): Promise<Record<string, unknown>> {
@@ -541,6 +588,53 @@ export async function draftVisualPatrol(request: {
   })
   await ensureOk(response, 'Visual patrol draft failed')
   return response.json() as Promise<VisualPatrolDraft>
+}
+
+export async function runWorkbenchVideoDetection(request: {
+  detectionDirection: string
+  cameraId?: string
+  cameraIds?: string[]
+  refinedPrompt?: string
+  vlmEnabled?: boolean
+}): Promise<WorkbenchVideoDetectionReport> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/visual/workbench-detect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      detection_direction: request.detectionDirection,
+      camera_id: request.cameraId || undefined,
+      camera_ids: request.cameraIds ?? [],
+      refined_prompt: request.refinedPrompt || undefined,
+      vlm_enabled: request.vlmEnabled ?? true,
+    }),
+  })
+  await ensureOk(response, 'Workbench video detection failed')
+  return response.json() as Promise<WorkbenchVideoDetectionReport>
+}
+
+export async function refineWorkbenchVideoDetectionPrompt(request: {
+  detectionDirection: string
+  cameraId?: string
+  cameraIds?: string[]
+}): Promise<WorkbenchVideoDetectionPrompt> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/visual/workbench-prompt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      detection_direction: request.detectionDirection,
+      camera_id: request.cameraId || undefined,
+      camera_ids: request.cameraIds ?? [],
+    }),
+  })
+  await ensureOk(response, 'Workbench video prompt refinement failed')
+  return response.json() as Promise<WorkbenchVideoDetectionPrompt>
+}
+
+export async function listWorkbenchVideoDetections(limit = 20): Promise<WorkbenchVideoDetectionReport[]> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/visual/workbench-detections?limit=${limit}`)
+  await ensureOk(response, 'Workbench video detection history failed')
+  const data = (await response.json()) as { items?: WorkbenchVideoDetectionReport[] }
+  return data.items ?? []
 }
 
 export async function runVisualPatrolBatch(request?: {

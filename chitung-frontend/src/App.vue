@@ -56,6 +56,7 @@ function handleLegacyNavigate(page: AppPage) {
     'smart-form': '/docmate/forms',
     'shanshan-doc': '/docmate/documents',
     'yaoyao-structured-input': '/yaoyao/structured',
+    'external-risk': '/yaoyao/feed',
   }
   router.push(routes[page] || firstPaths.guardian)
 }

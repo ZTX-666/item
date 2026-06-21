@@ -130,6 +130,14 @@ class VisualPatrolBatchRequest(BaseModel):
     yolo_only: bool = False
 
 
+class WorkbenchVideoDetectionRequest(BaseModel):
+    detection_direction: str = Field(..., min_length=1, max_length=500)
+    camera_id: str | None = None
+    camera_ids: list[str] = Field(default_factory=list)
+    refined_prompt: str | None = Field(default=None, max_length=3000)
+    vlm_enabled: bool = True
+
+
 class VisualPatrolConfirmRequest(BaseModel):
     detections: dict[str, Any] | None = None
     vlm_result_path: str | None = None
@@ -231,6 +239,10 @@ class SkillImportRequest(BaseModel):
     content: str = Field(..., min_length=1)
 
 
+class SkillConfigSaveRequest(BaseModel):
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
 class WorkflowEnableRequest(BaseModel):
     enabled: bool
 
@@ -241,6 +253,12 @@ class WorkflowImportRequest(BaseModel):
 
 
 class RagQueryRequest(BaseModel):
+    query: str = Field(..., min_length=1)
+    top_k: int = Field(default=5, ge=1, le=20)
+    collection: str | None = Field(default=None, max_length=80)
+
+
+class RagAskRequest(BaseModel):
     query: str = Field(..., min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
     collection: str | None = Field(default=None, max_length=80)

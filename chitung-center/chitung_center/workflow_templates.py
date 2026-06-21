@@ -45,7 +45,6 @@ WORKFLOW_TEMPLATES: dict[str, WorkflowTemplate] = {
             WorkflowStepTemplate("fetch_updates", "赤瞳守护者", "fetch_hk_safety_updates"),
             WorkflowStepTemplate("persist_risks", "赤瞳守护者", "persist_external_risk_items"),
             WorkflowStepTemplate("draft_briefing", "赤瞳守护者", "draft_daily_risk_briefing"),
-            WorkflowStepTemplate("link_forms", "闪闪文档", "link_external_risk_to_forms"),
         ],
     ),
     "workflow_form_filling": WorkflowTemplate(

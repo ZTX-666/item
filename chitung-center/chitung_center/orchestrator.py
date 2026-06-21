@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from chitung_center.audit import audit_logger
-from chitung_center.intent_router import route_intent
-from chitung_center.models import ActionCard, ChatMessageRequest, ChatMessageResponse
+from chitung_center.intent_router import route_intent_with_llm
+from chitung_center.models import ActionCard, ChatMessageRequest, ChatMessageResponse, IntentResult
 from chitung_center.skill_service import enhance_with_skill
 from chitung_center.workflow_engine import workflow_engine
 from chitung_center.workflow_templates import workflow_for_intent
@@ -12,7 +12,32 @@ from chitung_center.workflow_templates import workflow_for_intent
 
 class ChitungOrchestrator:
     async def handle_message(self, request: ChatMessageRequest) -> ChatMessageResponse:
-        intent = route_intent(request.message)
+        if _is_identity_question(request.message) or _is_capability_question(request.message):
+            audit_id = audit_logger.write(
+                "chat_message_handled",
+                {
+                    "channel": request.channel,
+                    "user_id": request.user_id,
+                    "intent": "general_chat",
+                    "tool_count": 0,
+                    "workflow": False,
+                    "handler": "identity_capability",
+                },
+            )
+            return ChatMessageResponse(
+                reply=_capability_reply(),
+                intent=IntentResult(
+                    intent="general_chat",
+                    confidence=0.95,
+                    reason="Matched identity/capability help question.",
+                    suggested_tools=[],
+                ),
+                cards=[],
+                tool_results=[],
+                audit_id=audit_id,
+            )
+
+        intent = await route_intent_with_llm(request.message)
         template = workflow_for_intent(intent.intent)
 
         if template:
@@ -46,6 +71,14 @@ class ChitungOrchestrator:
                 "workflow": False,
             },
         )
+        if _is_capability_question(request.message):
+            return ChatMessageResponse(
+                reply=_capability_reply(),
+                intent=intent,
+                cards=[],
+                tool_results=[],
+                audit_id=audit_id,
+            )
         return ChatMessageResponse(
             reply="我已收到，会按赤瞳中台的意图路由继续判断下一步工具。",
             intent=intent,
@@ -73,3 +106,55 @@ class ChitungOrchestrator:
 
 
 orchestrator = ChitungOrchestrator()
+
+
+def _is_capability_question(message: str) -> bool:
+    lowered = message.lower()
+    normalized = lowered.replace(" ", "")
+    return any(
+        keyword in normalized
+        for keyword in [
+            "你能干嘛",
+            "你能干啥",
+            "你能做什么",
+            "你能帮啥",
+            "你会什么",
+            "能干点啥",
+            "支持哪些功能",
+            "支持什么功能",
+            "有哪些功能",
+            "功能列表",
+            "help",
+            "怎么用",
+            "使用帮助",
+            "菜单",
+        ]
+    )
+
+
+def _is_identity_question(message: str) -> bool:
+    normalized = message.lower().replace(" ", "")
+    return any(
+        keyword in normalized
+        for keyword in [
+            "你是谁",
+            "你叫什么",
+            "你是什么",
+            "你是做什么的",
+            "介绍一下自己",
+            "自我介绍",
+            "whoareyou",
+            "whatcanyoudo",
+        ]
+    )
+
+
+def _capability_reply() -> str:
+    return (
+        "我是赤瞳 AI 助手，定位是赤瞳安全智能平台的中台编排助手。我可以帮你做这些事：\n"
+        "1. 隐患闭环：接收隐患描述，生成整改动作和确认卡片。\n"
+        "2. CCTV/视觉巡检：打开监控巡检入口，辅助识别现场风险。\n"
+        "3. 表格和文档：按模板起草检查表、整改通知和报告草稿。\n"
+        "4. 天气和外部风险：拉取香港天气、新闻和工伤风险，生成每日简报。\n"
+        "5. 安全制度问答：围绕项目安全制度、规程和管理要求做查询。"
+    )

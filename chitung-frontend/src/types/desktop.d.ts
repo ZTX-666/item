@@ -14,6 +14,7 @@ declare global {
       openPath: (targetPath: string) => Promise<{ ok: boolean; error?: string }>
       showInFolder: (targetPath: string) => Promise<{ ok: boolean; error?: string }>
       restartServices: () => Promise<{ ok: boolean; error?: string; logDir?: string }>
+      ensureCctvGateway: () => Promise<{ ok: boolean; error?: string; logDir?: string }>
     }
   }
 }

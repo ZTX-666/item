@@ -9,7 +9,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   patrol: [cameraId?: string]
-  evidence: [cameraId: string]
+  openEvidence: [cameraId: string]
 }>()
 
 const displayCameras = computed(() => {
@@ -56,7 +56,7 @@ const displayCameras = computed(() => {
         <p>{{ camera.note }}</p>
         <div class="camera-card__actions">
           <button class="mini-button camera-card__action" @click="emit('patrol', camera.id)">巡检此摄像头</button>
-          <button class="mini-button camera-card__action" @click="emit('evidence', camera.id)">打开证据</button>
+          <button class="mini-button camera-card__action" @click="emit('openEvidence', camera.id)">打开证据</button>
         </div>
       </article>
     </div>

@@ -13,6 +13,7 @@ import httpx
 from fastapi import UploadFile
 
 from chitung_center.config import settings
+from chitung_center.llm_gateway import llm_gateway
 
 
 SUPPORTED_SUFFIXES = {".pdf", ".docx", ".txt", ".md", ".markdown", ".html", ".htm"}
@@ -52,9 +53,9 @@ class RagService:
         target.write_bytes(content)
 
         text = self._load_text(target, filename)
-        chunks = self._split_text(text)
+        chunks = _filter_searchable_chunks(self._split_text(text))
         if not chunks:
-            raise RagServiceError("No searchable text could be extracted from the document.")
+            raise RagServiceError("No searchable text could be extracted from the document. The PDF text may be scanned or garbled.")
 
         chunk_ids = [f"{doc_id}:{idx}" for idx in range(len(chunks))]
         metadatas = [
@@ -116,9 +117,13 @@ class RagService:
         matches = []
         for idx, text in enumerate(documents):
             metadata = metadatas[idx] if idx < len(metadatas) and isinstance(metadatas[idx], dict) else {}
+            text_value = str(text or "")
+            text_quality = _text_quality(text_value)
             matches.append(
                 {
-                    "text": text,
+                    "text": text_value,
+                    "display_text": _display_text(text_value, text_quality),
+                    "text_quality": text_quality,
                     "source_file_name": metadata.get("file_name", ""),
                     "doc_id": metadata.get("doc_id", ""),
                     "chunk_index": metadata.get("chunk_index", 0),
@@ -127,6 +132,59 @@ class RagService:
                 }
             )
         return {"ok": True, "query": query, "items": matches}
+
+    async def answer_question(self, question: str, top_k: int = 5, collection: str | None = None) -> dict[str, Any]:
+        search = await self.query(question, top_k=top_k, collection=collection)
+        matches = [item for item in search.get("items", []) if isinstance(item, dict)]
+        usable_matches = [item for item in matches if item.get("text_quality") != "garbled"]
+        if not matches:
+            return {
+                "ok": True,
+                "query": question,
+                "answer": "知识库里没有检索到足够相关的内容。请先上传制度、规范或报告资料，或换一个更具体的问题。",
+                "citations": [],
+                "matches": [],
+            }
+        if not usable_matches:
+            return {
+                "ok": True,
+                "query": question,
+                "answer": "知识库检索到了相关片段，但这些片段的 PDF 文字解析质量较低，暂不能作为可靠回答依据。请重新上传可复制文本 PDF/Word，或先将 PDF 转成文本后再入库。",
+                "citations": [],
+                "matches": matches,
+            }
+
+        system_prompt = (
+            "你是赤瞳安全智能平台的 RAG 问答助手。只根据给定知识库片段回答，"
+            "不要编造未出现在片段中的制度条款。输出 JSON object，字段为 answer 和 citations。"
+            "citations 是数组，每项包含 source_file_name 和 chunk_index。"
+        )
+        user_text = _build_answer_user_text(question, usable_matches)
+        llm_error = ""
+        try:
+            raw = await llm_gateway.complete_json(system_prompt, user_text)
+            parsed = _extract_json_object(raw)
+            answer = str(parsed.get("answer") or "").strip()
+            if answer:
+                return {
+                    "ok": True,
+                    "query": question,
+                    "answer": answer,
+                    "citations": _normalize_citations(parsed.get("citations"), usable_matches),
+                    "matches": matches,
+                    "llm_raw": raw,
+                }
+        except Exception as exc:  # noqa: BLE001
+            llm_error = str(exc)
+
+        return {
+            "ok": True,
+            "query": question,
+            "answer": _fallback_answer(usable_matches),
+            "citations": _default_citations(usable_matches),
+            "matches": matches,
+            "llm_error": llm_error or "LLM did not return a usable answer.",
+        }
 
     def stats(self) -> dict[str, Any]:
         meta = self._read_meta()
@@ -180,6 +238,17 @@ class RagService:
         return text
 
     def _load_pdf(self, path: Path) -> str:
+        try:
+            import fitz
+
+            with fitz.open(str(path)) as doc:
+                text = "\n".join(page.get_text("text") for page in doc)
+            text = text.strip()
+            if text and not _is_mojibake_text(text):
+                return text
+        except Exception:
+            pass
+
         try:
             from langchain_community.document_loaders import PyPDFLoader
 
@@ -287,6 +356,59 @@ def _simple_split_text(text: str, chunk_size: int, overlap: int) -> list[str]:
     return chunks
 
 
+def _filter_searchable_chunks(chunks: list[str]) -> list[str]:
+    return [chunk for chunk in chunks if chunk.strip() and not _is_mojibake_text(chunk)]
+
+
+def _text_quality(text: str) -> str:
+    return "garbled" if _is_mojibake_text(text) else "normal"
+
+
+def _display_text(text: str, text_quality: str) -> str:
+    if text_quality == "garbled":
+        return (
+            "该片段疑似 PDF 文字解析乱码，已隐藏原始乱码。"
+            "建议重新上传可复制文本 PDF/Word，或重新入库后再检索。"
+        )
+    return _trim_leading_extraction_noise(text)
+
+
+def _trim_leading_extraction_noise(text: str) -> str:
+    normalized = re.sub(r"\s+", " ", text).strip()
+    cjk_match = re.search(r"[\u3400-\u9fff]{2,}", normalized)
+    if not cjk_match:
+        return normalized
+    prefix = normalized[: cjk_match.start()]
+    if len(prefix) < 20 or cjk_match.start() > 260:
+        return normalized
+
+    noise_chars = len(re.findall(r"[#{}\\\\/$€|^~*_@¿¡À-ÿ]", prefix))
+    alnum_chars = len(re.findall(r"[A-Za-z0-9]", prefix))
+    prefix_len = max(1, len(prefix))
+    if noise_chars >= 6 and (noise_chars / prefix_len >= 0.16 or alnum_chars / prefix_len < 0.55):
+        return normalized[cjk_match.start() :].strip()
+    return normalized
+
+
+def _is_mojibake_text(text: str) -> bool:
+    normalized = re.sub(r"\s+", "", text)
+    if len(normalized) < 40:
+        return False
+    cjk_count = len(re.findall(r"[\u3400-\u9fff]", normalized))
+    suspicious_count = len(re.findall(r"[À-ÿÐÞðþ€æÆœŒƒ#¿¡¬¦±§¨´¸]", normalized))
+    ascii_letters = len(re.findall(r"[A-Za-z]", normalized))
+    punctuation_noise = len(re.findall(r"[#^_`|~\\\\/<>]", normalized))
+    length = max(1, len(normalized))
+    suspicious_ratio = suspicious_count / length
+    noise_ratio = (suspicious_count + punctuation_noise) / length
+
+    if cjk_count >= 8 and suspicious_ratio < 0.08:
+        return False
+    if suspicious_count >= 6 and suspicious_ratio >= 0.035:
+        return True
+    return cjk_count < 4 and ascii_letters >= 20 and suspicious_count >= 6 and noise_ratio >= 0.05
+
+
 def _embed_with_local_hash(texts: list[str], dimensions: int = 384) -> list[list[float]]:
     vectors: list[list[float]] = []
     for text in texts:
@@ -302,6 +424,73 @@ def _embed_with_local_hash(texts: list[str], dimensions: int = 384) -> list[list
         norm = math.sqrt(sum(value * value for value in vector)) or 1.0
         vectors.append([value / norm for value in vector])
     return vectors
+
+
+def _build_answer_user_text(question: str, matches: list[dict[str, Any]]) -> str:
+    parts = [f"用户问题：{question}", "知识库片段："]
+    for idx, item in enumerate(matches, start=1):
+        source = str(item.get("source_file_name") or "unknown")
+        chunk_index = item.get("chunk_index", 0)
+        text = str(item.get("text") or "").strip()
+        parts.append(f"[{idx}] {source}#chunk-{chunk_index}\n{text}")
+    parts.append("请给出中文回答，并列出引用的 source_file_name 和 chunk_index。")
+    return "\n\n".join(parts)
+
+
+def _extract_json_object(raw: dict[str, Any]) -> dict[str, Any]:
+    if "answer" in raw:
+        return raw
+    choices = raw.get("choices")
+    if isinstance(choices, list) and choices:
+        first = choices[0] if isinstance(choices[0], dict) else {}
+        message = first.get("message") if isinstance(first, dict) else {}
+        content = message.get("content") if isinstance(message, dict) else ""
+        if isinstance(content, str) and content.strip():
+            return json.loads(content)
+    return raw
+
+
+def _normalize_citations(value: Any, matches: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    citations: list[dict[str, Any]] = []
+    if isinstance(value, list):
+        for item in value:
+            if not isinstance(item, dict):
+                continue
+            source = str(item.get("source_file_name") or item.get("source") or "").strip()
+            if not source:
+                continue
+            citations.append(
+                {
+                    "source_file_name": source,
+                    "chunk_index": int(item.get("chunk_index") or 0),
+                }
+            )
+    return citations or _default_citations(matches)
+
+
+def _default_citations(matches: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    citations: list[dict[str, Any]] = []
+    for item in matches[:5]:
+        citations.append(
+            {
+                "source_file_name": str(item.get("source_file_name") or "未知来源"),
+                "chunk_index": int(item.get("chunk_index") or 0),
+            }
+        )
+    return citations
+
+
+def _fallback_answer(matches: list[dict[str, Any]]) -> str:
+    snippets = []
+    for item in matches[:3]:
+        source = str(item.get("source_file_name") or "未知来源")
+        chunk_index = item.get("chunk_index", 0)
+        text = re.sub(r"\s+", " ", str(item.get("text") or "")).strip()
+        if text:
+            snippets.append(f"- {source}#chunk-{chunk_index}: {text[:260]}")
+    if not snippets:
+        return "知识库里没有检索到足够相关的内容。"
+    return "LLM 暂时不可用，先按知识库检索片段给出依据：\n" + "\n".join(snippets)
 
 
 rag_service = RagService()

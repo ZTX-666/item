@@ -17,3 +17,7 @@
 - `summarize_external_risks`
 - `draft_daily_risk_briefing`
 - `send_group_message`
+
+## Config
+
+来源、关键词和媒体抓取边界放在同目录 `config.json`。用户可通过 Skill 配置修改启用来源和关键词；媒体来源只抓公开列表的标题、链接和短摘要，不抓全文、不绕过登录或付费墙。

@@ -179,6 +179,35 @@ def tool_specs() -> list[ToolSpec]:
             },
         ),
         ToolSpec(
+            name="feishu_send_image_message",
+            description="Upload a local image to Feishu and send it as an image message.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "receive_id": {"type": "string"},
+                    "receive_id_type": {"type": "string", "default": "chat_id"},
+                    "image_path": {"type": "string"},
+                    "image_type": {"type": "string", "default": "message"},
+                },
+                "required": ["receive_id", "image_path"],
+            },
+        ),
+        ToolSpec(
+            name="feishu_send_file_message",
+            description="Upload a local file to Feishu and send it as a file message.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "receive_id": {"type": "string"},
+                    "receive_id_type": {"type": "string", "default": "chat_id"},
+                    "file_path": {"type": "string"},
+                    "file_type": {"type": "string", "default": "stream"},
+                    "file_name": {"type": "string"},
+                },
+                "required": ["receive_id", "file_path"],
+            },
+        ),
+        ToolSpec(
             name="feishu_send_interactive_card",
             description="Send an interactive card through Feishu OpenAPI.",
             input_schema={

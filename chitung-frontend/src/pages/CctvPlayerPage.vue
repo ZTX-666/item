@@ -22,7 +22,7 @@ const isRefreshingChannels = ref(false)
 const playerRevision = ref(0)
 const note = ref('正在检查本地 CCTV 网关')
 
-const playerSrc = computed(() => `${CCTV_GATEWAY_BASE_URL}/player?v=${playerRevision.value}`)
+const playerSrc = computed(() => `${CCTV_GATEWAY_BASE_URL}/player?live=1&v=${playerRevision.value}`)
 const healthUrl = computed(() => `${CCTV_GATEWAY_BASE_URL}/api/health`)
 
 const isPlayable = computed(() => (health.value?.channelCount ?? 0) > 0)
@@ -44,15 +44,31 @@ const updatedAtText = computed(() => {
   return new Date(health.value.channelUpdatedAt).toLocaleString('zh-CN', { hour12: false })
 })
 
+async function fetchGatewayHealth() {
+  const response = await fetch(healthUrl.value)
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+  return await response.json() as CctvGatewayHealth
+}
+
 async function refreshHealth() {
   isChecking.value = true
   note.value = '正在检查本地 CCTV 网关'
   try {
-    const response = await fetch(healthUrl.value)
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
+    try {
+      health.value = await fetchGatewayHealth()
+    } catch (firstError) {
+      if (!window.chitungDesktop?.ensureCctvGateway) {
+        throw firstError
+      }
+      note.value = '网关无响应，正在拉起本地 CCTV 网关'
+      const ensured = await window.chitungDesktop.ensureCctvGateway()
+      if (!ensured.ok) {
+        throw new Error(ensured.error || 'CCTV 网关启动失败')
+      }
+      health.value = await fetchGatewayHealth()
     }
-    health.value = await response.json() as CctvGatewayHealth
     note.value = health.value.ok ? '网关已响应' : '网关已响应，尚未加载通道'
   } catch (error) {
     health.value = null

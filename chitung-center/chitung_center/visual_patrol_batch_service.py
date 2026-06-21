@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from chitung_center.app_config_service import get_app_config
 from chitung_center.audit import audit_logger
-from chitung_center.config import ROOT
+from chitung_center.config import ROOT, settings
 
 
 SUITE_ROOT = ROOT.parent
@@ -17,8 +19,34 @@ DEFAULT_PATROL_OUTPUT = SUITE_ROOT / "patrol-output"
 
 
 def _patrol_output_dir() -> Path:
-    env_path = Path(__import__("os").environ.get("PATROL_OUTPUT_DIR", str(DEFAULT_PATROL_OUTPUT)))
+    env_path = Path(os.environ.get("PATROL_OUTPUT_DIR", str(DEFAULT_PATROL_OUTPUT)))
     return env_path
+
+
+def _vlm_base_from_chat_url(url: str) -> str:
+    stripped = url.rstrip("/")
+    if stripped.endswith("/chat/completions"):
+        return stripped[: -len("/chat/completions")]
+    return stripped
+
+
+def _configure_nightly_vlm(nightly_patrol: Any) -> None:
+    base_url = os.environ.get("SECUREEYE_BASE_URL") or _vlm_base_from_chat_url(settings.secureeye_base_url)
+    api_key = os.environ.get("SECUREEYE_API_KEY") or settings.secureeye_api_key
+    model = os.environ.get("SECUREEYE_MODEL") or settings.secureeye_model
+    concurrency = int(os.environ.get("SECUREEYE_MAX_CONCURRENCY", str(settings.secureeye_max_concurrency)))
+    max_targets = int(os.environ.get("SECUREEYE_MAX_TARGETS_PER_CAMERA", str(settings.secureeye_max_targets_per_camera)))
+    timeout = int(os.environ.get("SECUREEYE_TIMEOUT_SECONDS", str(settings.secureeye_timeout_seconds)))
+
+    if base_url:
+        nightly_patrol.VLM_BASE_URL = base_url
+    if api_key:
+        nightly_patrol.VLM_API_KEY = api_key
+    if model:
+        nightly_patrol.VLM_MODEL = model
+    nightly_patrol.VLM_MAX_CONCURRENCY = max(1, concurrency)
+    nightly_patrol.VLM_MAX_TARGETS_PER_CAMERA = max(0, max_targets)
+    nightly_patrol.VLM_TIMEOUT = max(1, timeout)
 
 
 def _load_nightly_patrol():
@@ -28,21 +56,113 @@ def _load_nightly_patrol():
     import nightly_patrol  # type: ignore[import-untyped]
 
     nightly_patrol.OUTPUT_BASE = _patrol_output_dir()
+    _configure_nightly_vlm(nightly_patrol)
     return nightly_patrol
 
 
-def _sync_cameras(nightly_patrol: Any) -> list[dict[str, str]]:
+def _csmart_cache_candidates() -> list[Path]:
+    candidates: list[Path] = []
+    env_path = os.environ.get("CCTV_CHANNEL_CACHE_FILE")
+    if env_path:
+        candidates.append(Path(env_path))
+    candidates.append(SUITE_ROOT.parent / "csmart-channel-list-latest.json")
+    candidates.append(SUITE_ROOT / "cctv-gateway" / "csmart-channel-list-latest.json")
+    return candidates
+
+
+def _load_csmart_channels() -> list[dict[str, Any]]:
+    for path in _csmart_cache_candidates():
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        channels = payload.get("channels") if isinstance(payload, dict) else payload
+        if isinstance(channels, list):
+            return [item for item in channels if isinstance(item, dict)]
+    return []
+
+
+def _match_csmart_channel(camera: dict[str, Any], channels: list[dict[str, Any]]) -> dict[str, Any] | None:
+    channel_id = str(camera.get("csmart_channel_id") or "")
+    channel_number = camera.get("csmart_channel_number")
+    camera_name = str(camera.get("name") or "")
+
+    if channel_id:
+        for channel in channels:
+            if str(channel.get("id") or "") == channel_id:
+                return channel
+    if channel_number is not None:
+        for channel in channels:
+            if str(channel.get("number") or "") == str(channel_number):
+                return channel
+    if camera_name:
+        for channel in channels:
+            if str(channel.get("cameraName") or channel.get("name") or "") == camera_name:
+                return channel
+    return None
+
+
+def _append_candidate(candidates: list[str], seen: set[str], value: Any) -> None:
+    if not isinstance(value, str):
+        return
+    text = value.strip()
+    if text and text not in seen:
+        candidates.append(text)
+        seen.add(text)
+
+
+def _raw_snapshot_url_candidates(camera: dict[str, Any], channel: dict[str, Any]) -> list[str]:
+    keys = ("screenshot", "snapshot", "captureUrl", "snapshot_url", "snapshotUrl", "screenshot_url")
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for source in (channel, camera):
+        for key in keys:
+            _append_candidate(candidates, seen, source.get(key))
+    return candidates
+
+
+def _gateway_snapshot_url(camera: dict[str, Any], channel: dict[str, Any]) -> str:
+    base_url = os.environ.get("CCTV_GATEWAY_BASE_URL", "http://127.0.0.1:3457").strip().rstrip("/")
+    if not base_url:
+        return ""
+    channel_number = channel.get("number") or camera.get("csmart_channel_number")
+    if channel_number is None or str(channel_number).strip() == "":
+        return ""
+    return f"{base_url}/api/csmart/snapshot/{quote(str(channel_number), safe='')}"
+
+
+def _snapshot_url_candidates(camera: dict[str, Any], channel: dict[str, Any]) -> list[str]:
+    candidates: list[str] = []
+    seen: set[str] = set()
+    _append_candidate(candidates, seen, _gateway_snapshot_url(camera, channel))
+    for url in _raw_snapshot_url_candidates(camera, channel):
+        _append_candidate(candidates, seen, url)
+    return candidates
+
+
+def _sync_cameras(nightly_patrol: Any) -> list[dict[str, Any]]:
     config = get_app_config()
-    cameras = [
-        {
-            "id": str(cam.get("id")),
-            "name": str(cam.get("name") or cam.get("id")),
-            "area": str(cam.get("area") or "施工区域"),
-            "rtmp_url": str(cam.get("rtmp_url") or ""),
-        }
-        for cam in config.get("cameras", [])
-        if cam.get("enabled", True)
-    ]
+    csmart_channels = _load_csmart_channels()
+    cameras: list[dict[str, Any]] = []
+    for cam in config.get("cameras", []):
+        if not cam.get("enabled", True):
+            continue
+        channel = _match_csmart_channel(cam, csmart_channels) or {}
+        snapshot_candidates = _snapshot_url_candidates(cam, channel)
+        remote_snapshot_candidates = _raw_snapshot_url_candidates(cam, channel)
+        cameras.append(
+            {
+                "id": str(cam.get("id")),
+                "name": str(cam.get("name") or cam.get("id")),
+                "area": str(cam.get("area") or "施工区域"),
+                "rtmp_url": str(channel.get("flv") or cam.get("rtmp_url") or ""),
+                "snapshot_url": snapshot_candidates[0] if snapshot_candidates else "",
+                "snapshot_remote_url": remote_snapshot_candidates[0] if remote_snapshot_candidates else "",
+                "snapshot_url_candidates": snapshot_candidates,
+            }
+        )
     if cameras:
         nightly_patrol.CAMERAS = cameras
     return cameras
@@ -76,6 +196,7 @@ async def run_guardian_patrol(
     *,
     camera_id: str | None = None,
     vlm_enabled: bool = True,
+    inspection_prompt: str | None = None,
 ) -> dict[str, Any]:
     nightly = _load_nightly_patrol()
     cameras = _sync_cameras(nightly)
@@ -88,7 +209,11 @@ async def run_guardian_patrol(
     )
 
     try:
-        summary = await nightly.run_patrol(vlm_enabled=vlm_enabled, camera_filter=camera_id)
+        summary = await nightly.run_patrol(
+            vlm_enabled=vlm_enabled,
+            camera_filter=camera_id,
+            inspection_prompt=inspection_prompt,
+        )
     except Exception as exc:  # noqa: BLE001
         audit_logger.write("visual_guardian_patrol_failed", {"error": str(exc), "audit_id": audit_id})
         return {"ok": False, "error": str(exc), "audit_id": audit_id}

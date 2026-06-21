@@ -9,6 +9,7 @@ set "ROOT=%~dp0.."
 set "TOOLBOX=%ROOT%\agent-toolbox"
 set "CENTER=%ROOT%\chitung-center"
 set "FRONTEND=%ROOT%\chitung-frontend"
+set "CCTV_GATEWAY=%ROOT%\cctv-gateway"
 
 echo.
 echo ========================================
@@ -18,13 +19,13 @@ echo 项目目录: %ROOT%
 echo.
 
 if not exist "%FRONTEND%\node_modules\" (
-  echo [1/4] 首次运行，安装前端依赖...
+  echo [1/5] 首次运行，安装前端依赖...
   pushd "%FRONTEND%"
   call npm install
   if errorlevel 1 goto :fail
   popd
 ) else (
-  echo [1/4] 前端依赖已就绪
+  echo [1/5] 前端依赖已就绪
 )
 
 if not exist "%TOOLBOX%\.venv\Scripts\python.exe" (
@@ -50,23 +51,32 @@ if not exist "%TOOLBOX%\.env" (
 )
 if not exist "%FRONTEND%\.env" copy /Y "%FRONTEND%\.env.example" "%FRONTEND%\.env" >nul
 
-echo [2/4] 启动 agent-toolbox (:8899)...
+echo [2/5] 启动 agent-toolbox (:8899)...
 curl -sf http://127.0.0.1:8899/health >nul 2>&1
 if errorlevel 1 (
   start "agent-toolbox" /MIN cmd /c "cd /d \"%TOOLBOX%\" && .venv\Scripts\python.exe run_server.py"
 )
 
-echo [3/4] 启动 chitung-center (:8999)...
+echo [3/5] 启动 chitung-center (:8999)...
 curl -sf http://127.0.0.1:8999/health >nul 2>&1
 if errorlevel 1 (
   start "chitung-center" /MIN cmd /c "cd /d \"%CENTER%\" && .venv\Scripts\python.exe run_server.py"
 )
 
-echo 等待后端就绪...
+echo [4/5] 启动 CCTV gateway (:3457)...
+curl -sf http://127.0.0.1:3457/api/health >nul 2>&1
+if errorlevel 1 (
+  start "cctv-gateway" /MIN cmd /c "cd /d \"%CCTV_GATEWAY%\" && node --env-file-if-exists=.env src/server.cjs"
+)
+
+echo 等待后端与 CCTV 网关就绪...
 set /a WAIT=0
 :wait_center
 curl -sf http://127.0.0.1:8999/health >nul 2>&1
+if errorlevel 1 goto :wait_retry
+curl -sf http://127.0.0.1:3457/api/health >nul 2>&1
 if not errorlevel 1 goto :backends_ready
+:wait_retry
 set /a WAIT+=1
 if !WAIT! GEQ 45 goto :backends_timeout
 timeout /t 1 /nobreak >nul
@@ -80,10 +90,11 @@ goto :launch_desktop
 echo [OK] 后端已就绪
 echo   工具箱: http://127.0.0.1:8899
 echo   中台:   http://127.0.0.1:8999
+echo   CCTV:   http://127.0.0.1:3457/api/health
 echo.
 
 :launch_desktop
-echo [4/4] 打开赤瞳工作台...
+echo [5/5] 打开赤瞳工作台...
 rem 释放可能被占用的 5173 端口，确保只启动一个前端服务
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":5173" ^| findstr "LISTENING"') do (
   taskkill /F /PID %%P >nul 2>&1

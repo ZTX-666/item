@@ -33,12 +33,39 @@ async function isHealthy(url) {
   }
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function waitForHealthy(url, timeoutMs = 8000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (await isHealthy(url)) return true
+    await delay(300)
+  }
+  return false
+}
+
 function spawnService(name, cwd, command, args) {
   const logPath = path.join(getLogDir(), `${name}.log`)
   const logStream = fs.createWriteStream(logPath, { flags: 'a' })
   const child = spawn(command, args, {
     cwd,
     env: { ...process.env },
+    windowsHide: true,
+    shell: false,
+  })
+  child.stdout.pipe(logStream)
+  child.stderr.pipe(logStream)
+  serviceProcesses.push(child)
+}
+
+function spawnElectronNodeService(name, cwd, args) {
+  const logPath = path.join(getLogDir(), `${name}.log`)
+  const logStream = fs.createWriteStream(logPath, { flags: 'a' })
+  const child = spawn(process.execPath, args, {
+    cwd,
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
     windowsHide: true,
     shell: false,
   })
@@ -72,6 +99,22 @@ async function startLocalServices() {
   if (!(await isHealthy('http://127.0.0.1:8999/health'))) {
     spawnService('chitung-center', centerDir, resolveVenvPython(centerDir), ['run_server.py'])
   }
+
+  await ensureCctvGateway()
+}
+
+async function ensureCctvGateway() {
+  if (process.env.CHITUNG_AUTOSTART_SERVICES === 'false') {
+    return { ok: false, error: 'Local service autostart is disabled.', logDir: getLogDir() }
+  }
+  const suiteRoot = getSuiteRoot()
+  const cctvGatewayDir = path.join(suiteRoot, 'cctv-gateway')
+  if (!(await isHealthy('http://127.0.0.1:3457/api/health'))) {
+    spawnElectronNodeService('cctv-gateway', cctvGatewayDir, ['--env-file-if-exists=.env', 'src/server.cjs'])
+    const ok = await waitForHealthy('http://127.0.0.1:3457/api/health')
+    return { ok, error: ok ? undefined : 'CCTV gateway did not become healthy in time.', logDir: getLogDir() }
+  }
+  return { ok: true, logDir: getLogDir() }
 }
 
 function stopLocalServices() {
@@ -146,6 +189,8 @@ app.whenReady().then(() => {
     await startLocalServices()
     return { ok: true, logDir: getLogDir() }
   })
+
+  ipcMain.handle('services:ensure-cctv-gateway', ensureCctvGateway)
 
   startLocalServices().finally(() => createMainWindow())
 

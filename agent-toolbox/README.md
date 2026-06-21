@@ -54,6 +54,8 @@ POST /tools/notify_feishu
 POST /integrations/feishu/events
 POST /tools/feishu_get_tenant_access_token
 POST /tools/feishu_send_text_message
+POST /tools/feishu_send_image_message
+POST /tools/feishu_send_file_message
 POST /tools/feishu_send_interactive_card
 POST /tools/feishu_build_safety_review_card
 POST /tools/feishu_handle_event_callback
@@ -177,12 +179,15 @@ Recommended Feishu platform setup:
 
 - Enable bot capability and add the bot to target chats.
 - Grant message sending permissions for `im/v1/messages`.
+- Grant media upload permissions for image/file message attachments.
 - Configure event subscription callback URL to `POST /integrations/feishu/events`.
 - Subscribe to message receive events and card interaction events as needed.
 
 Useful tools:
 
 - `feishu_send_text_message`: send text by `chat_id` / `open_id`.
+- `feishu_send_image_message`: upload a local image, then send an image message by `chat_id` / `open_id`.
+- `feishu_send_file_message`: upload a local file, then send a file message by `chat_id` / `open_id`.
 - `feishu_build_safety_review_card`: build or send a safety approval card.
 - `feishu_handle_event_callback`: handle event payloads and URL verification challenge.
 - `feishu_event_to_platform_event`: convert Feishu messages into local platform events.
@@ -283,4 +288,3 @@ Invoke-RestMethod -Method Post `
 - Only registered tools can run.
 - Do not expose this service to the public internet without authentication.
 - Keep `.env` private.
-

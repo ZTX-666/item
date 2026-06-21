@@ -226,6 +226,82 @@ export interface PatrolRunReport {
   output_dir?: string
 }
 
+export interface WorkbenchVideoDetectionSummary {
+  title: string
+  text: string
+  severity: RiskLevel | string
+  detection_count: number
+  labels: string[]
+  suggested_action?: string
+  camera_names?: string[]
+}
+
+export interface WorkbenchVideoDetectionCameraReport {
+  camera_id: string
+  camera_name: string
+  area?: string
+  success?: boolean
+  patrol_id?: string
+  snapshot_url?: string
+  annotated_url?: string
+  snapshot_path?: string
+  annotated_path?: string
+  detections?: Array<Record<string, unknown>>
+  summary?: WorkbenchVideoDetectionSummary
+  error?: string
+  snapshot_source?: 'stream' | 'fallback' | 'failed' | string
+  fallback_used?: boolean
+  fallback_image?: string
+  fallback_reason?: string
+}
+
+export interface WorkbenchVideoDetectionReport {
+  ok: boolean
+  report_id: string
+  created_at: string
+  direction: string
+  refined_prompt: string
+  prompt_source?: string
+  policy_context?: string[]
+  camera_id: string
+  camera_name: string
+  camera_ids?: string[]
+  camera_names?: string[]
+  camera_count?: number
+  area?: string
+  patrol_id?: string
+  snapshot_url?: string
+  annotated_url?: string
+  snapshot_path?: string
+  annotated_path?: string
+  snapshot_source?: 'stream' | 'fallback' | 'failed' | string
+  fallback_used?: boolean
+  fallback_image?: string
+  fallback_reason?: string
+  summary: WorkbenchVideoDetectionSummary
+  detections?: Array<Record<string, unknown>>
+  cameras?: WorkbenchVideoDetectionCameraReport[]
+  camera_errors?: Array<Record<string, string>>
+  patrol_report?: PatrolRunReport
+  patrol_reports?: PatrolRunReport[]
+  error?: string
+  message?: string
+}
+
+export interface WorkbenchVideoDetectionPrompt {
+  ok: boolean
+  detection_direction?: string
+  camera_ids?: string[]
+  camera_names?: string[]
+  refined_prompt?: string
+  prompt_source?: string
+  policy_context?: string[]
+  focus_items?: string[]
+  risk_keywords?: string[]
+  error?: string
+  message?: string
+}
+
 export interface LlmSettingsStatus {
   configured: boolean
   base_url: string
@@ -618,6 +694,7 @@ export interface SkillInfo {
 export interface SkillDetail {
   name: string
   content: string
+  config?: Record<string, unknown>
 }
 
 export interface WorkflowTemplateInfo {
@@ -661,6 +738,8 @@ export interface RagDocument {
 
 export interface RagQueryMatch {
   text: string
+  display_text?: string
+  text_quality?: 'normal' | 'garbled' | string
   source_file_name: string
   doc_id: string
   chunk_index: number
@@ -674,4 +753,33 @@ export interface RagStats {
   chunk_count: number
   vector_count: number
   chroma_dir?: string
+}
+
+export interface RagCitation {
+  source_file_name: string
+  chunk_index: number
+}
+
+export interface RagAskResponse {
+  ok: boolean
+  query: string
+  answer: string
+  citations: RagCitation[]
+  matches: RagQueryMatch[]
+  llm_error?: string
+}
+
+export interface ExternalRiskBriefingReport {
+  report_id: number
+  workflow_run_id: string
+  title: string
+  summary: string
+  briefing_text: string
+  report_images: Array<{ title: string; url: string; caption?: string }>
+  report_links: Array<{ title: string; source: string; url?: string }>
+  tool_results: Array<Record<string, unknown>>
+  config: Record<string, unknown>
+  payload: Record<string, unknown>
+  created_at: string
+  updated_at: string
 }

@@ -2,15 +2,16 @@
 import { ref } from 'vue'
 
 const emit = defineEmits<{
-  submit: [message: string]
+  submit: [payload: { message: string; area: string }]
 }>()
 
 const message = ref('')
+const selectedArea = ref('B2')
 
 function submit() {
   const trimmed = message.value.trim()
   if (!trimmed) return
-  emit('submit', trimmed)
+  emit('submit', { message: trimmed, area: selectedArea.value })
   message.value = ''
 }
 </script>
@@ -18,10 +19,10 @@ function submit() {
 <template>
   <form class="command-bar" @submit.prevent="submit">
     <div class="command-bar__mark">AI</div>
-    <select class="command-bar__context" aria-label="当前区域">
-      <option>B2 区</option>
-      <option>A3 区</option>
-      <option>全项目</option>
+    <select v-model="selectedArea" class="command-bar__context" aria-label="当前区域">
+      <option value="B2">B2 区</option>
+      <option value="A3">A3 区</option>
+      <option value="all">全项目</option>
     </select>
     <input
       v-model="message"

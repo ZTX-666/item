@@ -25,7 +25,6 @@ const groups: NavGroup[] = [
     title: '主菜单',
     items: [
       { icon: '📊', label: '工作台总览', page: 'workbench' },
-      { icon: '✅', label: '待确认', page: 'pending-confirmations' },
       { icon: '📋', label: '隐患台账', page: 'hazard-ledger' },
       { icon: '📷', label: '视觉巡检', page: 'visual-patrol', badge: 'LIVE', badgeTone: 'blue' },
       { icon: '📝', label: '智能填表', page: 'smart-form' },

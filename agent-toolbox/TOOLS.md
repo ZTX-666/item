@@ -73,12 +73,14 @@ Reference adapters do not copy third-party project code into AgentToolbox. They 
 
 - Source: Feishu Open Platform server APIs and event callbacks
 - Runtime: Python + `requests` + local SQLite
-- Inputs: app credentials in `.env`, `chat_id`/`open_id`, text/card payloads, callback payloads
-- Outputs: Feishu API responses, local event archive, platform event payloads
+- Inputs: app credentials in `.env`, `chat_id`/`open_id`, text/card payloads, local image/file paths, callback payloads
+- Outputs: Feishu API responses, uploaded `image_key`/`file_key`, local event archive, platform event payloads
 - Callback endpoint: `POST /integrations/feishu/events`
 - Wrapper endpoints:
   - `POST /tools/feishu_get_tenant_access_token`
   - `POST /tools/feishu_send_text_message`
+  - `POST /tools/feishu_send_image_message`
+  - `POST /tools/feishu_send_file_message`
   - `POST /tools/feishu_send_interactive_card`
   - `POST /tools/feishu_build_safety_review_card`
   - `POST /tools/feishu_handle_event_callback`
@@ -197,4 +199,3 @@ Planned platform use:
 - Input: classification/case ID and corrected scene, risk, status, or notes
 - Output: feedback record for future classifier tuning
 - Wrapper endpoint: `POST /tools/record_classification_feedback`
-

@@ -3,12 +3,14 @@ from __future__ import annotations
 import html
 import hashlib
 import json
+import os
 import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
+from xml.etree import ElementTree
 
 import requests
 from pydantic import BaseModel, Field
@@ -114,6 +116,14 @@ STRONG_SAFETY_KEYWORDS = [
 ]
 
 OFFICIAL_SOURCES: dict[str, dict[str, Any]] = {
+    "gov_press_rss": {
+        "display_name": "香港政府新闻公报",
+        "base_url": "https://www.info.gov.hk",
+        "adapter": "rss",
+        "urls": [
+            "https://www.info.gov.hk/gia/rss/general_zh.xml",
+        ],
+    },
     "labour_department": {
         "display_name": "香港劳工处",
         "base_url": "https://www.labour.gov.hk",
@@ -155,6 +165,13 @@ OFFICIAL_SOURCES: dict[str, dict[str, Any]] = {
             "https://www.oshc.org.hk/tchi/news/press_release.html",
         ],
     },
+    "cic": {
+        "display_name": "香港建造业议会",
+        "base_url": "https://www.cic.hk",
+        "urls": [
+            "https://www.cic.hk/zh-hk/safety/alerts-messages",
+        ],
+    },
 }
 
 MEDIA_SOURCES: dict[str, dict[str, Any]] = {
@@ -174,9 +191,31 @@ MEDIA_SOURCES: dict[str, dict[str, Any]] = {
             "https://std.stheadline.com/realtime/%E5%8D%B3%E6%99%82",
         ],
     },
+    "ming_pao": {
+        "display_name": "明报",
+        "base_url": "https://news.mingpao.com",
+        "urls": [
+            "https://news.mingpao.com/ins/%e6%b8%af%e8%81%9e",
+        ],
+    },
+    "oriental_daily": {
+        "display_name": "东方日报",
+        "base_url": "https://hk.on.cc",
+        "urls": [
+            "https://hk.on.cc/hk/news/index.html",
+        ],
+    },
+    "hkcd": {
+        "display_name": "香港商报",
+        "base_url": "https://www.hkcd.com.hk",
+        "urls": [
+            "https://www.hkcd.com.hk/hkcdweb/index",
+        ],
+    },
 }
 
 ALL_SOURCES = {**OFFICIAL_SOURCES, **MEDIA_SOURCES}
+DEFAULT_SAFETY_UPDATE_SOURCES = list(OFFICIAL_SOURCES.keys()) + ["hk01", "sing_tao"]
 
 
 class HkoWeatherFetchRequest(BaseModel):
@@ -186,7 +225,7 @@ class HkoWeatherFetchRequest(BaseModel):
 
 
 class ExternalRiskFetchRequest(BaseModel):
-    sources: list[str] = Field(default_factory=lambda: list(OFFICIAL_SOURCES.keys()) + ["hk01", "sing_tao"])
+    sources: list[str] = Field(default_factory=lambda: DEFAULT_SAFETY_UPDATE_SOURCES.copy())
     keywords: list[str] = Field(default_factory=lambda: SAFETY_KEYWORDS.copy())
     limit_per_source: int = 10
     timeout_seconds: float = 10.0
@@ -262,6 +301,7 @@ def fetch_hko_weather(req: HkoWeatherFetchRequest) -> ExternalRiskResult:
 
 
 def fetch_hk_safety_updates(req: ExternalRiskFetchRequest) -> ExternalRiskResult:
+    req = _apply_skill_config(req)
     items: list[dict[str, Any]] = []
     errors: list[str] = []
     seen_urls: set[str] = set()
@@ -468,6 +508,9 @@ def _fetch_source_items(
             response = requests.get(page_url, timeout=req.timeout_seconds, headers=headers)
             response.raise_for_status()
             response.encoding = response.apparent_encoding or response.encoding
+            if source_config.get("adapter") == "rss" or page_url.lower().endswith((".xml", ".rss")):
+                items.extend(_extract_rss_items(response.text, source, source_config, req, seen_urls))
+                continue
             for title, url in _extract_links(response.text, page_url, source_config["base_url"]):
                 if url in seen_urls:
                     continue
@@ -489,6 +532,111 @@ def _fetch_source_items(
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{source}:{page_url}: {exc}")
     return items
+
+
+def _extract_rss_items(
+    text: str,
+    source: str,
+    source_config: dict[str, Any],
+    req: ExternalRiskFetchRequest,
+    seen_urls: set[str],
+) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    root = ElementTree.fromstring(text.encode("utf-8"))
+    for item in root.findall(".//item"):
+        title = _xml_text(item, "title")
+        url = _xml_text(item, "link")
+        description = _xml_text(item, "description")
+        published_at = _xml_text(item, "pubDate")
+        if not title or not url or url in seen_urls:
+            continue
+        haystack = f"{title} {description} {url}"
+        matched = _matched_keywords(haystack, req.keywords)
+        if not matched or not _is_safety_relevant(haystack, matched):
+            continue
+        seen_urls.add(url)
+        items.append(
+            {
+                "source": source,
+                "source_name": source_config["display_name"],
+                "source_type": "official_rss",
+                "title": title,
+                "url": url,
+                "published_at": published_at,
+                "short_summary": re.sub(r"\s+", " ", description).strip()[:220],
+                "matched_keywords": matched,
+                "risk_level": _classify_text_risk(haystack, matched),
+            }
+        )
+    return items
+
+
+def _xml_text(item: ElementTree.Element, tag_name: str) -> str:
+    child = item.find(tag_name)
+    return html.unescape((child.text or "").strip()) if child is not None else ""
+
+
+def _apply_skill_config(req: ExternalRiskFetchRequest) -> ExternalRiskFetchRequest:
+    config = _read_skill_config()
+    if not config:
+        return req
+
+    updates: dict[str, Any] = {}
+    configured_sources = _configured_sources(config)
+    if configured_sources and req.sources == DEFAULT_SAFETY_UPDATE_SOURCES:
+        updates["sources"] = configured_sources
+
+    configured_keywords = _configured_keywords(config)
+    if configured_keywords and req.keywords == SAFETY_KEYWORDS:
+        updates["keywords"] = configured_keywords
+
+    return req.model_copy(update=updates) if updates else req
+
+
+def _skill_config_path() -> Path:
+    override = os.getenv("DAILY_RISK_SKILL_CONFIG_PATH")
+    if override:
+        return Path(override)
+    return settings.root.parent / "chitung-center" / "skills" / "daily-risk-briefing" / "config.json"
+
+
+def _read_skill_config() -> dict[str, Any]:
+    path = _skill_config_path()
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _configured_sources(config: dict[str, Any]) -> list[str]:
+    sources = config.get("sources")
+    if not isinstance(sources, list):
+        return []
+    configured: list[str] = []
+    for source in sources:
+        if not isinstance(source, dict) or source.get("enabled") is False:
+            continue
+        source_id = str(source.get("id") or "").strip()
+        if source_id in ALL_SOURCES:
+            configured.append(source_id)
+    return list(dict.fromkeys(configured))
+
+
+def _configured_keywords(config: dict[str, Any]) -> list[str]:
+    groups = config.get("keyword_groups")
+    if not isinstance(groups, list):
+        return []
+    keywords: list[str] = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        include = group.get("include")
+        if isinstance(include, list):
+            keywords.extend(str(item).strip() for item in include if str(item).strip())
+    return list(dict.fromkeys(keywords))
 
 
 def _collect_external_items(

@@ -14,6 +14,10 @@ interface Message {
   id: number
   role: 'user' | 'assistant'
   content: string
+  status?: '执行中' | '完成' | '失败'
+  cards?: Array<Record<string, unknown>>
+  toolResults?: Array<Record<string, unknown>>
+  intent?: string
 }
 
 const messages = ref<Message[]>([
@@ -45,21 +49,42 @@ async function sendMessage() {
   const text = inputText.value.trim()
   if (!text || isTyping.value) return
   messages.value.push({ id: nextId++, role: 'user', content: text })
+  const assistantId = nextId++
+  messages.value.push({
+    id: assistantId,
+    role: 'assistant',
+    content: '执行中：正在识别意图并调用中台工具...',
+    status: '执行中',
+    cards: [],
+    toolResults: [],
+  })
   inputText.value = ''
   isTyping.value = true
   scrollToBottom()
   try {
     const response = await sendChatMessage({ message: text, channel: 'local_chat' })
-    messages.value.push({ id: nextId++, role: 'assistant', content: response.message })
+    updateAssistantMessage(assistantId, {
+      content: response.message,
+      status: '完成',
+      cards: (response.payload?.cards as Array<Record<string, unknown>> | undefined) ?? [],
+      toolResults: (response.payload?.toolResults as Array<Record<string, unknown>> | undefined) ?? [],
+      intent: String((response.payload?.intent as Record<string, unknown> | undefined)?.intent || ''),
+    })
   } catch (error) {
-    messages.value.push({
-      id: nextId++,
-      role: 'assistant',
+    updateAssistantMessage(assistantId, {
       content: `请求失败：${error instanceof Error ? error.message : String(error)}`,
+      status: '失败',
     })
   } finally {
     isTyping.value = false
     scrollToBottom()
+  }
+}
+
+function updateAssistantMessage(id: number, patch: Partial<Message>) {
+  const index = messages.value.findIndex((message) => message.id === id)
+  if (index >= 0) {
+    messages.value[index] = { ...messages.value[index], ...patch }
   }
 }
 
@@ -72,6 +97,75 @@ function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
     sendMessage()
+  }
+}
+
+function toolName(result: Record<string, unknown>) {
+  return String(result.tool || result.tool_name || result.source || 'tool')
+}
+
+function toolOk(result: Record<string, unknown>) {
+  return result.ok !== false
+}
+
+function toolSummary(result: Record<string, unknown>) {
+  const summary = result.summary
+  if (typeof summary === 'string') return summary
+  if (summary && typeof summary === 'object') {
+    const value = summary as Record<string, unknown>
+    if (typeof value.total_items === 'number') return `汇总 ${value.total_items} 条`
+    if (typeof value.matched_item_count === 'number') return `匹配 ${value.matched_item_count} 条`
+    if (typeof value.item_count === 'number') return `入库 ${value.item_count} 条`
+    if (typeof value.detection_count === 'number') return `检测 ${value.detection_count} 个目标`
+    if (typeof value.text === 'string') return value.text
+  }
+  if (typeof result.error === 'string') return result.error
+  if (typeof result.message === 'string') return result.message
+  return toolOk(result) ? '已完成' : '执行失败'
+}
+
+function cardTitle(card: Record<string, unknown>) {
+  return String(card.title || card.card_type || '结果卡片')
+}
+
+function cardSummary(card: Record<string, unknown>) {
+  return String(card.summary || '')
+}
+
+function cardActions(card: Record<string, unknown>) {
+  return Array.isArray(card.actions) ? (card.actions as Array<Record<string, unknown>>) : []
+}
+
+function resultImages(message: Message) {
+  const images: Array<{ title: string; url: string; caption?: string }> = []
+  for (const card of message.cards ?? []) {
+    collectImagesFromValue(card, images)
+  }
+  for (const result of message.toolResults ?? []) {
+    collectImagesFromValue(result, images)
+  }
+  const seen = new Set<string>()
+  return images.filter((image) => {
+    if (seen.has(image.url)) return false
+    seen.add(image.url)
+    return true
+  }).slice(0, 4)
+}
+
+function collectImagesFromValue(value: unknown, images: Array<{ title: string; url: string; caption?: string }>) {
+  if (!value || typeof value !== 'object') return
+  const record = value as Record<string, unknown>
+  for (const key of ['annotated_url', 'snapshot_url', 'image_url', 'thumbnail_url']) {
+    const url = record[key]
+    if (typeof url === 'string' && url) {
+      images.push({ title: String(record.title || key), url, caption: String(record.camera_name || record.source_name || '') })
+    }
+  }
+  for (const key of ['report', 'data', 'briefing']) collectImagesFromValue(record[key], images)
+  for (const key of ['report_images', 'images', 'items', 'cameras']) {
+    const list = record[key]
+    if (!Array.isArray(list)) continue
+    for (const item of list) collectImagesFromValue(item, images)
   }
 }
 </script>
@@ -92,9 +186,40 @@ function handleKeydown(event: KeyboardEvent) {
         class="chatbot-message"
         :class="`chatbot-message--${message.role}`"
       >
-        {{ message.content }}
+        <div class="chatbot-message__body">
+          <p>{{ message.content }}</p>
+          <span v-if="message.status" class="chatbot-message__status">{{ message.status }}</span>
+        </div>
+        <div v-if="message.toolResults?.length" class="chatbot-message__tools">
+          <article
+            v-for="(result, index) in message.toolResults"
+            :key="`${message.id}-tool-${index}`"
+            class="chatbot-tool-result"
+            :class="{ 'chatbot-tool-result--failed': !toolOk(result) }"
+          >
+            <strong>{{ toolName(result) }}</strong>
+            <span>{{ toolOk(result) ? '完成' : '失败' }}</span>
+            <p>{{ toolSummary(result) }}</p>
+          </article>
+        </div>
+        <div v-if="message.cards?.length" class="chatbot-message__cards">
+          <article v-for="(card, index) in message.cards" :key="`${message.id}-card-${index}`" class="chatbot-card">
+            <strong>{{ cardTitle(card) }}</strong>
+            <p>{{ cardSummary(card) }}</p>
+            <div v-if="cardActions(card).length" class="chatbot-card__actions">
+              <span v-for="action in cardActions(card)" :key="String(action.id || action.label)">
+                {{ action.label || action.id }}
+              </span>
+            </div>
+          </article>
+        </div>
+        <div v-if="resultImages(message).length" class="chatbot-message__images">
+          <figure v-for="image in resultImages(message)" :key="image.url" class="chatbot-result-image">
+            <img :src="image.url" :alt="image.title" />
+            <figcaption>{{ image.caption || image.title }}</figcaption>
+          </figure>
+        </div>
       </article>
-      <article v-if="isTyping" class="chatbot-message chatbot-message--assistant">正在处理中...</article>
     </div>
     <div class="chatbot-panel__quick">
       <button v-for="action in quickActions" :key="action.label" @click="handleQuickAction(action.prompt)">
@@ -171,7 +296,6 @@ function handleKeydown(event: KeyboardEvent) {
   line-height: 1.55;
   max-width: 88%;
   padding: 9px 11px;
-  white-space: pre-wrap;
 }
 
 .chatbot-message--assistant {
@@ -182,6 +306,98 @@ function handleKeydown(event: KeyboardEvent) {
   align-self: flex-end;
   background: rgba(59, 130, 246, 0.16);
   color: #93c5fd;
+}
+
+.chatbot-message__body {
+  display: grid;
+  gap: 6px;
+}
+
+.chatbot-message__body p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.chatbot-message__status {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  color: #9ca3af;
+  font-size: 11px;
+  justify-self: start;
+  padding: 2px 7px;
+}
+
+.chatbot-message__tools,
+.chatbot-message__cards,
+.chatbot-message__images {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.chatbot-tool-result,
+.chatbot-card {
+  background: rgba(15, 23, 42, 0.42);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+}
+
+.chatbot-tool-result strong,
+.chatbot-card strong {
+  color: #e5e7eb;
+}
+
+.chatbot-tool-result span {
+  color: #34d399;
+  font-size: 11px;
+}
+
+.chatbot-tool-result--failed span {
+  color: #f87171;
+}
+
+.chatbot-tool-result p,
+.chatbot-card p {
+  color: #9ca3af;
+  margin: 0;
+}
+
+.chatbot-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chatbot-card__actions span {
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  border-radius: 999px;
+  color: #93c5fd;
+  font-size: 11px;
+  padding: 2px 7px;
+}
+
+.chatbot-result-image {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  margin: 0;
+  overflow: hidden;
+}
+
+.chatbot-result-image img {
+  aspect-ratio: 16 / 9;
+  background: #111827;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.chatbot-result-image figcaption {
+  color: #9ca3af;
+  font-size: 11px;
+  padding: 6px 8px;
 }
 
 .chatbot-panel__quick {

@@ -44,15 +44,26 @@ def test_visual_workflow_runs_local_source_when_metadata_contains_source():
 
 def test_visual_workflow_keeps_page_card_without_source():
     request = ChatMessageRequest(message="检查摄像头")
+    detection = {
+        "ok": True,
+        "report_id": "video-test-1",
+        "summary": {"text": "已按“检查摄像头”完成 1 路摄像头检测，未发现明确目标。"},
+    }
 
     with (
-        patch("chitung_center.workflow_engine.workflow_store.append_step", new_callable=AsyncMock) as append_step,
-        patch("chitung_center.workflow_engine.workflow_store.update_step", new_callable=AsyncMock) as update_step,
+        patch("chitung_center.workflow_engine.run_workbench_video_detection", new_callable=AsyncMock) as run_detection,
+        patch("chitung_center.workflow_engine._start_step", new_callable=AsyncMock) as start_step,
+        patch("chitung_center.workflow_engine._finish_step", new_callable=AsyncMock) as finish_step,
     ):
-        append_step.return_value = {"data": {"workflow_step": {"workflow_step_id": "step-1"}}}
-        update_step.return_value = {"ok": True}
+        run_detection.return_value = detection
+        start_step.return_value = {"workflow_step_id": "step-1"}
         reply, tool_results, cards = asyncio.run(WorkflowEngine()._run_visual_patrol(request, "wf-1"))
 
-    assert "视觉巡检页面" in reply
-    assert tool_results == []
-    assert cards[0].actions[0]["id"] == "open_visual_patrol"
+    assert "完成 1 路摄像头检测" in reply
+    assert tool_results[0]["tool"] == "workbench_video_detection"
+    assert tool_results[0]["report_id"] == "video-test-1"
+    assert cards[0].card_type == "video_detection_report"
+    assert cards[0].actions[0]["id"] == "open_hazard_ledger"
+    run_detection.assert_awaited_once()
+    start_step.assert_awaited_once()
+    finish_step.assert_awaited_once()

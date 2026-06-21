@@ -12,6 +12,8 @@
     "desktop:dev": "concurrently -k \"npm run dev -- --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
     "desktop:build": "npm run build && electron-builder --dir",
     "desktop:dist": "npm run build && electron-builder",
+    "test:dashboard": "node scripts/verify-dashboard-contract.mjs",
+    "test:yaoyao-feed": "node scripts/verify-yaoyao-feed-contract.mjs",
     "smoke:backend": "node scripts/smoke-backend.mjs",
     "smoke:workflow": "node scripts/smoke-workflows.mjs",
     "smoke:ui": "node scripts/smoke-ui.mjs"
@@ -46,6 +48,14 @@
           "!workspace/**",
           "!__pycache__/**",
           "!**/__pycache__/**"
+        ]
+      },
+      {
+        "from": "../cctv-gateway",
+        "to": "cctv-gateway",
+        "filter": [
+          "**/*",
+          "!node_modules/**"
         ]
       }
     ],

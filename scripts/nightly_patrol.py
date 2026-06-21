@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import cv2
 import httpx
@@ -133,24 +134,51 @@ MACHINERY_CLASS_NAMES = {
 # 高风险类别（触发VLM重点分析）
 HIGH_RISK_LABELS = {"未戴安全帽", "未戴口罩", "未穿反光衣"}
 
-# VLM 配置 (智谱 GLM-4v 视觉大模型 — glm-4.6 不支持图片输入)
+# VLM 配置（运行时由 chitung-center 注入；本脚本只保留无密钥默认值）
 VLM_BASE_URL = os.getenv("SECUREEYE_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
-VLM_API_KEY = os.getenv("SECUREEYE_API_KEY", "4cb731d5cc93418caf5377642e02ee46.dqOXpohUxR4LbPFG")
-VLM_MODEL = os.getenv("SECUREEYE_MODEL", "glm-4v")
+VLM_API_KEY = os.getenv("SECUREEYE_API_KEY", "")
+VLM_MODEL = os.getenv("SECUREEYE_MODEL", "glm-4.5v")
 VLM_TIMEOUT = int(os.getenv("SECUREEYE_TIMEOUT_SECONDS", "60"))
-VLM_MAX_CONCURRENCY = int(os.getenv("SECUREEYE_MAX_CONCURRENCY", "4"))
+VLM_MAX_CONCURRENCY = int(os.getenv("SECUREEYE_MAX_CONCURRENCY", "1"))
+VLM_MAX_TARGETS_PER_CAMERA = int(os.getenv("SECUREEYE_MAX_TARGETS_PER_CAMERA", "2"))
 
 # ffmpeg 路径 — 优先使用现代版本，回退到 EVCapture 版本
-FFMPEG_BIN = os.getenv(
-    "FFMPEG_BIN",
-    "C:/Users/User/.workbuddy/binaries/ffmpeg/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe",
-)
+def _is_executable_file(path: Path) -> bool:
+    return path.exists() and path.is_file() and os.access(path, os.X_OK)
+
+
+def _resolve_ffmpeg_bin() -> str:
+    env_value = os.getenv("FFMPEG_BIN")
+    if env_value:
+        return env_value
+
+    import shutil
+
+    bundled = Path(__file__).resolve().parent.parent / ".local-tools" / "node_modules" / "ffmpeg-static" / "ffmpeg"
+    windows_default = Path("C:/Users/User/.workbuddy/binaries/ffmpeg/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe")
+    path_ffmpeg = shutil.which("ffmpeg")
+    candidates = [bundled, Path(path_ffmpeg) if path_ffmpeg else None, windows_default]
+    for candidate in candidates:
+        if candidate and _is_executable_file(candidate):
+            return str(candidate)
+    return "ffmpeg"
+
+
+FFMPEG_BIN = _resolve_ffmpeg_bin()
 
 # RTMP 配置
 RTMP_CAPTURE_TIMEOUT = 12  # 秒，单路摄像头截帧超时
 RTMP_RETRIES = 1  # 重试次数(总尝试=RETRIES+1)
+SNAPSHOT_HTTP_TIMEOUT = int(os.getenv("CCTV_SNAPSHOT_HTTP_TIMEOUT", "10"))
+SNAPSHOT_HTTP_RETRIES = int(os.getenv("CCTV_SNAPSHOT_HTTP_RETRIES", "1"))
+ALLOW_LOCAL_SNAPSHOT_FALLBACK = os.getenv("ALLOW_LOCAL_SNAPSHOT_FALLBACK", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
-# 测试图片目录 — RTMP不可用时回退到真实施工现场截图
+# 测试图片目录 — 仅在 ALLOW_LOCAL_SNAPSHOT_FALLBACK=1 的调试模式下使用
 TEST_IMAGES_DIR = os.getenv(
     "TEST_IMAGES_DIR",
     "E:/China Oversea  Final/3311 AI",
@@ -360,9 +388,10 @@ class Detection:
     description: str = ""
     severity: str = ""  # "low" | "medium" | "high" | "critical"
     suggested_action: str = ""
+    vlm_audit: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "bbox": self.bbox,
             "label": self.label,
             "confidence": round(self.confidence, 4),
@@ -371,6 +400,61 @@ class Detection:
             "severity": self.severity,
             "suggested_action": self.suggested_action,
         }
+        if self.vlm_audit:
+            payload["vlm_audit"] = self.vlm_audit
+        return payload
+
+
+def _vlm_prompt_records(detections: list[Detection]) -> list[dict[str, Any]]:
+    records = []
+    for index, detection in enumerate(detections):
+        audit = detection.vlm_audit
+        if not audit:
+            continue
+        records.append(
+            {
+                "detection_index": index,
+                "label": detection.label,
+                "bbox": detection.bbox,
+                "prompt": audit.get("prompt", ""),
+                "messages": audit.get("messages", []),
+            }
+        )
+    return records
+
+
+def _vlm_raw_response_records(detections: list[Detection]) -> list[dict[str, Any]]:
+    records = []
+    for index, detection in enumerate(detections):
+        audit = detection.vlm_audit
+        if not audit:
+            continue
+        records.append(
+            {
+                "detection_index": index,
+                "label": detection.label,
+                "bbox": detection.bbox,
+                "raw_response": audit.get("raw_response", ""),
+            }
+        )
+    return records
+
+
+def _vlm_audit_records(detections: list[Detection], audit_key: str) -> list[dict[str, Any]]:
+    records = []
+    for index, detection in enumerate(detections):
+        audit = detection.vlm_audit
+        if not audit or audit_key not in audit:
+            continue
+        records.append(
+            {
+                "detection_index": index,
+                "label": detection.label,
+                "bbox": detection.bbox,
+                audit_key: audit[audit_key],
+            }
+        )
+    return records
 
 
 @dataclass
@@ -386,6 +470,12 @@ class CameraResult:
     yolo_time_ms: int = 0
     vlm_time_ms: int = 0
     source_mix: str = "yolo"  # "yolo" | "vlm" | "hybrid"
+    user_question: str = ""
+    snapshot_source: str = "stream"  # "stream" | "fallback" | "failed"
+    fallback_used: bool = False
+    fallback_image: str = ""
+    fallback_reason: str = ""
+    capture_attempts: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -401,6 +491,17 @@ class CameraResult:
             "yolo_time_ms": self.yolo_time_ms,
             "vlm_time_ms": self.vlm_time_ms,
             "source_mix": self.source_mix,
+            "user_question": self.user_question,
+            "snapshot_source": self.snapshot_source,
+            "fallback_used": self.fallback_used,
+            "fallback_image": self.fallback_image,
+            "fallback_reason": self.fallback_reason,
+            "capture_attempts": self.capture_attempts,
+            "vlm_prompts": _vlm_prompt_records(self.detections),
+            "vlm_raw_responses": _vlm_raw_response_records(self.detections),
+            "roi_images": _vlm_audit_records(self.detections, "roi_image"),
+            "model_requests": _vlm_audit_records(self.detections, "model_request"),
+            "model_responses": _vlm_audit_records(self.detections, "model_response"),
         }
 
 
@@ -432,47 +533,81 @@ def get_fallback_test_image(camera_index: int) -> Path | None:
 # ─── 中文字体支持 ──────────────────────────────────────────────────────────────
 
 _chinese_font = None
+_chinese_font_size = None
+
+
+CHINESE_FONT_PATHS = [
+    os.getenv("CHINESE_FONT_PATH"),
+    os.getenv("CJK_FONT_PATH"),
+    "/System/Library/Fonts/STHeiti Medium.ttc",
+    "/System/Library/Fonts/STHeiti Light.ttc",
+    "/System/Library/Fonts/Supplemental/Songti.ttc",
+    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+    "/Library/Fonts/Arial Unicode.ttf",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+    "C:/Windows/Fonts/msyh.ttc",    # 微软雅黑
+    "C:/Windows/Fonts/simhei.ttf",   # 黑体
+    "C:/Windows/Fonts/simsun.ttc",   # 宋体
+    "C:/Windows/Fonts/Deng.ttf",     # 等线
+]
+
+
+def _resolve_chinese_font_path() -> str | None:
+    for font_path in CHINESE_FONT_PATHS:
+        if font_path and os.path.exists(font_path):
+            return font_path
+    return None
+
+
+def _load_chinese_font(size: int):
+    from PIL import ImageFont
+
+    font_path = _resolve_chinese_font_path()
+    if font_path:
+        return ImageFont.truetype(font_path, size)
+    return ImageFont.load_default()
 
 
 def get_chinese_font(size: int = 20):
     """加载支持中文的字体"""
-    global _chinese_font
-    if _chinese_font is None:
-        from PIL import ImageFont
-        # 尝试常见中文字体路径
-        font_paths = [
-            "C:/Windows/Fonts/msyh.ttc",    # 微软雅黑
-            "C:/Windows/Fonts/simhei.ttf",   # 黑体
-            "C:/Windows/Fonts/simsun.ttc",   # 宋体
-            "C:/Windows/Fonts/Deng.ttf",     # 等线
-        ]
-        for fp in font_paths:
-            if os.path.exists(fp):
-                _chinese_font = ImageFont.truetype(fp, size)
-                break
-        if _chinese_font is None:
-            _chinese_font = ImageFont.load_default()
+    global _chinese_font, _chinese_font_size
+    if _chinese_font is None or _chinese_font_size != size:
+        _chinese_font = _load_chinese_font(size)
+        _chinese_font_size = size
     return _chinese_font
 
 
-# ─── RTMP 截帧 (使用 ffmpeg subprocess) ────────────────────────────────────────
+# ─── 视频流截帧 (使用 ffmpeg subprocess) ───────────────────────────────────────
+
+def _build_ffmpeg_capture_command(stream_url: str, output_path: Path, timeout: int) -> list[str]:
+    cmd = [
+        FFMPEG_BIN,
+        "-y",
+        "-rw_timeout", str(timeout * 1000000),  # microseconds
+    ]
+    if stream_url.lower().startswith("rtmp://"):
+        cmd.extend(["-rtmp_live", "live"])
+    cmd.extend(
+        [
+            "-i", stream_url,
+            "-frames:v", "1",
+            "-q:v", "2",
+            "-update", "1",
+            str(output_path),
+        ]
+    )
+    return cmd
 
 def capture_rtmp_frame(rtmp_url: str, output_path: Path, timeout: int = RTMP_CAPTURE_TIMEOUT) -> bool:
-    """用 ffmpeg subprocess 从 RTMP 流截取一帧"""
+    """用 ffmpeg subprocess 从 RTMP/FLV/HTTP 视频流截取一帧"""
     import subprocess
 
     for attempt in range(RTMP_RETRIES + 1):
         try:
-            cmd = [
-                FFMPEG_BIN,
-                "-y",
-                "-rtmp_live", "live",
-                "-rw_timeout", str(timeout * 1000000),  # microseconds
-                "-i", rtmp_url,
-                "-frames:v", "1",
-                "-q:v", "2",
-                str(output_path),
-            ]
+            cmd = _build_ffmpeg_capture_command(rtmp_url, output_path, timeout)
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -495,6 +630,77 @@ def capture_rtmp_frame(rtmp_url: str, output_path: Path, timeout: int = RTMP_CAP
         if attempt < RTMP_RETRIES:
             time.sleep(2)
 
+    return False
+
+
+def _remote_image_name(url: str) -> str:
+    path = urlparse(url).path
+    return Path(path).name or "csmart-snapshot.jpg"
+
+
+def _append_snapshot_url(candidates: list[str], seen: set[str], value: Any) -> None:
+    if isinstance(value, str):
+        url = value.strip()
+        if url and url not in seen:
+            candidates.append(url)
+            seen.add(url)
+        return
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            _append_snapshot_url(candidates, seen, item)
+
+
+def _camera_snapshot_urls(camera: dict[str, Any]) -> list[str]:
+    """Return de-duplicated still-frame URL candidates exposed by C-SMART metadata."""
+    candidates: list[str] = []
+    seen: set[str] = set()
+    keys = ("snapshot_url", "screenshot_url", "screenshot", "snapshot", "snapshotUrl", "captureUrl")
+
+    _append_snapshot_url(candidates, seen, camera.get("snapshot_url_candidates"))
+    for key in keys:
+        _append_snapshot_url(candidates, seen, camera.get(key))
+
+    csmart_channel = camera.get("csmart_channel")
+    if isinstance(csmart_channel, dict):
+        for key in keys:
+            _append_snapshot_url(candidates, seen, csmart_channel.get(key))
+
+    return candidates
+
+
+def _camera_snapshot_url(camera: dict[str, Any]) -> str:
+    """Return the first stable still-frame URL exposed by C-SMART channel metadata."""
+    urls = _camera_snapshot_urls(camera)
+    return urls[0] if urls else ""
+
+
+def download_http_image(url: str, output_path: Path, timeout: int = 20, retries: int = 2) -> bool:
+    """Download a still image such as a C-SMART channel screenshot."""
+    if not url:
+        return False
+    attempts = max(1, retries + 1)
+    for attempt in range(attempts):
+        try:
+            response = httpx.get(
+                url,
+                timeout=timeout,
+                follow_redirects=True,
+                headers={"User-Agent": "Mozilla/5.0 ChitungSafety/1.0"},
+            )
+            response.raise_for_status()
+        except Exception as exc:  # noqa: BLE001
+            log.warning(f"  C-SMART截图下载失败({attempt + 1}/{attempts}): {exc}")
+            if attempt < attempts - 1:
+                time.sleep(1)
+            continue
+
+        if not response.content:
+            log.warning(f"  C-SMART截图下载失败({attempt + 1}/{attempts}): empty response")
+            if attempt < attempts - 1:
+                time.sleep(1)
+            continue
+        output_path.write_bytes(response.content)
+        return output_path.exists() and output_path.stat().st_size > 0
     return False
 
 
@@ -596,10 +802,12 @@ def crop_roi(image_path: str, bbox: list[float], padding_ratio: float = 0.15, ta
 
 # ─── VLM 大模型调用 ────────────────────────────────────────────────────────────
 
-def build_vlm_prompt(label: str, context: str = "") -> str:
+def build_vlm_prompt(label: str, context: str = "", inspection_prompt: str = "") -> str:
     ctx = f"摄像头位置: {context}。" if context else ""
+    focus = f"本次用户检测方向和制度润色提示：{inspection_prompt}\n" if inspection_prompt else ""
     return (
         f"你是工地安全监控专家。{ctx}"
+        f"{focus}"
         f"YOLO小模型检测到的目标类别为: {label}。\n"
         f"请基于图中实际情况分析该区域的安全状况：\n"
         f"1. 确认目标是否真实存在及状态\n"
@@ -647,8 +855,22 @@ def _parse_vlm_json(text: str) -> dict[str, str]:
     }
 
 
+def _extract_vlm_raw_response(data: dict[str, Any]) -> str:
+    choices = data.get("choices")
+    if isinstance(choices, list) and choices:
+        first = choices[0] if isinstance(choices[0], dict) else {}
+        message = first.get("message") if isinstance(first.get("message"), dict) else {}
+        for key in ("content", "reasoning_content"):
+            value = message.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+    return json.dumps(data, ensure_ascii=False, sort_keys=True, default=str)
+
+
 async def call_vlm_api(base64_image: str, prompt: str) -> dict[str, str]:
-    """调用智谱 GLM-4.6 VLM API"""
+    """调用 OpenAI-compatible VLM API"""
+    if not VLM_API_KEY:
+        raise RuntimeError("SECUREEYE_API_KEY is not configured")
     url = f"{VLM_BASE_URL}/chat/completions"
     headers = {
         "Authorization": f"Bearer {VLM_API_KEY}",
@@ -670,32 +892,65 @@ async def call_vlm_api(base64_image: str, prompt: str) -> dict[str, str]:
     }
 
     async with httpx.AsyncClient(timeout=VLM_TIMEOUT) as client:
-        resp = await client.post(url, json=payload, headers=headers)
-        resp.raise_for_status()
-        data = resp.json()
-        content = data["choices"][0]["message"]["content"]
-        return _parse_vlm_json(content)
+        for attempt in range(3):
+            resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code == 429 and attempt < 2:
+                await asyncio.sleep(1.5 * (attempt + 1))
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            raw_response = _extract_vlm_raw_response(data)
+            parsed = _parse_vlm_json(raw_response)
+            parsed["_audit"] = {
+                "prompt": prompt,
+                "messages": payload["messages"],
+                "raw_response": raw_response,
+                "model_request": payload,
+                "model_response": data,
+            }
+            return parsed
+    raise RuntimeError("VLM API call failed")
 
 
 async def vlm_enhance_batch(
     image_path: str,
     detections: list[Detection],
     context: str = "",
+    inspection_prompt: str = "",
 ) -> list[Detection]:
     """对 YOLO 检测结果批量调 VLM 增强"""
     if not detections:
         return detections
 
     semaphore = asyncio.Semaphore(VLM_MAX_CONCURRENCY)
-    results: list[Detection] = []
+    results: list[Detection | None] = [None for _ in detections]
+    sorted_indexes = sorted(
+        range(len(detections)),
+        key=lambda idx: (
+            detections[idx].label not in HIGH_RISK_LABELS,
+            -detections[idx].confidence,
+        ),
+    )
+    target_indexes = set(sorted_indexes[: max(0, VLM_MAX_TARGETS_PER_CAMERA)])
 
     async def enhance_one(idx: int) -> Detection:
         det = detections[idx]
         try:
             async with semaphore:
                 b64 = crop_roi(image_path, det.bbox)
-                prompt = build_vlm_prompt(det.label, context)
+                prompt = build_vlm_prompt(det.label, context, inspection_prompt)
                 vlm_result = await call_vlm_api(b64, prompt)
+                audit = dict(vlm_result.get("_audit") or {})
+                audit.setdefault("prompt", prompt)
+                audit.setdefault("messages", [])
+                audit.setdefault("raw_response", "")
+                audit["roi_image"] = {
+                    "label": det.label,
+                    "bbox": det.bbox,
+                    "format": "jpeg",
+                    "base64": b64,
+                    "data_url": f"data:image/jpeg;base64,{b64}",
+                }
 
             return Detection(
                 bbox=det.bbox,
@@ -705,6 +960,7 @@ async def vlm_enhance_batch(
                 description=vlm_result.get("description", ""),
                 severity=vlm_result.get("severity", "medium"),
                 suggested_action=vlm_result.get("suggested_action", ""),
+                vlm_audit=audit,
             )
         except Exception as e:
             log.warning(f"  VLM增强失败 [{det.label}]: {e}")
@@ -718,9 +974,22 @@ async def vlm_enhance_batch(
                 suggested_action="建议人工复核",
             )
 
-    tasks = [enhance_one(i) for i in range(len(detections))]
-    results = await asyncio.gather(*tasks)
-    return list(results)
+    tasks = [enhance_one(i) for i in target_indexes]
+    enhanced = await asyncio.gather(*tasks)
+    for idx, det in zip(target_indexes, enhanced, strict=False):
+        results[idx] = det
+    for idx, det in enumerate(detections):
+        if results[idx] is None:
+            results[idx] = Detection(
+                bbox=det.bbox,
+                label=det.label,
+                confidence=det.confidence,
+                source="yolo",
+                description="YOLO检测结果，未进入VLM抽样增强",
+                severity="medium",
+                suggested_action="建议人工复核",
+            )
+    return [det for det in results if det is not None]
 
 
 # ─── 图像标注 ─────────────────────────────────────────────────────────────────
@@ -740,24 +1009,15 @@ _zh_font_small = None
 def _get_zh_font(size: int = 22):
     global _zh_font, _zh_font_small
     if _zh_font is None or _zh_font_small is None:
-        from PIL import ImageFont
-        font_paths = [
-            "C:/Windows/Fonts/msyh.ttc",      # 微软雅黑
-            "C:/Windows/Fonts/simhei.ttf",     # 黑体
-            "C:/Windows/Fonts/simsun.ttc",     # 宋体
-        ]
-        font_path = None
-        for fp in font_paths:
-            if os.path.exists(fp):
-                font_path = fp
-                break
-        if font_path:
-            _zh_font = ImageFont.truetype(font_path, size)
-            _zh_font_small = ImageFont.truetype(font_path, 16)
-        else:
-            _zh_font = ImageFont.load_default()
-            _zh_font_small = ImageFont.load_default()
+        _zh_font = _load_chinese_font(size)
+        _zh_font_small = _load_chinese_font(16)
     return _zh_font if size >= 20 else _zh_font_small
+
+
+def _annotation_text_fill(background_rgb: tuple[int, int, int]) -> tuple[int, int, int]:
+    r, g, b = background_rgb
+    luminance = (0.299 * r) + (0.587 * g) + (0.114 * b)
+    return (0, 0, 0) if luminance >= 150 else (255, 255, 255)
 
 
 def draw_annotations(image_path: str, detections: list[Detection], output_path: str, camera_name: str):
@@ -768,6 +1028,20 @@ def draw_annotations(image_path: str, detections: list[Detection], output_path: 
     draw = PILDraw.Draw(img)
     font = _get_zh_font(22)
     font_small = _get_zh_font(16)
+
+    # 信息栏先画，后续检测框和标签保持在最上层，避免顶部目标标签被遮住。
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    info = f"[{camera_name}] {timestamp} | 检测目标: {len(detections)}个"
+    info_bbox = draw.textbbox((0, 0), info, font=font)
+    ih = info_bbox[3] - info_bbox[1]
+    draw.rectangle([0, 0, img.size[0], ih + 12], fill=(0, 0, 0))
+    draw.text((10, 4), info, fill=(255, 255, 255), font=font)
+
+    model_info = f"YOLO双模型(工人PPE+机械) + VLM({VLM_MODEL}) | 阈值:{YOLO_CONF_THRESHOLD}"
+    mi_bbox = draw.textbbox((0, 0), model_info, font=font_small)
+    mh = mi_bbox[3] - mi_bbox[1]
+    draw.rectangle([0, img.size[1] - mh - 8, img.size[0], img.size[1]], fill=(0, 0, 0))
+    draw.text((10, img.size[1] - mh - 6), model_info, fill=(200, 200, 200), font=font_small)
 
     for det in detections:
         x1, y1, x2, y2 = [int(v) for v in det.bbox]
@@ -789,8 +1063,13 @@ def draw_annotations(image_path: str, detections: list[Detection], output_path: 
         # 标签背景
         bbox = draw.textbbox((0, 0), label_text, font=font)
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        draw.rectangle([x1, y1 - th - 8, x1 + tw + 8, y1], fill=color_rgb)
-        draw.text((x1 + 4, y1 - th - 6), label_text, fill=(255, 255, 255), font=font)
+        label_left = max(0, min(x1, img.size[0] - tw - 8))
+        label_top = y1 - th - 8
+        if label_top < 0:
+            label_top = min(img.size[1] - th - 8, y1 + 2)
+        label_top = max(0, label_top)
+        draw.rectangle([label_left, label_top, label_left + tw + 8, label_top + th + 8], fill=color_rgb)
+        draw.text((label_left + 4, label_top + 2), label_text, fill=_annotation_text_fill(color_rgb), font=font)
 
         # VLM描述（如果有）
         if det.description and det.source == "hybrid":
@@ -800,22 +1079,7 @@ def draw_annotations(image_path: str, detections: list[Detection], output_path: 
             bbox2 = draw.textbbox((0, 0), desc, font=font_small)
             dw, dh = bbox2[2] - bbox2[0], bbox2[3] - bbox2[1]
             draw.rectangle([x1, y2 + 2, x1 + dw + 8, y2 + dh + 8], fill=color_rgb)
-            draw.text((x1 + 4, y2 + 4), desc, fill=(255, 255, 255), font=font_small)
-
-    # 顶部信息栏
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    info = f"[{camera_name}] {timestamp} | 检测目标: {len(detections)}个"
-    info_bbox = draw.textbbox((0, 0), info, font=font)
-    iw, ih = info_bbox[2] - info_bbox[0], info_bbox[3] - info_bbox[1]
-    draw.rectangle([0, 0, img.size[0], ih + 12], fill=(0, 0, 0))
-    draw.text((10, 4), info, fill=(255, 255, 255), font=font)
-
-    # 底部模型信息
-    model_info = f"YOLO双模型(工人PPE+机械) + VLM({VLM_MODEL}) | 阈值:{YOLO_CONF_THRESHOLD}"
-    mi_bbox = draw.textbbox((0, 0), model_info, font=font_small)
-    mw, mh = mi_bbox[2] - mi_bbox[0], mi_bbox[3] - mi_bbox[1]
-    draw.rectangle([0, img.size[1] - mh - 8, img.size[0], img.size[1]], fill=(0, 0, 0))
-    draw.text((10, img.size[1] - mh - 6), model_info, fill=(200, 200, 200), font=font_small)
+            draw.text((x1 + 4, y2 + 4), desc, fill=_annotation_text_fill(color_rgb), font=font_small)
 
     img.save(output_path, "JPEG", quality=92)
 
@@ -836,7 +1100,22 @@ def _get_test_image_fallback(cam_id: str) -> str | None:
     return str(images[idx])
 
 
-async def patrol_camera(camera: dict[str, str], output_dir: Path, vlm_enabled: bool = True) -> CameraResult:
+def _mark_real_frame_capture_failed(result: CameraResult) -> CameraResult:
+    result.snapshot_source = "failed"
+    result.fallback_used = False
+    result.fallback_image = ""
+    result.fallback_reason = "真实摄像头抽帧失败，未使用本地回退图"
+    result.error = "真实摄像头抽帧失败，未使用本地回退图"
+    result.capture_attempts.append({"method": "fallback_image", "url": "", "ok": False, "skipped": True})
+    return result
+
+
+async def patrol_camera(
+    camera: dict[str, Any],
+    output_dir: Path,
+    vlm_enabled: bool = True,
+    inspection_prompt: str = "",
+) -> CameraResult:
     """巡检单路摄像头"""
     cam_id = camera["id"]
     cam_name = camera["name"]
@@ -844,27 +1123,73 @@ async def patrol_camera(camera: dict[str, str], output_dir: Path, vlm_enabled: b
     log.info(f"=== 巡检摄像头: {cam_name} ({cam_id}) ===")
 
     result = CameraResult(camera_id=cam_id, camera_name=cam_name, area=area, success=False)
+    result.user_question = inspection_prompt
 
-    # 1. RTMP 截帧
+    # 1. 视频流截帧
     snapshot_path = output_dir / f"{cam_id}_snapshot.jpg"
-    log.info(f"  截帧中... (超时{RTMP_CAPTURE_TIMEOUT}s)")
-    rtmp_ok = capture_rtmp_frame(camera["rtmp_url"], snapshot_path)
+    snapshot_urls = _camera_snapshot_urls(camera)
+    rtmp_ok = False
 
-    if not rtmp_ok:
-        # 回退到本地测试图片
-        log.warning(f"  RTMP截帧失败，尝试本地回退...")
+    for index, snapshot_url in enumerate(snapshot_urls, start=1):
+        log.info(f"  使用C-SMART稳定截图截帧({index}/{len(snapshot_urls)})...")
+        snapshot_ok = download_http_image(
+            snapshot_url,
+            snapshot_path,
+            timeout=SNAPSHOT_HTTP_TIMEOUT,
+            retries=SNAPSHOT_HTTP_RETRIES,
+        )
+        result.capture_attempts.append(
+            {"method": "csmart_screenshot", "url": snapshot_url, "ok": bool(snapshot_ok)}
+        )
+        if snapshot_ok:
+            snapshot_name = _remote_image_name(snapshot_url)
+            result.snapshot_source = "csmart_screenshot"
+            result.fallback_used = False
+            result.fallback_image = snapshot_name
+            log.info(f"  ✓ C-SMART截图截帧成功: {snapshot_name}")
+            break
+        else:
+            log.warning(f"  C-SMART稳定截图不可用: {snapshot_url}")
+
+    if snapshot_urls and (not snapshot_path.exists() or snapshot_path.stat().st_size <= 0):
+        log.warning("  所有C-SMART稳定截图候选不可用，尝试视频流截帧...")
+
+    if not snapshot_path.exists() or snapshot_path.stat().st_size <= 0:
+        log.info(f"  视频流截帧中... (超时{RTMP_CAPTURE_TIMEOUT}s)")
+        rtmp_ok = capture_rtmp_frame(camera["rtmp_url"], snapshot_path)
+        result.capture_attempts.append(
+            {"method": "stream", "url": str(camera.get("rtmp_url") or ""), "ok": bool(rtmp_ok)}
+        )
+
+    if rtmp_ok:
+        result.snapshot_source = "stream"
+        log.info(f"  ✓ 视频流截帧成功: {snapshot_path.name}")
+    elif not snapshot_path.exists() or snapshot_path.stat().st_size <= 0:
+        if not ALLOW_LOCAL_SNAPSHOT_FALLBACK:
+            _mark_real_frame_capture_failed(result)
+            log.warning(f"  ✗ {result.error}")
+            return result
+
+        log.warning(f"  视频流截帧失败，调试模式尝试本地回退...")
         test_img = _get_test_image_fallback(cam_id)
         if test_img:
             import shutil
             shutil.copy2(test_img, str(snapshot_path))
-            result.error = f"RTMP不可用，使用本地回退图: {Path(test_img).name}"
-            log.info(f"  ✓ 本地回退: {Path(test_img).name}")
+            fallback_name = Path(test_img).name
+            result.snapshot_source = "fallback"
+            result.fallback_used = True
+            result.fallback_image = fallback_name
+            result.fallback_reason = "视频流不可用"
+            result.capture_attempts.append({"method": "fallback_image", "url": fallback_name, "ok": True})
+            result.error = f"视频流不可用，使用本地回退图: {fallback_name}"
+            log.info(f"  ✓ 本地回退: {fallback_name}")
         else:
-            result.error = "RTMP截帧失败且无本地回退图"
+            result.snapshot_source = "failed"
+            result.fallback_reason = "视频流截帧失败且无可用回退图"
+            result.error = "视频流截帧失败且无可用回退图"
+            result.capture_attempts.append({"method": "fallback_image", "url": "", "ok": False})
             log.warning(f"  ✗ {result.error}")
             return result
-    else:
-        log.info(f"  ✓ RTMP截帧成功: {snapshot_path.name}")
 
     result.snapshot_path = str(snapshot_path)
 
@@ -883,7 +1208,12 @@ async def patrol_camera(camera: dict[str, str], output_dir: Path, vlm_enabled: b
     if vlm_enabled and detections:
         t0 = time.perf_counter()
         try:
-            detections = await vlm_enhance_batch(str(snapshot_path), detections, context=cam_name)
+            detections = await vlm_enhance_batch(
+                str(snapshot_path),
+                detections,
+                context=cam_name,
+                inspection_prompt=inspection_prompt,
+            )
             hybrid_count = sum(1 for d in detections if d.source == "hybrid")
             result.source_mix = "hybrid" if hybrid_count > 0 else "yolo"
             log.info(f"  ✓ VLM增强: {hybrid_count}/{len(detections)} 成功")
@@ -908,7 +1238,11 @@ async def patrol_camera(camera: dict[str, str], output_dir: Path, vlm_enabled: b
     return result
 
 
-async def run_patrol(vlm_enabled: bool = True, camera_filter: str | None = None) -> dict[str, Any]:
+async def run_patrol(
+    vlm_enabled: bool = True,
+    camera_filter: str | None = None,
+    inspection_prompt: str | None = None,
+) -> dict[str, Any]:
     """执行完整巡检"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = OUTPUT_BASE / timestamp
@@ -925,13 +1259,20 @@ async def run_patrol(vlm_enabled: bool = True, camera_filter: str | None = None)
     log.info(f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     log.info(f"摄像头数量: {len(cameras)}")
     log.info(f"VLM增强: {'开启' if vlm_enabled else '关闭'} (模型: {VLM_MODEL})")
+    if inspection_prompt:
+        log.info(f"检测重点: {inspection_prompt}")
     log.info(f"YOLO置信度阈值: {YOLO_CONF_THRESHOLD}")
     log.info(f"输出目录: {output_dir}")
     log.info(f"═══════════════════════════════")
 
     results: list[CameraResult] = []
     for camera in cameras:
-        result = await patrol_camera(camera, output_dir, vlm_enabled=vlm_enabled)
+        result = await patrol_camera(
+            camera,
+            output_dir,
+            vlm_enabled=vlm_enabled,
+            inspection_prompt=inspection_prompt or "",
+        )
         results.append(result)
 
     # 汇总
@@ -956,6 +1297,7 @@ async def run_patrol(vlm_enabled: bool = True, camera_filter: str | None = None)
         "vlm_model": VLM_MODEL if vlm_enabled else None,
         "yolo_model": "dual(worker+machinery)",
         "yolo_conf_threshold": YOLO_CONF_THRESHOLD,
+        "inspection_prompt": inspection_prompt or "",
         "cameras": [r.to_dict() for r in results],
     }
 
@@ -976,6 +1318,8 @@ async def run_patrol(vlm_enabled: bool = True, camera_filter: str | None = None)
         f.write(f"总检测目标: {total_detections}\n")
         f.write(f"高风险目标: {high_risk}\n")
         f.write(f"VLM增强: {'开启' if vlm_enabled else '关闭'}\n\n")
+        if inspection_prompt:
+            f.write(f"检测重点: {inspection_prompt}\n\n")
 
         for r in results:
             status = "✓" if r.success else "✗"

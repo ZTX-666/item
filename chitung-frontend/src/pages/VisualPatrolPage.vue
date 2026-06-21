@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import CameraGrid from '../components/cards/CameraGrid.vue'
+import CctvLivePanel from '../components/cctv/CctvLivePanel.vue'
 import {
   confirmVisualPatrolCandidate,
   draftVisualPatrol,
@@ -275,9 +275,12 @@ function sourceText(source: string | undefined): string {
 
     <div class="visual-layout">
       <div class="visual-main">
-        <CameraGrid
-          :cameras="appConfig?.cameras"
-          :is-patrolling="isPatrolling"
+        <CctvLivePanel
+          title="CCTV 实时画面"
+          subtitle="C-SMART 直播 + 视觉巡检入口"
+          :busy="isPatrolling"
+          action-label="巡检当前画面"
+          busy-label="巡检中"
           @patrol="handlePatrol"
         />
 

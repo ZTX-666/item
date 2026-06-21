@@ -33,6 +33,37 @@ Default endpoint:
 http://127.0.0.1:8999
 ```
 
+## Feishu Long-Connection Bot
+
+The Feishu app bot can receive events without a public callback URL by running the Feishu SDK long-connection client locally.
+
+Configure `chitung-center/.env`:
+
+```text
+FEISHU_APP_ID=cli_xxx
+FEISHU_APP_SECRET=xxx
+FEISHU_VERIFICATION_TOKEN=
+FEISHU_ENCRYPT_KEY=
+FEISHU_API_BASE_URL=https://open.feishu.cn
+FEISHU_LONG_CONNECTION_LOG_LEVEL=INFO
+```
+
+Start the center service and AgentToolbox first, then start the long-connection worker:
+
+```bash
+cd /Users/bytedance/Desktop/zhonghai_proj/item/chitung-center
+.venv/bin/python scripts/run_feishu_long_connection.py
+```
+
+In Feishu Open Platform, keep event subscription mode as long connection and add:
+
+```text
+接收消息 im.message.receive_v1
+卡片回传交互 card.action.trigger
+```
+
+When a message event arrives, the SDK worker forwards it into the same `handle_feishu_event` path used by the HTTP callback endpoint, and replies to the source chat through AgentToolbox.
+
 ## Key Endpoints
 
 ```text

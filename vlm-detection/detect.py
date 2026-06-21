@@ -11,14 +11,53 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
 import cv2
+import numpy as np
 import yaml
+from PIL import Image, ImageDraw, ImageFont
 from ultralytics import YOLO
 
 ROOT = Path(__file__).resolve().parent
+
+CHINESE_FONT_PATHS = [
+    os.getenv("CHINESE_FONT_PATH"),
+    os.getenv("CJK_FONT_PATH"),
+    "/System/Library/Fonts/STHeiti Medium.ttc",
+    "/System/Library/Fonts/STHeiti Light.ttc",
+    "/System/Library/Fonts/Supplemental/Songti.ttc",
+    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+    "/Library/Fonts/Arial Unicode.ttf",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+    "C:/Windows/Fonts/msyh.ttc",
+    "C:/Windows/Fonts/simhei.ttf",
+    "C:/Windows/Fonts/simsun.ttc",
+]
+_LABEL_FONT = None
+
+
+def load_label_font(size: int = 20):
+    global _LABEL_FONT
+    if _LABEL_FONT is not None:
+        return _LABEL_FONT
+    for font_path in CHINESE_FONT_PATHS:
+        if font_path and Path(font_path).exists():
+            _LABEL_FONT = ImageFont.truetype(font_path, size)
+            return _LABEL_FONT
+    _LABEL_FONT = ImageFont.load_default()
+    return _LABEL_FONT
+
+
+def label_text_fill(background_rgb: tuple[int, int, int]) -> tuple[int, int, int]:
+    r, g, b = background_rgb
+    luminance = (0.299 * r) + (0.587 * g) + (0.114 * b)
+    return (0, 0, 0) if luminance >= 150 else (255, 255, 255)
 
 
 def load_config(path: Path | None) -> dict:
@@ -65,20 +104,27 @@ def collect_detections(result, names: dict, source: str, model_tag: str) -> list
 
 
 def draw_boxes(image, rows: list[dict], color: tuple[int, int, int]) -> None:
+    pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    draw = ImageDraw.Draw(pil_image)
+    font = load_label_font(20)
+    color_rgb = (color[2], color[1], color[0])
+    text_fill = label_text_fill(color_rgb)
+
     for r in rows:
         x1, y1, x2, y2 = (int(v) for v in r["bbox_xyxy"])
         label = f"{r['class_name']} {r['confidence']:.2f}"
-        cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
-        cv2.putText(
-            image,
-            label,
-            (x1, max(y1 - 6, 12)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            color,
-            1,
-            cv2.LINE_AA,
-        )
+        draw.rectangle([x1, y1, x2, y2], outline=color_rgb, width=2)
+        bbox = draw.textbbox((0, 0), label, font=font)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        label_left = max(0, min(x1, pil_image.size[0] - tw - 8))
+        label_top = y1 - th - 8
+        if label_top < 0:
+            label_top = min(pil_image.size[1] - th - 8, y1 + 2)
+        label_top = max(0, label_top)
+        draw.rectangle([label_left, label_top, label_left + tw + 8, label_top + th + 8], fill=color_rgb)
+        draw.text((label_left + 4, label_top + 2), label, fill=text_fill, font=font)
+
+    image[:, :, :] = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
 
 def iter_sources(source: Path) -> list[Path]:

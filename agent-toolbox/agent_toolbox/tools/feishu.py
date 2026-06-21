@@ -7,6 +7,7 @@ import json
 import sqlite3
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -29,6 +30,21 @@ class FeishuSendMessageRequest(BaseModel):
     receive_id: str
     receive_id_type: str = "chat_id"
     text: str
+
+
+class FeishuSendImageRequest(BaseModel):
+    receive_id: str
+    receive_id_type: str = "chat_id"
+    image_path: str
+    image_type: str = "message"
+
+
+class FeishuSendFileRequest(BaseModel):
+    receive_id: str
+    receive_id_type: str = "chat_id"
+    file_path: str
+    file_type: str = "stream"
+    file_name: str | None = None
 
 
 class FeishuSendCardRequest(BaseModel):
@@ -170,6 +186,54 @@ def feishu_send_text_message(req: FeishuSendMessageRequest) -> ToolResult:
     return _send_openapi_message("feishu_send_text_message", req.receive_id_type, payload)
 
 
+def feishu_send_image_message(req: FeishuSendImageRequest) -> ToolResult:
+    token = _tenant_token()
+    payload = {"receive_id": req.receive_id, "msg_type": "image", "content": ""}
+    if not token:
+        return ToolResult(ok=False, tool="feishu_send_image_message", summary="飞书 App 凭证未配置，图片未发送。", error="missing tenant_access_token", data={"payload": payload})
+    uploaded = _upload_openapi_media(
+        "feishu_send_image_message",
+        token,
+        endpoint="images",
+        file_path=req.image_path,
+        file_field="image",
+        form_data={"image_type": req.image_type},
+        response_key="image_key",
+    )
+    if not uploaded.ok:
+        return uploaded
+    image_key = uploaded.data["image_key"]
+    payload["content"] = json.dumps({"image_key": image_key}, ensure_ascii=False)
+    result = _send_openapi_message_with_token("feishu_send_image_message", token, req.receive_id_type, payload)
+    result.data["image_key"] = image_key
+    return result
+
+
+def feishu_send_file_message(req: FeishuSendFileRequest) -> ToolResult:
+    token = _tenant_token()
+    file_name = req.file_name or Path(req.file_path).name
+    payload = {"receive_id": req.receive_id, "msg_type": "file", "content": ""}
+    if not token:
+        return ToolResult(ok=False, tool="feishu_send_file_message", summary="飞书 App 凭证未配置，文件未发送。", error="missing tenant_access_token", data={"payload": payload})
+    uploaded = _upload_openapi_media(
+        "feishu_send_file_message",
+        token,
+        endpoint="files",
+        file_path=req.file_path,
+        file_field="file",
+        form_data={"file_type": req.file_type, "file_name": file_name},
+        response_key="file_key",
+        upload_name=file_name,
+    )
+    if not uploaded.ok:
+        return uploaded
+    file_key = uploaded.data["file_key"]
+    payload["content"] = json.dumps({"file_key": file_key}, ensure_ascii=False)
+    result = _send_openapi_message_with_token("feishu_send_file_message", token, req.receive_id_type, payload)
+    result.data["file_key"] = file_key
+    return result
+
+
 def feishu_send_interactive_card(req: FeishuSendCardRequest) -> ToolResult:
     payload = {"receive_id": req.receive_id, "msg_type": "interactive", "content": json.dumps(req.card, ensure_ascii=False)}
     return _send_openapi_message("feishu_send_interactive_card", req.receive_id_type, payload)
@@ -268,6 +332,10 @@ def _send_openapi_message(tool: str, receive_id_type: str, payload: dict[str, An
     token = _tenant_token()
     if not token:
         return ToolResult(ok=False, tool=tool, summary="飞书 App 凭证未配置，消息未发送。", error="missing tenant_access_token", data={"payload": payload})
+    return _send_openapi_message_with_token(tool, token, receive_id_type, payload)
+
+
+def _send_openapi_message_with_token(tool: str, token: str, receive_id_type: str, payload: dict[str, Any]) -> ToolResult:
     resp = requests.post(
         f"{settings.feishu_api_base_url.rstrip('/')}/open-apis/im/v1/messages",
         headers=_auth_headers(token),
@@ -277,6 +345,39 @@ def _send_openapi_message(tool: str, receive_id_type: str, payload: dict[str, An
     )
     result = _openapi_result(tool, resp)
     result.data["request_payload"] = payload
+    return result
+
+
+def _upload_openapi_media(
+    tool: str,
+    token: str,
+    endpoint: str,
+    file_path: str,
+    file_field: str,
+    form_data: dict[str, str],
+    response_key: str,
+    upload_name: str | None = None,
+) -> ToolResult:
+    path = Path(file_path)
+    if not path.is_file():
+        return ToolResult(ok=False, tool=tool, summary=f"待上传文件不存在：{path}", error="file_not_found", data={"file_path": str(path)})
+    with path.open("rb") as file_obj:
+        resp = requests.post(
+            f"{settings.feishu_api_base_url.rstrip('/')}/open-apis/im/v1/{endpoint}",
+            headers=_auth_upload_headers(token),
+            data=form_data,
+            files={file_field: (upload_name or path.name, file_obj)},
+            timeout=60,
+        )
+    result = _openapi_result(tool, resp)
+    if not result.ok:
+        return result
+    response = result.data.get("response", {})
+    response_data = response.get("data", {}) if isinstance(response, dict) else {}
+    media_key = response_data.get(response_key) if isinstance(response_data, dict) else None
+    if not media_key:
+        return ToolResult(ok=False, tool=tool, summary=f"飞书上传成功但未返回 {response_key}。", error=f"missing_{response_key}", data=result.data)
+    result.data[response_key] = media_key
     return result
 
 
@@ -297,6 +398,10 @@ def _tenant_token() -> str | None:
 
 def _auth_headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}", "Content-Type": "application/json; charset=utf-8"}
+
+
+def _auth_upload_headers(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
 
 
 def _openapi_result(tool: str, resp: requests.Response) -> ToolResult:
