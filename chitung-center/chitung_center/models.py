@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 IntentName = Literal[
@@ -63,6 +63,13 @@ class ConfirmationResolveApiRequest(BaseModel):
 
 class FeishuEventWebhookRequest(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_raw_feishu_event(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "payload" not in data:
+            return {"payload": data}
+        return data
 
 
 class WorkflowRunRequest(BaseModel):

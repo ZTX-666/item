@@ -83,10 +83,20 @@ async def handle_feishu_event(payload: dict[str, Any]) -> dict[str, Any]:
         metadata=center_payload.get("metadata") or {},
     )
     chat_response = await orchestrator.handle_message(chat_request)
+    chat_response_payload = chat_response.model_dump()
+    reply_send: dict[str, Any] | None = None
+    chat_id = center_payload.get("metadata", {}).get("chat_id") if isinstance(center_payload.get("metadata"), dict) else None
+    reply_text = str(chat_response_payload.get("reply") or "").strip()
+    if chat_id and reply_text:
+        reply_send = await toolbox_client.call_tool(
+            "feishu_send_text_message",
+            {"receive_id": str(chat_id), "receive_id_type": "chat_id", "text": reply_text},
+        )
     return {
         "ok": True,
         "stage": "chat_routed",
         "tool_result": callback,
         "route": route,
-        "chat_response": chat_response.model_dump(),
+        "chat_response": chat_response_payload,
+        "reply_send": reply_send,
     }
