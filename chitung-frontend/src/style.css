@@ -379,16 +379,11 @@ input[type='radio'] {
 }
 
 .topbar__logo {
-  align-items: center;
-  background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
   border-radius: var(--radius-md);
-  box-shadow: 0 2px 8px rgb(231 0 18 / 28%);
-  color: var(--text-white);
-  display: flex;
-  font-size: 18px;
-  font-weight: 700;
+  box-shadow: var(--shadow-xs);
+  flex-shrink: 0;
   height: 36px;
-  justify-content: center;
+  object-fit: contain;
   width: 36px;
 }
 

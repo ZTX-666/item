@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import guardianLogo from '../../assets/logos/guardian.png'
+import docmateLogo from '../../assets/logos/docmate.png'
+import lingxunLogo from '../../assets/logos/lingxun.png'
+import centerLogo from '../../assets/logos/center.png'
+import yaoyaoLogo from '../../assets/logos/yaoyao.png'
 
 const props = defineProps<{
   activePanel: string
@@ -24,9 +29,9 @@ interface PanelDef {
 const panels: Record<string, PanelDef> = {
   guardian: {
     id: 'guardian',
-    icon: '🛡️',
-    label: '望风险',
-    tagline: '赤瞳守护者',
+    icon: guardianLogo,
+    label: '赤瞳守護者',
+    tagline: '望風險',
     items: [
       { icon: '📊', label: '工作台总览', path: '/guardian/dashboard' },
       { icon: '✅', label: '待确认事项', path: '/guardian/confirmations' },
@@ -36,9 +41,9 @@ const panels: Record<string, PanelDef> = {
   },
   docmate: {
     id: 'docmate',
-    icon: '📄',
-    label: '书文稿',
-    tagline: '闪闪文档',
+    icon: docmateLogo,
+    label: '閃閃文檔',
+    tagline: '書文檔',
     items: [
       { icon: '✨', label: '文档审阅', path: '/docmate/documents', note: 'DOCX' },
       { icon: '📝', label: '智能填表', path: '/docmate/forms' },
@@ -48,18 +53,18 @@ const panels: Record<string, PanelDef> = {
   },
   lingxun: {
     id: 'lingxun',
-    icon: '💬',
-    label: '闻动态',
-    tagline: '赤瞳灵讯',
+    icon: lingxunLogo,
+    label: '赤瞳零訊',
+    tagline: '聞動態',
     items: [
       { icon: '📱', label: 'WhatsApp 运维', path: '/lingxun/whatsapp' },
     ],
   },
   center: {
     id: 'center',
-    icon: '🧩',
-    label: '统全局',
-    tagline: '赤瞳中台',
+    icon: centerLogo,
+    label: '赤瞳中台',
+    tagline: '統全局',
     items: [
       { icon: '⚙️', label: '系统设置', path: '/center/settings' },
       { icon: '🤖', label: 'AI 助手', path: '/center/assistant' },
@@ -69,9 +74,9 @@ const panels: Record<string, PanelDef> = {
   },
   yaoyao: {
     id: 'yaoyao',
-    icon: '📚',
-    label: '问制度',
-    tagline: '耀耀慧读',
+    icon: yaoyaoLogo,
+    label: '耀耀慧讀',
+    tagline: '問制度',
     items: [
       { icon: '📸', label: 'OCR 结构化', path: '/yaoyao/structured' },
       { icon: '🔎', label: 'RAG 检索', path: '/yaoyao/rag', note: '预留' },
@@ -92,7 +97,7 @@ function isActive(path: string): boolean {
 <template>
   <aside class="panel-sidebar">
     <div class="panel-sidebar__header">
-      <span class="panel-sidebar__header-icon">{{ currentPanel.icon }}</span>
+      <img class="panel-sidebar__header-icon" :src="currentPanel.icon" :alt="currentPanel.label" />
       <div class="panel-sidebar__header-text">
         <span class="panel-sidebar__header-label">{{ currentPanel.label }}</span>
         <span class="panel-sidebar__header-tagline">{{ currentPanel.tagline }}</span>
@@ -142,15 +147,14 @@ function isActive(path: string): boolean {
 }
 
 .panel-sidebar__header-icon {
-  align-items: center;
   background: linear-gradient(135deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 4%));
   border: 1px solid var(--rail-border);
   border-radius: var(--radius-lg);
-  display: flex;
-  font-size: 20px;
-  height: 38px;
-  justify-content: center;
-  width: 38px;
+  flex-shrink: 0;
+  height: 40px;
+  object-fit: contain;
+  padding: 4px;
+  width: 40px;
 }
 
 .panel-sidebar__header-text {

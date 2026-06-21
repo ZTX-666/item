@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import guardianLogo from '../../assets/logos/guardian.png'
+import docmateLogo from '../../assets/logos/docmate.png'
+import lingxunLogo from '../../assets/logos/lingxun.png'
+import centerLogo from '../../assets/logos/center.png'
+import yaoyaoLogo from '../../assets/logos/yaoyao.png'
+
 defineProps<{
   activePanel: string
 }>()
@@ -8,11 +14,11 @@ const emit = defineEmits<{
 }>()
 
 const panels = [
-  { id: 'guardian', icon: '🛡️', label: '望风险' },
-  { id: 'docmate', icon: '📄', label: '书文稿' },
-  { id: 'lingxun', icon: '💬', label: '闻动态' },
-  { id: 'center', icon: '🧩', label: '统全局' },
-  { id: 'yaoyao', icon: '📚', label: '问制度' },
+  { id: 'guardian', logo: guardianLogo, label: '赤瞳守護者' },
+  { id: 'docmate', logo: docmateLogo, label: '閃閃文檔' },
+  { id: 'lingxun', logo: lingxunLogo, label: '赤瞳零訊' },
+  { id: 'center', logo: centerLogo, label: '赤瞳中台' },
+  { id: 'yaoyao', logo: yaoyaoLogo, label: '耀耀慧讀' },
 ]
 </script>
 
@@ -27,7 +33,7 @@ const panels = [
         :title="panel.label"
         @click="emit('select', panel.id)"
       >
-        <span class="activity-bar__emoji">{{ panel.icon }}</span>
+        <img class="activity-bar__logo" :src="panel.logo" :alt="panel.label" />
         <span class="activity-bar__label">{{ panel.label }}</span>
       </button>
     </div>
@@ -51,7 +57,7 @@ const panels = [
   height: 100%;
   justify-content: space-between;
   padding: 10px 0;
-  width: 64px;
+  width: 72px;
 }
 
 .activity-bar__top,
@@ -71,13 +77,13 @@ const panels = [
   color: var(--rail-text-muted);
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   justify-content: center;
   margin: 0 8px;
   padding: 8px 0;
   position: relative;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
-  width: 48px;
+  width: 56px;
 }
 
 .activity-bar__item:hover {
@@ -101,8 +107,23 @@ const panels = [
   width: 3px;
 }
 
+.activity-bar__logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  opacity: 0.9;
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.activity-bar__item:hover .activity-bar__logo,
+.activity-bar__item--active .activity-bar__logo {
+  opacity: 1;
+  transform: scale(1.06);
+}
+
 .activity-bar__emoji {
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
   opacity: 0.82;
   transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
@@ -118,5 +139,7 @@ const panels = [
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.2px;
+  line-height: 1.15;
+  text-align: center;
 }
 </style>
