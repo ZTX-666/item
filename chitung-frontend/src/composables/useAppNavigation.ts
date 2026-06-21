@@ -11,6 +11,7 @@ export type AppPage =
 
 export const navigateKey: InjectionKey<(page: AppPage) => void> = Symbol('navigate')
 export const confirmationsRefreshKey: InjectionKey<Ref<number>> = Symbol('confirmationsRefresh')
+export const openChatbotKey: InjectionKey<() => void> = Symbol('openChatbot')
 
 export function useAppNavigation() {
   const navigate = inject(navigateKey)

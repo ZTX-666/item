@@ -424,6 +424,24 @@ class DocmatePipelineRequest(BaseModel):
     context: Optional[str] = Field(default=None, description="额外上下文（文本）")
 
 
+class DocmateCommitRequest(BaseModel):
+    doc_id: str = Field(..., description="文档 ID（来自上传/读取）")
+    edits: list[dict] = Field(
+        default_factory=list,
+        description="累积采纳的编辑项：[{type: replace|delete|append, target, replacement}]",
+    )
+    save_as: Optional[str] = Field(default=None, description="输出文件路径（可选）")
+
+
+class DocmateRetryRequest(BaseModel):
+    doc_id: str = Field(..., description="文档 ID（来自上传/读取）")
+    instruction: str = Field(default="", description="原始修改指令")
+    items: list[dict] = Field(
+        default_factory=list,
+        description="需要重做的修改项：[{type, target, replacement}]",
+    )
+
+
 class TableMappingExtractRequest(BaseModel):
     file_path: str = Field(..., description=".docx 文件路径")
     form_id: str = Field(..., description="C-SMART 表单 ID，如 4.2")

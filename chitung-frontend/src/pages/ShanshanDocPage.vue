@@ -1,188 +1,122 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { docmateRead, docmateGenerate, docmatePreview, docmateApply } from '../services/chitungApi'
-import type {
-  DocmateReadResult,
-  DocmateGenerateResult,
-  DocmatePreviewResult,
-  DocmateApplyResult,
-  DocmatePreviewCard,
-} from '../types/domain'
+import { computed, inject, ref } from 'vue'
+import { useDocmateSession } from '../composables/useDocmateSession'
+import { openChatbotKey } from '../composables/useAppNavigation'
+import type { DocmateChange } from '../types/domain'
 
-// ── State ──
-const step = ref<
-  'idle' | 'loading' | 'loaded' | 'generating' | 'generated' | 'previewing' | 'previewed' | 'applying' | 'applied' | 'error'
->('idle')
+const { state, isLoaded, docName, docStats, pendingChanges, previewParagraphs, acceptedAppends, uploadDocument, unload } =
+  useDocmateSession()
+const openChatbot = inject(openChatbotKey)
 
-const filePath = ref('')
-const docId = ref('')
-const readResult = ref<DocmateReadResult | null>(null)
-const genResult = ref<DocmateGenerateResult | null>(null)
-const previewResult = ref<DocmatePreviewResult | null>(null)
-const applyResult = ref<DocmateApplyResult | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
+const dragOver = ref(false)
 
-const instruction = ref('')
-const outputPath = ref('')
-const acceptedChangeIds = ref<Set<string>>(new Set())
-const errorMsg = ref('')
+function pickFile() {
+  fileInput.value?.click()
+}
 
-// ── Computed ──
-const previewCards = computed<DocmatePreviewCard[]>(() =>
-  previewResult.value?.data?.preview_cards ?? genResult.value?.data?.preview_cards ?? []
+async function ingest(file: File) {
+  const result = await uploadDocument(file)
+  if (result.ok) openChatbot?.()
+}
+
+async function onFileChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (file) await ingest(file)
+  target.value = ''
+}
+
+async function onDrop(event: DragEvent) {
+  dragOver.value = false
+  const file = event.dataTransfer?.files?.[0]
+  if (file) await ingest(file)
+}
+
+// ── inline diff highlighting in the preview ──
+interface Seg {
+  kind: 'ctx' | 'del' | 'ins'
+  text: string
+}
+
+const appendChanges = computed(() =>
+  pendingChanges.value.filter((c) => c.type === 'text_append' && c.replacement),
 )
 
-const docStats = computed(() => readResult.value?.data?.stats ?? { paragraph_count: 0, table_count: 0, image_count: 0 })
-
-const allRiskLow = computed(() =>
-  previewCards.value.every((c) => c.risk_level === 'low')
-)
-
-const toggleChange = (changeId: string) => {
-  const next = new Set(acceptedChangeIds.value)
-  if (next.has(changeId)) next.delete(changeId)
-  else next.add(changeId)
-  acceptedChangeIds.value = next
+// Match purely by target text within the paragraph. Paragraph indices from the
+// backend are original-docx indices (with gaps for blank lines) and don't line
+// up with the compact preview list, so we rely on the verbatim target instead.
+// Supports MULTIPLE changes within the same paragraph.
+function changesForText(text: string): DocmateChange[] {
+  return pendingChanges.value.filter(
+    (c) => c.type !== 'text_append' && !!c.target && text.includes(c.target),
+  )
 }
 
-const selectAll = () => {
-  acceptedChangeIds.value = new Set(previewCards.value.map((c) => c.change_id))
-}
+function segmentsFor(text: string): Seg[] {
+  const applicable = changesForText(text)
+  if (!applicable.length) return [{ kind: 'ctx', text }]
 
-const deselectAll = () => {
-  acceptedChangeIds.value = new Set()
-}
+  const hits = applicable
+    .map((c) => ({ change: c, at: text.indexOf(c.target as string) }))
+    .filter((h) => h.at >= 0)
+    .sort((a, b) => a.at - b.at)
 
-// ── Actions ──
-async function handleLoad() {
-  if (!filePath.value.trim()) return
-  step.value = 'loading'
-  errorMsg.value = ''
-  try {
-    const r = await docmateRead(filePath.value.trim())
-    if (!r.ok) throw new Error(r.error ?? '读取失败')
-    if (!r.data.doc_id) throw new Error('文档读取成功但未返回 doc_id')
-    readResult.value = r
-    docId.value = r.data.doc_id
-    genResult.value = null
-    previewResult.value = null
-    applyResult.value = null
-    acceptedChangeIds.value = new Set()
-    step.value = 'loaded'
-  } catch (e: unknown) {
-    errorMsg.value = e instanceof Error ? e.message : '未知错误'
-    step.value = 'error'
-  }
-}
-
-async function handleGenerate() {
-  if (!instruction.value.trim() || !docId.value) return
-  step.value = 'generating'
-  errorMsg.value = ''
-  try {
-    const r = await docmateGenerate({ docId: docId.value, instruction: instruction.value.trim() })
-    if (!r.ok) throw new Error(r.error ?? '生成失败')
-    genResult.value = r
-    previewResult.value = null
-    acceptedChangeIds.value = new Set(r.data.preview_cards.map((c) => c.change_id))
-    step.value = 'generated'
-
-    if (!outputPath.value.trim() && readResult.value?.data?.source_path) {
-      outputPath.value = readResult.value.data.source_path.replace(/\.docx$/i, '_modified.docx')
+  const segs: Seg[] = []
+  let cursor = 0
+  for (const { change, at } of hits) {
+    if (at < cursor) continue // overlapping change already covered — skip
+    if (at > cursor) segs.push({ kind: 'ctx', text: text.slice(cursor, at) })
+    const target = change.target as string
+    segs.push({ kind: 'del', text: target })
+    if (change.type !== 'text_delete' && change.replacement) {
+      segs.push({ kind: 'ins', text: change.replacement })
     }
-  } catch (e: unknown) {
-    errorMsg.value = e instanceof Error ? e.message : '未知错误'
-    step.value = 'error'
+    cursor = at + target.length
   }
+  if (cursor < text.length) segs.push({ kind: 'ctx', text: text.slice(cursor) })
+  return segs
 }
 
-async function handlePreview() {
-  if (!genResult.value?.data?.changeset_id) return
-  step.value = 'previewing'
-  errorMsg.value = ''
-  try {
-    const r = await docmatePreview(genResult.value.data.changeset_id)
-    if (!r.ok) throw new Error(r.error ?? '预览失败')
-    previewResult.value = r
-    acceptedChangeIds.value = new Set(r.data.preview_cards.map((c) => c.change_id))
-    step.value = 'previewed'
-  } catch (e: unknown) {
-    errorMsg.value = e instanceof Error ? e.message : '未知错误'
-    step.value = 'error'
-  }
-}
-
-async function handleApply() {
-  if (!genResult.value?.data?.changeset_id || !outputPath.value.trim()) return
-  step.value = 'applying'
-  errorMsg.value = ''
-  try {
-    const r = await docmateApply({
-      changesetId: genResult.value.data.changeset_id,
-      acceptedChangeIds: [...acceptedChangeIds.value],
-      saveAs: outputPath.value.trim(),
-    })
-    applyResult.value = r
-    step.value = r.ok ? 'applied' : 'error'
-    if (!r.ok) errorMsg.value = '应用失败'
-  } catch (e: unknown) {
-    errorMsg.value = e instanceof Error ? e.message : '未知错误'
-    step.value = 'error'
-  }
-}
-
-function handleReset() {
-  step.value = 'idle'
-  readResult.value = null
-  genResult.value = null
-  previewResult.value = null
-  applyResult.value = null
-  docId.value = ''
-  instruction.value = ''
-  outputPath.value = ''
-  acceptedChangeIds.value = new Set()
-  errorMsg.value = ''
-}
-
-function riskClass(level: string) {
-  if (level === 'high' || level === 'critical') return 'risk-high'
-  if (level === 'medium') return 'risk-medium'
-  return 'risk-low'
-}
-
-function riskLabel(level: string) {
-  if (level === 'high' || level === 'critical') return '高风险'
-  if (level === 'medium') return '中风险'
-  return '低风险'
+function paragraphChanged(text: string): boolean {
+  return changesForText(text).length > 0
 }
 </script>
 
 <template>
   <div class="shanshan-doc">
-    <!-- Left Panel: File Input + Doc Info -->
-    <aside class="panel panel--left">
-      <h2 class="panel__title">文档加载</h2>
-      <div class="field">
-        <label class="field__label" for="docx-path">.docx 文件路径</label>
-        <input
-          id="docx-path"
-          v-model="filePath"
-          type="text"
-          class="field__input"
-          placeholder="C:\path\to\document.docx"
-          :disabled="step === 'loading' || step === 'generating' || step === 'applying'"
-        />
-      </div>
-      <button
-        class="btn btn--primary"
-        :disabled="!filePath.trim() || step === 'loading'"
-        @click="handleLoad"
-      >
-        <span v-if="step === 'loading'" class="spinner"></span>
-        <span v-else>加载文档</span>
-      </button>
+    <!-- Left: upload + doc info -->
+    <aside class="sd-panel sd-panel--left">
+      <h2 class="sd-title">文档</h2>
 
-      <div v-if="readResult" class="doc-info">
-        <h3 class="doc-info__title">文档信息</h3>
+      <div
+        class="dropzone"
+        :class="{ 'dropzone--over': dragOver, 'dropzone--busy': state.step === 'loading' }"
+        @click="pickFile"
+        @dragover.prevent="dragOver = true"
+        @dragleave.prevent="dragOver = false"
+        @drop.prevent="onDrop"
+      >
+        <template v-if="state.step === 'loading'">
+          <span class="spinner spinner--lg"></span>
+          <p>正在解析文档...</p>
+        </template>
+        <template v-else>
+          <span class="dropzone__icon">📄⬆️</span>
+          <p class="dropzone__lead">点击或拖拽上传 .docx 文档</p>
+          <p class="dropzone__hint">无需文件路径，选好文件即可开始</p>
+        </template>
+      </div>
+      <input ref="fileInput" type="file" accept=".docx" class="hidden-input" @change="onFileChange" />
+
+      <p class="hint">上传后，在<strong>左下角「🤖 赤瞳 AI」</strong>助手中用自然语言改稿。</p>
+
+      <div v-if="isLoaded" class="doc-info">
+        <h3 class="doc-info__title">当前文档</h3>
+        <div class="doc-info__stat">
+          <span class="stat-label">文件名</span>
+          <span class="stat-value" :title="docName">{{ docName }}</span>
+        </div>
         <div class="doc-info__stat">
           <span class="stat-label">段落数</span>
           <span class="stat-value">{{ docStats.paragraph_count }}</span>
@@ -195,177 +129,83 @@ function riskLabel(level: string) {
           <span class="stat-label">图片数</span>
           <span class="stat-value">{{ docStats.image_count }}</span>
         </div>
-        <div class="doc-info__stat">
-          <span class="stat-label">Doc ID</span>
-          <span class="stat-value stat-value--mono">{{ docId.slice(0, 12) }}...</span>
-        </div>
+        <button class="ghost-btn" @click="unload">移除文档</button>
+      </div>
+
+      <div v-if="state.step === 'error' && state.error" class="error-card">
+        <span>⚠️</span>
+        <p>{{ state.error }}</p>
       </div>
     </aside>
 
-    <!-- Center Panel: Document Content Preview -->
-    <main class="panel panel--center">
-      <h2 class="panel__title">文档预览</h2>
-      <div v-if="step === 'idle'" class="empty-state">
-        <span class="empty-state__icon">📄</span>
-        <p>输入 .docx 文件路径后点击「加载文档」</p>
+    <!-- Center: document preview with inline diff highlights -->
+    <main class="sd-panel sd-panel--center">
+      <div class="sd-center-head">
+        <h2 class="sd-title">文档预览</h2>
+        <span v-if="pendingChanges.length" class="diff-legend">
+          <span class="legend legend--del">删除</span>
+          <span class="legend legend--ins">新增</span>
+          待审阅 {{ pendingChanges.length }} 处
+        </span>
       </div>
-      <div v-else-if="step === 'loading'" class="empty-state">
-        <span class="spinner spinner--large"></span>
+
+      <div v-if="!isLoaded && state.step !== 'loading'" class="empty-state">
+        <span class="empty-state__icon">📄</span>
+        <p>上传一份 .docx 文档后在此预览</p>
+      </div>
+      <div v-else-if="state.step === 'loading'" class="empty-state">
+        <span class="spinner spinner--lg"></span>
         <p>正在解析文档...</p>
       </div>
-      <div v-else-if="readResult" class="doc-preview">
-        <div class="doc-preview__text">
-          <p class="doc-preview__heading">文档段落内容</p>
-          <div
-            v-for="(p, idx) in readResult.data.structure.paragraphs"
-            :key="idx"
-            class="doc-preview__para"
-          >
-            <span class="para-index">{{ idx + 1 }}</span>
-            <span class="para-text">{{ p.text }}</span>
-          </div>
+      <div v-else-if="state.structure" class="doc-preview">
+        <div
+          v-for="(p, idx) in previewParagraphs"
+          :key="idx"
+          class="doc-para"
+          :class="{ 'doc-para--changed': paragraphChanged(p.text) }"
+        >
+          <span class="para-index">{{ idx + 1 }}</span>
+          <span v-if="p.deleted" class="para-text para-text--deleted">（本段已删除）</span>
+          <span v-else class="para-text">
+            <template v-for="(seg, i) in segmentsFor(p.text)" :key="i">
+              <del v-if="seg.kind === 'del'" class="seg-del">{{ seg.text }}</del>
+              <ins v-else-if="seg.kind === 'ins'" class="seg-ins">{{ seg.text }}</ins>
+              <span v-else>{{ seg.text }}</span>
+            </template>
+          </span>
         </div>
-      </div>
-      <div v-else-if="errorMsg" class="error-card">
-        <span class="error-card__icon">⚠️</span>
-        <p>{{ errorMsg }}</p>
+
+        <!-- accepted appends: now part of the document, shown as plain text -->
+        <div v-for="(c, i) in acceptedAppends" :key="`acc-${i}`" class="doc-para">
+          <span class="para-index">·</span>
+          <span class="para-text">{{ c.replacement }}</span>
+        </div>
+
+        <!-- pending appends shown as proposed green lines -->
+        <div v-for="(c, i) in appendChanges" :key="`app-${i}`" class="doc-para doc-para--changed">
+          <span class="para-index">＋</span>
+          <span class="para-text"><ins class="seg-ins">{{ c.replacement }}</ins></span>
+        </div>
       </div>
     </main>
-
-    <!-- Right Panel: AI Instruction + Changes -->
-    <aside class="panel panel--right">
-      <h2 class="panel__title">AI 编辑指令</h2>
-
-      <!-- Instruction input -->
-      <div class="field">
-        <label class="field__label" for="instruction">修改指令</label>
-        <textarea
-          id="instruction"
-          v-model="instruction"
-          class="field__textarea"
-          rows="3"
-          placeholder="例如：将巡检人员从张三改为李四&#10;或：把风险等级改为高风险"
-          :disabled="step !== 'loaded'"
-        ></textarea>
-      </div>
-      <button
-        class="btn btn--accent"
-        :disabled="!instruction.trim() || step !== 'loaded'"
-        @click="handleGenerate"
-      >
-        <span v-if="step === 'generating'" class="spinner"></span>
-        <span v-else>生成修改方案</span>
-      </button>
-
-      <button
-        class="btn btn--small btn--preview"
-        :disabled="!genResult?.data?.changeset_id || (step !== 'generated' && step !== 'previewed')"
-        @click="handlePreview"
-      >
-        <span v-if="step === 'previewing'" class="spinner"></span>
-        <span v-else>刷新预览</span>
-      </button>
-
-      <!-- Change preview cards -->
-      <div v-if="previewCards.length > 0" class="changes-section">
-        <div class="changes-section__header">
-          <h3>变更预览 ({{ previewCards.length }} 项)</h3>
-          <div class="changes-section__actions">
-            <button class="btn btn--small" @click="selectAll">全选</button>
-            <button class="btn btn--small" @click="deselectAll">取消</button>
-          </div>
-        </div>
-        <div class="changes-list">
-          <div
-            v-for="card in previewCards"
-            :key="card.change_id"
-            class="change-card"
-            :class="{ 'change-card--selected': acceptedChangeIds.has(card.change_id) }"
-            @click="toggleChange(card.change_id)"
-          >
-            <div class="change-card__header">
-              <span class="change-card__checkbox">
-                {{ acceptedChangeIds.has(card.change_id) ? '☑' : '☐' }}
-              </span>
-              <span class="change-card__title">{{ card.title }}</span>
-              <span class="change-card__badge" :class="riskClass(card.risk_level)">
-                {{ riskLabel(card.risk_level) }}
-              </span>
-            </div>
-            <div class="change-card__diff">
-              <div class="diff-line diff-line--old">{{ card.before }}</div>
-              <div class="diff-line diff-line--new">{{ card.after }}</div>
-            </div>
-            <div class="change-card__meta">
-              <span>{{ card.type }}</span>
-              <span>置信度 {{ Math.round(card.confidence * 100) }}%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Output & Apply -->
-      <div v-if="step === 'generated' || step === 'previewed' || step === 'applying'" class="apply-section">
-        <div class="field">
-          <label class="field__label" for="output-path">输出路径</label>
-          <input
-            id="output-path"
-            v-model="outputPath"
-            type="text"
-            class="field__input"
-            :placeholder="readResult?.data?.source_path?.replace('.docx', '_modified.docx') ?? 'C:\\output.docx'"
-          />
-        </div>
-        <button
-          class="btn btn--primary"
-          :disabled="!outputPath.trim() || acceptedChangeIds.size === 0"
-          @click="handleApply"
-        >
-          <span v-if="step === 'applying'" class="spinner"></span>
-          <span>{{ step === 'applying' ? '应用中...' : `应用修改 (${acceptedChangeIds.size} 项)` }}</span>
-        </button>
-        <p v-if="!allRiskLow" class="risk-warning">
-          ⚠️ 包含中高风险变更，请仔细确认后再应用。
-        </p>
-      </div>
-
-      <!-- Apply result -->
-      <div v-if="step === 'applied' && applyResult" class="result-card result-card--success">
-        <span class="result-card__icon">✅</span>
-        <p><strong>应用成功</strong></p>
-        <p>已应用 {{ applyResult.data.applied }} 项，拒绝 {{ applyResult.data.rejected }} 项</p>
-        <p class="result-card__path">输出：{{ applyResult.data.output_path }}</p>
-        <p class="result-card__path">备份：{{ applyResult.data.backup_path }}</p>
-      </div>
-
-      <!-- Error -->
-      <div v-if="errorMsg && step === 'error'" class="result-card result-card--error">
-        <span class="result-card__icon">❌</span>
-        <p>{{ errorMsg }}</p>
-      </div>
-
-      <!-- Reset -->
-      <div v-if="step === 'applied' || step === 'error'" class="reset-area">
-        <button class="btn btn--ghost" @click="handleReset">重新开始</button>
-      </div>
-    </aside>
   </div>
 </template>
 
 <style scoped>
 .shanshan-doc {
   display: grid;
-  grid-template-columns: 260px 1fr 340px;
+  grid-template-columns: 280px 1fr;
   gap: 16px;
   height: calc(100vh - 56px);
   padding: 16px;
   overflow: hidden;
 }
 
-.panel {
-  background: var(--bg-card, #1a1a1e);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+.sd-panel {
+  background: var(--bg-white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
   padding: 16px;
   overflow-y: auto;
   display: flex;
@@ -373,127 +213,135 @@ function riskLabel(level: string) {
   gap: 12px;
 }
 
-.panel__title {
+.sd-title {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary, #a0a0a8);
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.4px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
   margin: 0;
 }
 
-.field {
+.sd-center-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.diff-legend {
+  align-items: center;
+  color: var(--text-secondary);
+  display: flex;
+  font-size: 11px;
+  gap: 6px;
+}
+
+.legend {
+  border-radius: var(--radius-xs);
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+.legend--del {
+  background: var(--brand-red-light);
+  color: var(--brand-red);
+  text-decoration: line-through;
+}
+
+.legend--ins {
+  background: #edf7e8;
+  color: var(--brand-green);
+}
+
+.dropzone {
+  align-items: center;
+  background: var(--bg-subtle);
+  border: 1.5px dashed var(--border-normal);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.field__label {
-  font-size: 11px;
-  color: var(--text-secondary, #a0a0a8);
-}
-
-.field__input,
-.field__textarea {
-  background: var(--bg-primary, #0f0f12);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-primary, #e8e8ec);
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.field__input:focus,
-.field__textarea:focus {
-  border-color: var(--accent, #6c8cff);
-}
-
-.field__textarea {
-  resize: vertical;
-  min-height: 60px;
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: 6px;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
+  justify-content: center;
+  padding: 24px 12px;
+  text-align: center;
   transition: all 0.15s;
 }
 
-.btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.dropzone:hover {
+  border-color: var(--brand-cyan);
+  background: var(--bg-active);
 }
 
-.btn--primary {
-  background: linear-gradient(135deg, #6c8cff, #5070e0);
-  color: #fff;
+.dropzone--over {
+  border-color: var(--brand-cyan);
+  background: var(--bg-active);
 }
 
-.btn--primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #7d9aff, #6080f0);
+.dropzone--busy {
+  cursor: default;
+  opacity: 0.7;
 }
 
-.btn--accent {
-  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
-  color: #fff;
+.dropzone__icon {
+  font-size: 28px;
 }
 
-.btn--accent:hover:not(:disabled) {
-  background: linear-gradient(135deg, #b89eff, #9d6fff);
+.dropzone__lead {
+  color: var(--text-primary);
+  font-size: 13px;
+  margin: 0;
 }
 
-.btn--small {
-  padding: 4px 10px;
+.dropzone__hint {
+  color: var(--text-secondary);
   font-size: 11px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-secondary, #a0a0a8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 0;
 }
 
-.btn--small:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary, #e8e8ec);
+.hidden-input {
+  display: none;
 }
 
-.btn--preview {
-  align-self: flex-start;
+.hint {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 0;
 }
 
-.btn--ghost {
-  background: transparent;
-  color: var(--text-secondary, #a0a0a8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.hint strong {
+  color: var(--brand-red);
 }
 
-.btn--ghost:hover {
-  color: var(--text-primary, #e8e8ec);
-  border-color: rgba(255, 255, 255, 0.2);
+.ghost-btn {
+  background: var(--bg-white);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 7px 12px;
+  width: 100%;
+}
+
+.ghost-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
 }
 
 .spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border: 2px solid rgba(15, 158, 213, 0.25);
+  border-top-color: var(--brand-cyan);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
   display: inline-block;
 }
 
-.spinner--large {
-  width: 32px;
-  height: 32px;
+.spinner--lg {
+  width: 30px;
+  height: 30px;
   border-width: 3px;
 }
 
@@ -502,249 +350,112 @@ function riskLabel(level: string) {
 }
 
 .doc-info {
-  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .doc-info__title {
+  color: var(--text-secondary);
   font-size: 12px;
-  color: var(--text-secondary, #a0a0a8);
-  margin: 0 0 8px 0;
+  margin: 0 0 4px 0;
 }
 
 .doc-info__stat {
   display: flex;
+  gap: 8px;
   justify-content: space-between;
-  padding: 4px 0;
   font-size: 12px;
+  padding: 3px 0;
 }
 
-.stat-label { color: var(--text-secondary, #a0a0a8); }
-.stat-value { color: var(--text-primary, #e8e8ec); font-weight: 500; }
-.stat-value--mono { font-family: 'Consolas', monospace; font-size: 11px; }
+.stat-label { color: var(--text-secondary); flex-shrink: 0; }
+.stat-value {
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.error-card {
+  align-items: flex-start;
+  background: var(--brand-red-light);
+  border: 1px solid rgb(231 0 18 / 18%);
+  border-radius: var(--radius-md);
+  color: var(--brand-red);
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.error-card p { margin: 0; }
 
 .empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: var(--text-secondary, #a0a0a8);
+  color: var(--text-secondary);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   font-size: 13px;
+  gap: 12px;
+  justify-content: center;
 }
 
 .empty-state__icon { font-size: 32px; }
 
-.doc-preview { flex: 1; overflow-y: auto; }
-
-.doc-preview__heading {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary, #a0a0a8);
-  margin-bottom: 8px;
+.doc-preview {
+  flex: 1;
+  overflow-y: auto;
 }
 
-.doc-preview__para {
+.doc-para {
+  border-bottom: 1px solid var(--border-light);
   display: flex;
   gap: 8px;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 6px 4px;
+}
+
+.doc-para--changed {
+  background: rgb(15 158 213 / 5%);
+  border-radius: var(--radius-sm);
+}
+
+.para-text--deleted {
+  color: var(--text-muted);
+  font-style: italic;
+  text-decoration: line-through;
 }
 
 .para-index {
+  color: var(--text-muted);
   flex-shrink: 0;
-  width: 22px;
-  font-size: 10px;
-  color: var(--text-secondary, #a0a0a8);
+  font-size: 11px;
   text-align: right;
+  width: 22px;
 }
 
 .para-text {
+  color: var(--text-primary);
   font-size: 13px;
-  color: var(--text-primary, #e8e8ec);
-  line-height: 1.5;
+  line-height: 1.7;
+  white-space: pre-wrap;
 }
 
-.error-card {
-  display: flex;
-  gap: 8px;
-  padding: 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  border-radius: 8px;
-  font-size: 13px;
-  color: #fca5a5;
+.seg-del {
+  background: var(--brand-red-light);
+  color: var(--brand-red);
+  border-radius: 2px;
+  padding: 0 2px;
+  text-decoration: line-through;
 }
 
-.error-card__icon { font-size: 16px; flex-shrink: 0; }
-
-.changes-section {
-  margin-top: 4px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.changes-section__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.changes-section__header h3 {
-  font-size: 12px;
-  color: var(--text-secondary, #a0a0a8);
-  margin: 0;
-}
-
-.changes-section__actions {
-  display: flex;
-  gap: 4px;
-}
-
-.changes-list {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.change-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 8px;
-  padding: 10px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.change-card:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-.change-card--selected {
-  border-color: rgba(108, 140, 255, 0.4);
-  background: rgba(108, 140, 255, 0.08);
-}
-
-.change-card__header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.change-card__checkbox { font-size: 14px; }
-
-.change-card__title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary, #e8e8ec);
-  flex: 1;
-}
-
-.change-card__badge {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 500;
-}
-
-.risk-low {
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
-}
-
-.risk-medium {
-  background: rgba(251, 191, 36, 0.15);
-  color: #fbbf24;
-}
-
-.risk-high {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-}
-
-.change-card__diff {
-  margin-bottom: 6px;
-}
-
-.diff-line {
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.diff-line--old {
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.08);
-}
-
-.diff-line--new {
-  color: #4ade80;
-  background: rgba(34, 197, 94, 0.08);
-}
-
-.change-card__meta {
-  display: flex;
-  gap: 12px;
-  font-size: 10px;
-  color: var(--text-secondary, #a0a0a8);
-}
-
-.apply-section {
-  margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.risk-warning {
-  font-size: 11px;
-  color: #fbbf24;
-  margin: 0;
-}
-
-.result-card {
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.result-card--success {
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.2);
-  color: #86efac;
-}
-
-.result-card--error {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-}
-
-.result-card__icon { font-size: 18px; }
-.result-card p { margin: 2px 0; }
-.result-card__path {
-  font-family: 'Consolas', monospace;
-  font-size: 10px;
-  opacity: 0.8;
-  word-break: break-all;
-}
-
-.reset-area {
-  text-align: center;
-  padding-top: 4px;
+.seg-ins {
+  background: #edf7e8;
+  color: var(--brand-green);
+  border-radius: 2px;
+  padding: 0 2px;
+  text-decoration: none;
 }
 </style>

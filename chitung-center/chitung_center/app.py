@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import subprocess
+import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,10 +24,12 @@ from chitung_center.config import settings
 from chitung_center.document_service import build_document_revision_preview
 from chitung_center.docmate_service import (
     apply_changeset,
+    commit_edits,
     generate_changeset,
     pipeline_edit,
     preview_changeset,
     read_docx,
+    retry_edits,
 )
 from chitung_center.integrations import list_integrations
 from chitung_center.hybrid_orchestration import hybrid_orchestration_service
@@ -38,10 +42,12 @@ from chitung_center.models import (
     ConfirmationResolveApiRequest,
     FeishuEventWebhookRequest,
     DocmateApplyRequest,
+    DocmateCommitRequest,
     DocmateGenerateRequest,
     DocmatePipelineRequest,
     DocmatePreviewRequest,
     DocmateReadRequest,
+    DocmateRetryRequest,
     DocumentRevisionRequest,
     HazardStatusUpdateRequest,
     HybridConfirmRequest,
@@ -282,6 +288,42 @@ async def document_revision_preview(request: DocumentRevisionRequest) -> dict[st
 
 # ── DocMate (闪闪文档) 路由 ─────────────────────────────────
 
+DOCMATE_UPLOAD_DIR = settings.chitung_data_dir / "docmate_uploads"
+
+
+@app.post("/api/docmate/upload")
+async def docmate_upload(file: UploadFile = File(...)) -> dict[str, object]:
+    """Accept a .docx upload, store it locally, and parse it.
+
+    Avoids requiring users to type absolute server paths — the browser uploads
+    the file and the center persists it under a managed directory before parsing.
+    """
+    filename = file.filename or "document.docx"
+    if not filename.lower().endswith(".docx"):
+        return {"ok": False, "error": "仅支持 .docx 文件。"}
+    DOCMATE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    safe_name = f"{uuid.uuid4().hex[:8]}_{Path(filename).name}"
+    dest = DOCMATE_UPLOAD_DIR / safe_name
+    dest.write_bytes(await file.read())
+    return await read_docx(str(dest))
+
+
+@app.get("/api/docmate/download")
+async def docmate_download(path: str) -> FileResponse:
+    """Serve a generated/modified .docx that lives under the managed upload dir."""
+    target = Path(path).resolve()
+    base = DOCMATE_UPLOAD_DIR.resolve()
+    if base != target.parent and base not in target.parents:
+        raise HTTPException(status_code=403, detail="路径不在允许范围内。")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在。")
+    return FileResponse(
+        str(target),
+        filename=target.name,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+
 @app.post("/api/docmate/read")
 async def docmate_read(request: DocmateReadRequest) -> dict[str, object]:
     return await read_docx(request.file_path)
@@ -300,6 +342,16 @@ async def docmate_preview(request: DocmatePreviewRequest) -> dict[str, object]:
 @app.post("/api/docmate/apply")
 async def docmate_apply(request: DocmateApplyRequest) -> dict[str, object]:
     return await apply_changeset(request.changeset_id, request.accepted_change_ids, request.save_as)
+
+
+@app.post("/api/docmate/commit")
+async def docmate_commit(request: DocmateCommitRequest) -> dict[str, object]:
+    return await commit_edits(request.doc_id, request.edits, request.save_as)
+
+
+@app.post("/api/docmate/retry")
+async def docmate_retry(request: DocmateRetryRequest) -> dict[str, object]:
+    return await retry_edits(request.doc_id, request.instruction, request.items)
 
 
 @app.post("/api/docmate/pipeline")

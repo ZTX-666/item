@@ -5,7 +5,7 @@ import ActivityBar from './components/layout/ActivityBar.vue'
 import ChatbotPanel from './components/layout/ChatbotPanel.vue'
 import PanelSidebar from './components/layout/PanelSidebar.vue'
 import TopBar from './components/layout/TopBar.vue'
-import { confirmationsRefreshKey, navigateKey, type AppPage } from './composables/useAppNavigation'
+import { confirmationsRefreshKey, navigateKey, openChatbotKey, type AppPage } from './composables/useAppNavigation'
 
 const route = useRoute()
 const router = useRouter()
@@ -62,6 +62,9 @@ function handleLegacyNavigate(page: AppPage) {
 
 provide(navigateKey, handleLegacyNavigate)
 provide(confirmationsRefreshKey, confirmationsRefreshTick)
+provide(openChatbotKey, () => {
+  chatbotVisible.value = true
+})
 </script>
 
 <template>

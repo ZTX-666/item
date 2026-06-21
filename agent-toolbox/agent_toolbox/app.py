@@ -148,12 +148,16 @@ from .tools.forms import (
 from .tools.docmate_docx import (
     ApplyChangesetRequest,
     GenerateChangesetRequest,
+    GetDocumentRequest,
     PreviewChangesetRequest,
     ReadDocxRequest,
+    RegisterChangesetRequest,
     tool_docmate_apply_changeset,
     tool_docmate_generate_changeset,
+    tool_docmate_get_document,
     tool_docmate_preview_changeset,
     tool_docmate_read_docx,
+    tool_docmate_register_changeset,
 )
 from .tools.future_operations import FUTURE_TOOL_MODELS, call_future_tool
 from .tools.queries import (
@@ -864,6 +868,16 @@ async def docmate_preview_changeset_endpoint(req: PreviewChangesetRequest):
 @app.post("/tools/docmate_apply_changeset")
 async def docmate_apply_changeset_endpoint(req: ApplyChangesetRequest):
     return await tool_docmate_apply_changeset(req)
+
+
+@app.post("/tools/docmate_get_document")
+async def docmate_get_document_endpoint(req: GetDocumentRequest):
+    return await tool_docmate_get_document(req)
+
+
+@app.post("/tools/docmate_register_changeset")
+async def docmate_register_changeset_endpoint(req: RegisterChangesetRequest):
+    return await tool_docmate_register_changeset(req)
 
 
 # ── Yaoyao (structured input / OCR) tool endpoints ──────────────

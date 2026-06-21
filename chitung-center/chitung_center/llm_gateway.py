@@ -9,6 +9,24 @@ from chitung_center.config import settings
 from chitung_center.security import compact_context, sanitize_for_llm
 
 
+def _augment_payload(payload: dict[str, Any], *, max_tokens: int) -> dict[str, Any]:
+    """Add reliability params before sending to the LLM.
+
+    Always cap output with max_tokens so a long response can't be silently
+    truncated to an empty body. For Zhipu/GLM reasoning models, explicitly
+    DISABLE the chain-of-thought ("thinking") mode: structured JSON editing
+    does not need it, and leaving it on caused the model to spend its whole
+    token budget on reasoning and return empty `content` — which made the
+    document flow fall back to the naive pattern matcher.
+    """
+    payload["max_tokens"] = max_tokens
+    model = (settings.llm_model or "").lower()
+    base = (settings.llm_base_url or "").lower()
+    if model.startswith("glm") or "bigmodel" in base:
+        payload["thinking"] = {"type": "disabled"}
+    return payload
+
+
 class LlmGateway:
     async def complete_json(self, system_prompt: str, user_text: str) -> dict[str, Any]:
         sanitized = compact_context(sanitize_for_llm(user_text))
@@ -35,11 +53,56 @@ class LlmGateway:
             ],
             "response_format": {"type": "json_object"},
         }
+        _augment_payload(payload, max_tokens=2048)
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(settings.llm_base_url.rstrip("/"), headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
         audit_logger.write("llm_call_completed", {"model": settings.llm_model})
+        return data
+
+    async def complete_document_json(
+        self,
+        system_prompt: str,
+        user_text: str,
+        *,
+        max_chars: int = 12000,
+    ) -> dict[str, Any]:
+        """JSON completion for trusted local document editing.
+
+        Uses the SAME unified LLM configuration and audit trail as complete_json,
+        but does NOT redact PII or collapse whitespace, because document editing
+        requires the model to see (and quote) the document text verbatim so the
+        produced edit targets match the original content. Long documents are
+        capped at max_chars rather than the small chat budget.
+        """
+        trimmed = user_text if len(user_text) <= max_chars else user_text[: max_chars - 20] + "...[TRUNCATED]"
+        audit_logger.write(
+            "llm_document_call_requested",
+            {
+                "configured": settings.llm_configured,
+                "model": settings.llm_model,
+                "chars": len(trimmed),
+            },
+        )
+        if not settings.llm_configured:
+            return {"available": False, "reason": "LLM is not configured."}
+
+        headers = {"Authorization": f"Bearer {settings.llm_api_key}"}
+        payload = {
+            "model": settings.llm_model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": trimmed},
+            ],
+            "response_format": {"type": "json_object"},
+        }
+        _augment_payload(payload, max_tokens=8192)
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            response = await client.post(settings.llm_base_url.rstrip("/"), headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+        audit_logger.write("llm_document_call_completed", {"model": settings.llm_model})
         return data
 
 
