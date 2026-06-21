@@ -746,6 +746,45 @@ export async function refreshWhatsAppGroups(): Promise<Record<string, unknown>> 
   return response.json() as Promise<Record<string, unknown>>
 }
 
+export async function startWhatsAppAgentListener(request: {
+  webhookUrl?: string
+  downloadMedia?: boolean
+  refreshGroups?: boolean
+} = {}): Promise<Record<string, unknown>> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/whatsapp/sync/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      webhook_url: request.webhookUrl ?? `${CENTER_BASE_URL}/integrations/whatsapp/events`,
+      webhook_secret: '',
+      download_media: request.downloadMedia ?? false,
+      refresh_groups: request.refreshGroups ?? true,
+    }),
+  })
+  await ensureOk(response, 'WhatsApp Agent listener start failed')
+  return response.json() as Promise<Record<string, unknown>>
+}
+
+export async function getWhatsAppAgentListenerStatus(includeLogs = true): Promise<Record<string, unknown>> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/whatsapp/sync/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ include_logs: includeLogs }),
+  })
+  await ensureOk(response, 'WhatsApp Agent listener status failed')
+  return response.json() as Promise<Record<string, unknown>>
+}
+
+export async function stopWhatsAppAgentListener(reason = 'manual_stop'): Promise<Record<string, unknown>> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/whatsapp/sync/stop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  })
+  await ensureOk(response, 'WhatsApp Agent listener stop failed')
+  return response.json() as Promise<Record<string, unknown>>
+}
+
 export async function sendWhatsAppText(request: {
   chat: string
   text: string

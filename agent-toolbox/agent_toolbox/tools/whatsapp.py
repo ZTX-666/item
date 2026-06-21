@@ -65,6 +65,21 @@ class WhatsAppAuthLogoutRequest(BaseModel):
     reason: str = "manual_logout"
 
 
+class WhatsAppSyncStartRequest(BaseModel):
+    webhook_url: str = "http://127.0.0.1:8999/integrations/whatsapp/events"
+    webhook_secret: str = ""
+    download_media: bool = False
+    refresh_groups: bool = True
+
+
+class WhatsAppSyncStatusRequest(BaseModel):
+    include_logs: bool = True
+
+
+class WhatsAppSyncStopRequest(BaseModel):
+    reason: str = "manual_stop"
+
+
 _PAIR_RE = re.compile(r"^[A-Z0-9]{4}-[A-Z0-9]{4}$", re.IGNORECASE)
 _auth_lock = threading.Lock()
 _auth_process: subprocess.Popen[str] | None = None
@@ -78,6 +93,18 @@ _auth_state: dict[str, Any] = {
     "updated_at": None,
     "logs": [],
     "last_error": "",
+}
+_sync_lock = threading.Lock()
+_sync_process: subprocess.Popen[str] | None = None
+_sync_state: dict[str, Any] = {
+    "running": False,
+    "status": "idle",
+    "webhook_url": "",
+    "started_at": None,
+    "updated_at": None,
+    "logs": [],
+    "last_error": "",
+    "messages_synced": 0,
 }
 
 
@@ -219,6 +246,14 @@ def _append_auth_log(line: str) -> None:
         _auth_state["updated_at"] = time.time()
 
 
+def _append_sync_log(line: str) -> None:
+    with _sync_lock:
+        logs = list(_sync_state.get("logs") or [])
+        logs.append(line)
+        _sync_state["logs"] = logs[-200:]
+        _sync_state["updated_at"] = time.time()
+
+
 def _snapshot_auth_state(include_logs: bool = True) -> dict[str, Any]:
     with _auth_lock:
         data = dict(_auth_state)
@@ -229,10 +264,49 @@ def _snapshot_auth_state(include_logs: bool = True) -> dict[str, Any]:
     return data
 
 
+def _snapshot_sync_state(include_logs: bool = True) -> dict[str, Any]:
+    with _sync_lock:
+        data = dict(_sync_state)
+    if not include_logs:
+        data.pop("logs", None)
+    process = _sync_process
+    data["process_running"] = bool(process and process.poll() is None)
+    return data
+
+
 def _is_wacli_authenticated() -> tuple[bool, str]:
     ok, _code, stdout, stderr, _command = _run_wacli(["auth", "status"], timeout=15)
     output = (stdout or stderr or "").strip()
     return ok and "authenticated as" in output.lower(), output
+
+
+def _extract_sync_signal(line: str) -> None:
+    text = line.strip()
+    if not text:
+        return
+    if text.startswith("{"):
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            return
+        event = str(payload.get("event") or payload.get("status") or "")
+        if event:
+            _set_sync_state(status=event)
+        data = payload.get("data")
+        if isinstance(data, dict):
+            synced = data.get("messages_synced")
+            if isinstance(synced, int):
+                _set_sync_state(messages_synced=synced)
+    elif "connected" in text.lower():
+        _set_sync_state(status="connected")
+    elif "disconnected" in text.lower():
+        _set_sync_state(status="disconnected")
+
+
+def _set_sync_state(**values: Any) -> None:
+    with _sync_lock:
+        _sync_state.update(values)
+        _sync_state["updated_at"] = time.time()
 
 
 def _extract_auth_signal(line: str) -> None:
@@ -304,6 +378,32 @@ def _read_auth_stream(proc: subprocess.Popen[str]) -> None:
                 _auth_state["status"] = "ended" if code == 0 else "failed"
             _auth_state["last_error"] = "" if code == 0 else f"wacli auth exited with code {code}"
             _auth_state["updated_at"] = time.time()
+
+
+def _read_sync_stream(proc: subprocess.Popen[str]) -> None:
+    assert proc.stdout is not None
+    assert proc.stderr is not None
+
+    def pump(stream: Any) -> None:
+        for line in iter(stream.readline, ""):
+            _append_sync_log(line.rstrip("\n"))
+            _extract_sync_signal(line)
+
+    threads = [
+        threading.Thread(target=pump, args=(proc.stdout,), daemon=True),
+        threading.Thread(target=pump, args=(proc.stderr,), daemon=True),
+    ]
+    for thread in threads:
+        thread.start()
+    code = proc.wait()
+    for thread in threads:
+        thread.join(timeout=1)
+    with _sync_lock:
+        if _sync_process is proc:
+            _sync_state["running"] = False
+            _sync_state["status"] = "ended" if code == 0 else "failed"
+            _sync_state["last_error"] = "" if code == 0 else f"wacli sync exited with code {code}"
+            _sync_state["updated_at"] = time.time()
 
 
 def start_auth(req: WhatsAppAuthStartRequest) -> ToolResult:
@@ -433,6 +533,90 @@ def logout_auth(req: WhatsAppAuthLogoutRequest) -> ToolResult:
         )
     _set_auth_state(running=False, status="logged_out", qr_payload="", pairing_code="", phone="", last_error="")
     return ToolResult(ok=True, tool="whatsapp_auth_logout", summary="WhatsApp 已退出登录。", data=_snapshot_auth_state(False) | {"command": command, "stdout": stdout[:4000]})
+
+
+def start_sync(req: WhatsAppSyncStartRequest) -> ToolResult:
+    global _sync_process
+
+    task_id = new_task_id("wa_sync")
+    with _sync_lock:
+        already_running = bool(_sync_process and _sync_process.poll() is None)
+    if already_running:
+        return ToolResult(ok=True, tool="whatsapp_sync_start", task_id=task_id, summary="WhatsApp Agent 监听已在运行。", data=_snapshot_sync_state())
+
+    authenticated, auth_output = _is_wacli_authenticated()
+    if not authenticated:
+        return ToolResult(
+            ok=False,
+            tool="whatsapp_sync_start",
+            task_id=task_id,
+            summary="WhatsApp 尚未登录，无法启动 Agent 监听。",
+            error=auth_output or "not_authenticated",
+        )
+
+    binary = _wacli_bin()
+    if not binary:
+        return ToolResult(ok=False, tool="whatsapp_sync_start", task_id=task_id, summary="未找到 wacli。", error=f"wacli not found: {settings.wacli_bin}")
+
+    args = ["--events", "sync", "--follow", "--webhook", req.webhook_url, "--webhook-allow-private"]
+    if req.webhook_secret:
+        args.extend(["--webhook-secret", req.webhook_secret])
+    if req.refresh_groups:
+        args.append("--refresh-groups")
+    if req.download_media:
+        args.append("--download-media")
+
+    settings.wacli_workdir.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ)
+    env.setdefault("WACLI_STORE_DIR", str(settings.wacli_store_dir))
+    proc = subprocess.Popen(
+        [binary, *args],
+        cwd=str(settings.wacli_workdir),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    now = time.time()
+    with _sync_lock:
+        _sync_process = proc
+        _sync_state.update(
+            {
+                "running": True,
+                "status": "starting",
+                "webhook_url": req.webhook_url,
+                "started_at": now,
+                "updated_at": now,
+                "logs": [],
+                "last_error": "",
+                "messages_synced": 0,
+                "command": [binary, *args],
+            }
+        )
+    threading.Thread(target=_read_sync_stream, args=(proc,), daemon=True).start()
+    return ToolResult(ok=True, tool="whatsapp_sync_start", task_id=task_id, summary="WhatsApp Agent 监听已启动。", data=_snapshot_sync_state())
+
+
+def sync_status(req: WhatsAppSyncStatusRequest) -> ToolResult:
+    return ToolResult(ok=True, tool="whatsapp_sync_status", summary="WhatsApp Agent 监听状态。", data=_snapshot_sync_state(req.include_logs))
+
+
+def stop_sync(req: WhatsAppSyncStopRequest) -> ToolResult:
+    global _sync_process
+    with _sync_lock:
+        proc = _sync_process
+        _sync_process = None
+    if proc and proc.poll() is None:
+        try:
+            proc.terminate()
+            proc.wait(timeout=5)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+    _set_sync_state(running=False, status="stopped", last_error=req.reason)
+    return ToolResult(ok=True, tool="whatsapp_sync_stop", summary="WhatsApp Agent 监听已停止。", data=_snapshot_sync_state())
 
 
 def search_messages(req: WhatsAppSearchRequest) -> ToolResult:

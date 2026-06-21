@@ -268,6 +268,21 @@ class WhatsAppAuthLogoutApiRequest(BaseModel):
     reason: str = "manual_logout"
 
 
+class WhatsAppSyncStartApiRequest(BaseModel):
+    webhook_url: str = "http://127.0.0.1:8999/integrations/whatsapp/events"
+    webhook_secret: str = ""
+    download_media: bool = False
+    refresh_groups: bool = True
+
+
+class WhatsAppSyncStatusApiRequest(BaseModel):
+    include_logs: bool = True
+
+
+class WhatsAppSyncStopApiRequest(BaseModel):
+    reason: str = "manual_stop"
+
+
 class WhatsAppSendApiRequest(BaseModel):
     chat: str = Field(min_length=1)
     text: str = Field(min_length=1)

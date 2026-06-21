@@ -203,6 +203,29 @@ def tool_specs() -> list[ToolSpec]:
             },
         ),
         ToolSpec(
+            name="whatsapp_sync_start",
+            description="Start wacli sync --webhook so live WhatsApp messages are delivered to Chitung Center for Agent handling.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "webhook_url": {"type": "string", "default": "http://127.0.0.1:8999/integrations/whatsapp/events"},
+                    "webhook_secret": {"type": "string"},
+                    "download_media": {"type": "boolean", "default": False},
+                    "refresh_groups": {"type": "boolean", "default": True},
+                },
+            },
+        ),
+        ToolSpec(
+            name="whatsapp_sync_status",
+            description="Return the local WhatsApp Agent listener status and recent wacli sync logs.",
+            input_schema={"type": "object", "properties": {"include_logs": {"type": "boolean", "default": True}}},
+        ),
+        ToolSpec(
+            name="whatsapp_sync_stop",
+            description="Stop the local WhatsApp Agent listener process.",
+            input_schema={"type": "object", "properties": {"reason": {"type": "string", "default": "manual_stop"}}},
+        ),
+        ToolSpec(
             name="generate_report",
             description="Generate the existing digital employee community Word report template.",
             input_schema={

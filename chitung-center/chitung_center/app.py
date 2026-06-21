@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import subprocess
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -65,6 +65,9 @@ from chitung_center.models import (
     WhatsAppIngestApiRequest,
     WhatsAppSendApiRequest,
     WhatsAppSearchApiRequest,
+    WhatsAppSyncStartApiRequest,
+    WhatsAppSyncStatusApiRequest,
+    WhatsAppSyncStopApiRequest,
     VisualPatrolBatchRequest,
     VisualPatrolConfirmRequest,
     VisualPatrolDraftRequest,
@@ -98,6 +101,7 @@ from chitung_center.table_mapping_service import (
 )
 from chitung_center.toolbox_client import toolbox_client
 from chitung_center.visual_patrol_service import build_visual_patrol_draft, confirm_visual_patrol_candidate
+from chitung_center.whatsapp_adapter_service import handle_whatsapp_event
 from chitung_center.visual_patrol_batch_service import (
     camera_result_to_draft,
     get_patrol_run,
@@ -494,6 +498,12 @@ async def feishu_events(request: FeishuEventWebhookRequest) -> dict[str, object]
     return result
 
 
+@app.post("/integrations/whatsapp/events")
+async def whatsapp_events(request: Request) -> dict[str, object]:
+    payload = await request.json()
+    return await handle_whatsapp_event(payload)
+
+
 @app.get("/api/workflows")
 async def workflows() -> dict[str, object]:
     return {"ok": True, "items": [item.to_dict() for item in workflow_loader.list_workflows()]}
@@ -745,6 +755,32 @@ async def whatsapp_send_api(request: WhatsAppSendApiRequest) -> dict[str, object
             "confirmed_by": request.confirmed_by,
         },
     )
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/sync/start")
+async def whatsapp_sync_start_api(request: WhatsAppSyncStartApiRequest) -> dict[str, object]:
+    result = await toolbox_client.call_tool(
+        "whatsapp_sync_start",
+        {
+            "webhook_url": request.webhook_url,
+            "webhook_secret": request.webhook_secret,
+            "download_media": request.download_media,
+            "refresh_groups": request.refresh_groups,
+        },
+    )
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/sync/status")
+async def whatsapp_sync_status_api(request: WhatsAppSyncStatusApiRequest) -> dict[str, object]:
+    result = await toolbox_client.call_tool("whatsapp_sync_status", {"include_logs": request.include_logs})
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/sync/stop")
+async def whatsapp_sync_stop_api(request: WhatsAppSyncStopApiRequest) -> dict[str, object]:
+    result = await toolbox_client.call_tool("whatsapp_sync_stop", {"reason": request.reason})
     return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
 
 

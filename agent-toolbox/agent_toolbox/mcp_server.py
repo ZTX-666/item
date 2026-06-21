@@ -220,6 +220,9 @@ from .tools.whatsapp import (
     WhatsAppGroupsRefreshRequest,
     WhatsAppSendTextRequest,
     WhatsAppSearchRequest,
+    WhatsAppSyncStartRequest,
+    WhatsAppSyncStatusRequest,
+    WhatsAppSyncStopRequest,
     WhatsAppWacliGroupsRequest,
     auth_status,
     download_media,
@@ -229,7 +232,10 @@ from .tools.whatsapp import (
     search_messages,
     send_text_confirmed,
     start_auth,
+    start_sync,
     stop_auth,
+    stop_sync,
+    sync_status,
 )
 
 
@@ -264,6 +270,12 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return refresh_groups_wacli(WhatsAppGroupsRefreshRequest(**arguments)).model_dump()
     if name == "whatsapp_send_text_confirmed":
         return send_text_confirmed(WhatsAppSendTextRequest(**arguments)).model_dump()
+    if name == "whatsapp_sync_start":
+        return start_sync(WhatsAppSyncStartRequest(**arguments)).model_dump()
+    if name == "whatsapp_sync_status":
+        return sync_status(WhatsAppSyncStatusRequest(**arguments)).model_dump()
+    if name == "whatsapp_sync_stop":
+        return stop_sync(WhatsAppSyncStopRequest(**arguments)).model_dump()
     if name == "generate_report":
         return generate_report(GenerateReportRequest(**arguments)).model_dump()
     if name == "notify_feishu":

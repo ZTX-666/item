@@ -240,6 +240,9 @@ from .tools.whatsapp import (
     WhatsAppGroupsRefreshRequest,
     WhatsAppSendTextRequest,
     WhatsAppSearchRequest,
+    WhatsAppSyncStartRequest,
+    WhatsAppSyncStatusRequest,
+    WhatsAppSyncStopRequest,
     WhatsAppWacliGroupsRequest,
     auth_status,
     download_media,
@@ -249,7 +252,10 @@ from .tools.whatsapp import (
     search_messages,
     send_text_confirmed,
     start_auth,
+    start_sync,
     stop_auth,
+    stop_sync,
+    sync_status,
 )
 from .tools.yaoyao_ocr_engine import get_engine
 from .tools.yaoyao_pdf_render import get_pdf_render_service
@@ -364,6 +370,21 @@ def whatsapp_groups_refresh(req: WhatsAppGroupsRefreshRequest):
 @app.post("/tools/whatsapp_send_text_confirmed")
 def whatsapp_send_text_confirmed(req: WhatsAppSendTextRequest):
     return send_text_confirmed(req)
+
+
+@app.post("/tools/whatsapp_sync_start")
+def whatsapp_sync_start(req: WhatsAppSyncStartRequest):
+    return start_sync(req)
+
+
+@app.post("/tools/whatsapp_sync_status")
+def whatsapp_sync_status(req: WhatsAppSyncStatusRequest):
+    return sync_status(req)
+
+
+@app.post("/tools/whatsapp_sync_stop")
+def whatsapp_sync_stop(req: WhatsAppSyncStopRequest):
+    return stop_sync(req)
 
 
 @app.post("/tools/generate_report")

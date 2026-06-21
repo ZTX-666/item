@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import QRCode from 'qrcode'
 import {
+  getWhatsAppAgentListenerStatus,
   getWhatsAppAuthStatus,
   getWhatsAppGroups,
   ingestWhatsAppSearch,
@@ -9,7 +10,9 @@ import {
   refreshWhatsAppGroups,
   searchWhatsAppMessages,
   sendWhatsAppText,
+  startWhatsAppAgentListener,
   startWhatsAppAuth,
+  stopWhatsAppAgentListener,
   stopWhatsAppAuth,
 } from '../services/chitungApi'
 
@@ -25,6 +28,9 @@ const hkPhone = ref('')
 const qrDataUrl = ref('')
 const authStatus = ref<Record<string, unknown> | null>(null)
 const authTimer = ref<number | null>(null)
+const agentLoading = ref(false)
+const agentStatus = ref<Record<string, unknown> | null>(null)
+const agentTimer = ref<number | null>(null)
 const sendChat = ref('安全管理群')
 const sendText = ref('【赤瞳安全智能平台】这是一条 WhatsApp 发送链路测试消息。')
 const lastSend = ref<Record<string, unknown> | null>(null)
@@ -64,6 +70,45 @@ async function pollAuth() {
 function startAuthPoller() {
   if (authTimer.value) window.clearInterval(authTimer.value)
   authTimer.value = window.setInterval(() => void pollAuth(), 2000)
+}
+
+async function pollAgent() {
+  try {
+    const resp = await getWhatsAppAgentListenerStatus(true)
+    agentStatus.value = toolData(resp)
+  } catch (error) {
+    errorText.value = `Agent 监听状态读取失败：${error instanceof Error ? error.message : String(error)}`
+  }
+}
+
+function startAgentPoller() {
+  if (agentTimer.value) window.clearInterval(agentTimer.value)
+  agentTimer.value = window.setInterval(() => void pollAgent(), 3000)
+}
+
+async function startAgentListener() {
+  agentLoading.value = true
+  errorText.value = ''
+  try {
+    agentStatus.value = toolData(await startWhatsAppAgentListener())
+    startAgentPoller()
+  } catch (error) {
+    errorText.value = `启动 Agent 监听失败：${error instanceof Error ? error.message : String(error)}`
+  } finally {
+    agentLoading.value = false
+  }
+}
+
+async function stopAgentListener() {
+  agentLoading.value = true
+  errorText.value = ''
+  try {
+    agentStatus.value = toolData(await stopWhatsAppAgentListener())
+  } catch (error) {
+    errorText.value = `停止 Agent 监听失败：${error instanceof Error ? error.message : String(error)}`
+  } finally {
+    agentLoading.value = false
+  }
 }
 
 async function startQrLogin(mode: 'qr' | 'phone') {
@@ -177,12 +222,14 @@ async function sendConfirmed() {
 
 onMounted(async () => {
   await pollAuth()
+  await pollAgent()
   await loadGroups()
   await search()
 })
 
 onUnmounted(() => {
   if (authTimer.value) window.clearInterval(authTimer.value)
+  if (agentTimer.value) window.clearInterval(agentTimer.value)
 })
 </script>
 
@@ -220,6 +267,24 @@ onUnmounted(() => {
           </details>
         </div>
       </div>
+    </section>
+
+    <section class="box agent-box">
+      <h3>Agent 监听（触发词自动回复）</h3>
+      <p class="hint">默认只响应包含 @赤瞳、#赤瞳、/ai、问赤瞳、赤瞳： 的新消息；普通群消息只同步入库，不自动刷屏。</p>
+      <div class="ops-row">
+        <button class="primary-soft-button" :disabled="agentLoading" @click="startAgentListener">
+          {{ agentLoading ? '处理中...' : '启动 Agent 监听' }}
+        </button>
+        <button class="secondary-button" :disabled="agentLoading" @click="stopAgentListener">停止 Agent 监听</button>
+        <button class="secondary-button" :disabled="agentLoading" @click="pollAgent">刷新状态</button>
+      </div>
+      <p><strong>监听状态：</strong>{{ agentStatus?.status || 'idle' }}</p>
+      <p><strong>已同步消息：</strong>{{ agentStatus?.messages_synced ?? 0 }}</p>
+      <details>
+        <summary>监听日志</summary>
+        <pre>{{ JSON.stringify(agentStatus?.logs || [], null, 2) }}</pre>
+      </details>
     </section>
 
     <div class="ops-row">
