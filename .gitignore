@@ -1,0 +1,20 @@
+node_modules/
+.env
+
+# Runtime token/cache/capture outputs
+csmart-channel-list-latest.json
+cctv-token-cache.json
+v16c-stream-data/
+v16-stream-capture/
+v16b-stream-intercept/
+v17c-stream-urls.json
+
+# Test outputs
+*.png
+*-capture.log
+agent-tools/
+terminals/
+
+# Python cache
+__pycache__/
+*.pyc
