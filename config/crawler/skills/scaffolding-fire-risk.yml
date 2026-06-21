@@ -1,0 +1,74 @@
+name: scaffolding-fire-risk
+display_name: 棚架与防火风险
+description: 监听棚架、竹棚架、防火、阻燃物料、保护网、保护幕、帆布和热工序相关事故或政策。
+enabled: true
+
+source_scope:
+  include_sources:
+    - gov_press_rss
+    - gov_press_api
+    - labour_work_safety_alert
+    - buildings_department_circulars
+    - buildings_department_practice_notes
+    - housing_site_safety_alerts
+    - devb_technical_circulars
+    - cic_safety_messages
+    - hk01_industrial_accident_search
+    - stheadline_industrial_accident_search
+
+keywords:
+  include:
+    - 棚架
+    - 竹棚架
+    - 工作平台
+    - 防火
+    - 火警
+    - 火灾
+    - 阻燃
+    - 保护网
+    - 保护幕
+    - 防水油布
+    - 塑胶帆布
+    - 热工序
+    - 烧焊
+    - 外墙工程
+  exclude:
+    - 娱乐
+    - 广告
+    - 招聘
+
+entities:
+  work_process:
+    - 高处工作
+    - 外墙工程
+    - 热工序
+    - 烧焊
+  hazard:
+    - 火灾
+    - 物件堕下
+    - 强风
+    - 倒塌
+
+severity_rules:
+  p0:
+    combined_keywords:
+      - [棚架, 火警]
+      - [棚架, 死亡]
+      - [竹棚架, 严重工伤]
+      - [保护网, 火警]
+      - [热工序, 火警]
+  p1:
+    any_keywords:
+      - 职安警示
+      - 防火
+      - 阻燃
+      - 保护网
+      - 保护幕
+      - 工地安全提示
+  p2:
+    default_for_matched_items: true
+
+recommended_actions:
+  - 检查棚架、保护网、保护幕和帆布是否符合阻燃要求。
+  - 检查热工序许可证、灭火设备和火种监察安排。
+  - 检查高处工作和外墙工程是否受天气或临时结构风险影响。

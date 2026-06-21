@@ -1,0 +1,198 @@
+# Hong Kong site safety crawler source registry.
+# The crawler should read this file at startup and poll only enabled sources.
+
+version: 1
+
+defaults:
+  user_agent: "C-SMART Site Safety Monitor/1.0 (+internal monitoring; contact: safety-team@example.com)"
+  timeout_seconds: 20
+  retry_count: 2
+  respect_robots_txt: true
+  store_raw_content: true
+  store_media_full_text: false
+
+sources:
+  - name: hko_warnsum
+    display_name: 香港天文台天气警告摘要
+    category: weather
+    source_type: json_api
+    trust_level: official
+    url: "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=tc"
+    poll_interval_seconds: 60
+    priority: critical
+    parser: hko_warnsum
+    enabled: true
+
+  - name: hko_warning_info
+    display_name: 香港天文台天气警告详情
+    category: weather
+    source_type: json_api
+    trust_level: official
+    url: "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warningInfo&lang=tc"
+    poll_interval_seconds: 60
+    priority: critical
+    parser: hko_warning_info
+    enabled: true
+
+  - name: gov_press_rss
+    display_name: 香港特区政府新闻公报 RSS
+    category: official
+    source_type: rss
+    trust_level: official
+    url: "https://www.info.gov.hk/gia/rss/general_zh.xml"
+    poll_interval_seconds: 180
+    priority: critical
+    parser: rss_generic
+    enabled: true
+
+  - name: gov_press_api
+    display_name: data.gov.hk 新闻公报搜索 API
+    category: official
+    source_type: json_api
+    trust_level: official
+    url: "https://api.data.gov.hk/v1/pressrelease/search"
+    poll_interval_seconds: 300
+    priority: high
+    parser: gov_press_api
+    query_defaults:
+      lang: tc
+      type: press
+    official_codes:
+      labour_department: hk-ld
+      buildings_department: hk-bd
+      development_bureau: hk-devb
+      housing_bureau: hk-hb
+      information_services_department: hk-isd
+    enabled: true
+
+  - name: labour_work_safety_alert
+    display_name: 劳工处职安警示
+    category: official
+    source_type: html_pdf_index
+    trust_level: official
+    url: "https://www.labour.gov.hk/tc/news/work_safety_alert.htm"
+    poll_interval_seconds: 3600
+    priority: high
+    parser: labour_work_safety_alert
+    enabled: true
+
+  - name: buildings_department_circulars
+    display_name: 屋宇署通告函件
+    category: policy
+    source_type: html_pdf_index
+    trust_level: official
+    url: "https://www.bd.gov.hk/tc/resources/codes-and-references/practice-notes-and-circular-letters/index_circulars.html"
+    poll_interval_seconds: 7200
+    priority: high
+    parser: bd_circulars
+    enabled: true
+
+  - name: buildings_department_practice_notes
+    display_name: 屋宇署 Practice Notes
+    category: policy
+    source_type: html_pdf_index
+    trust_level: official
+    url: "https://www.bd.gov.hk/tc/resources/codes-and-references/practice-notes-and-circular-letters/index.html"
+    poll_interval_seconds: 7200
+    priority: high
+    parser: bd_practice_notes
+    enabled: true
+
+  - name: housing_site_safety_alerts
+    display_name: 房委会及房屋署工地安全提示
+    category: official
+    source_type: html_pdf_index
+    trust_level: official
+    url: "https://www.housingauthority.gov.hk/mini-site/site-safety/tc/publications/alerts/index.html"
+    poll_interval_seconds: 7200
+    priority: high
+    parser: housing_site_safety
+    enabled: true
+
+  - name: housing_rss_index
+    display_name: 房委会 RSS 频道索引
+    category: official
+    source_type: html_rss_index
+    trust_level: official
+    url: "https://www.housingauthority.gov.hk/tc/global-elements/rss-feed/index.html"
+    poll_interval_seconds: 1800
+    priority: medium_high
+    parser: housing_rss_index
+    enabled: true
+
+  - name: devb_technical_circulars
+    display_name: 发展局工务技术通告
+    category: policy
+    source_type: html_pdf_index
+    trust_level: official
+    url: "https://www.devb.gov.hk/tc/publications_and_press_releases/technical_circulars/works/index.html"
+    poll_interval_seconds: 21600
+    priority: high
+    parser: devb_technical_circulars
+    enabled: true
+
+  - name: cic_safety_messages
+    display_name: 建造业议会安全讯息
+    category: industry
+    source_type: html_pdf_index
+    trust_level: quasi_official
+    url: "https://www.cic.hk/tc/safety/alerts-messages"
+    poll_interval_seconds: 7200
+    priority: medium_high
+    parser: cic_safety_messages
+    enabled: true
+
+  - name: hk01_industrial_accident_search
+    display_name: 香港01 工业意外搜索
+    category: media
+    source_type: html_search
+    trust_level: media_lead
+    url: "https://www.hk01.com/search/%E5%B7%A5%E6%A5%AD%E6%84%8F%E5%A4%96"
+    poll_interval_seconds: 1200
+    priority: medium
+    parser: media_search_generic
+    enabled: true
+
+  - name: stheadline_industrial_accident_search
+    display_name: 星岛头条 工业意外搜索
+    category: media
+    source_type: html_search
+    trust_level: media_lead
+    url: "https://www.stheadline.com/search/%E5%B7%A5%E6%A5%AD%E6%84%8F%E5%A4%96"
+    poll_interval_seconds: 1200
+    priority: medium
+    parser: media_search_generic
+    enabled: true
+
+  - name: mingpao_local_news
+    display_name: 明报即时港闻
+    category: media
+    source_type: html_section
+    trust_level: media_lead
+    url: "https://news.mingpao.com/ins/%E6%B8%AF%E8%81%9E/web_tc/section"
+    poll_interval_seconds: 1800
+    priority: medium
+    parser: media_section_generic
+    enabled: false
+
+  - name: oriental_local_news
+    display_name: 东方日报要闻港闻
+    category: media
+    source_type: html_section
+    trust_level: media_lead
+    url: "https://orientaldaily.on.cc/section/%E8%A6%81%E8%81%9E%E6%B8%AF%E8%81%9E"
+    poll_interval_seconds: 1800
+    priority: medium
+    parser: media_section_generic
+    enabled: false
+
+  - name: hkcd_news
+    display_name: 香港商报新闻
+    category: media
+    source_type: html_section
+    trust_level: media_lead
+    url: "https://www.hkcd.com/hkcdweb/index.html"
+    poll_interval_seconds: 1800
+    priority: medium
+    parser: media_section_generic
+    enabled: false
