@@ -42,6 +42,7 @@ output/alert_cards.json
 - `config/crawler/sources.yml`: source registry
 - `config/crawler/skills/*.yml`: user-editable monitoring topics
 - `src/hk_site_safety_crawler/`: crawler core
+- `docs/HK_SITE_SAFETY_CRAWLER_USER_HANDOFF.md`: detailed handoff for new teammates
 - `docs/HK_SITE_SAFETY_CRAWLER_CODE_HANDOFF.md`: developer handoff
 - `docs/HK_SITE_SAFETY_CRAWLER_SKILL_HANDOFF.md`: skill/config handoff
 
