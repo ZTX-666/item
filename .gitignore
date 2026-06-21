@@ -1,0 +1,27 @@
+node_modules/
+.cursor/
+.env
+.env.*
+
+# Temporary/runtime data
+.tmp-docmate-data/
+.tmp-test-userdata/
+*.log
+npm-debug.log*
+
+# Build and release outputs
+dist/
+release/
+publish100/
+*.exe
+*.zip
+*.7z
+
+# OS/editor
+Thumbs.db
+.DS_Store
+
+# Caches
+__pycache__/
+*.pyc
+.vite/

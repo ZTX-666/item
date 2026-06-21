@@ -1,0 +1,91 @@
+{
+  "name": "docmate",
+  "private": true,
+  "version": "4.1.37",
+  "description": "DocMate 闪闪文档 - 便携桌面文稿修改助手",
+  "author": "China Overseas",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/check-dist.cjs",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && powershell -NoProfile -Command \\\"$env:ELECTRON_DEV='1'; npm run start\\\"\"",
+    "electron:build": "vite build && electron-builder --win portable",
+    "pack": "node scripts/check-dist.cjs && electron-builder --win portable",
+    "publish2": "npm run pack && node scripts/publish2.cjs",
+    "publish3": "node scripts/publish3.cjs",
+    "publish4": "npm run pack && node scripts/publish4.cjs",
+    "publish5": "npm run pack && node scripts/publish5.cjs",
+    "publish6": "npm run pack && node scripts/publish6.cjs",
+    "publish9": "npm run build && node scripts/publish9.cjs",
+    "publish10": "npm run build && node scripts/publish10.cjs",
+    "publish11": "npm run build && node scripts/publish11.cjs",
+    "publish20": "npm run build && node scripts/publish20.cjs",
+    "publish30": "npm run build && node scripts/publish30.cjs",
+    "publish31": "npm run build && node scripts/publish31.cjs",
+    "publish70": "npm run build && node scripts/publish70.cjs",
+    "publish80": "npm run build && node scripts/publish80.cjs",
+    "publish90": "npm run build && node scripts/publish90.cjs",
+    "publish100": "npm run build && node scripts/publish100.cjs",
+    "release": "node scripts/release.cjs",
+    "test:llm": "node scripts/test-llm.cjs",
+    "test:revision": "node scripts/test-revision-replace.cjs",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "@tiptap/core": "^2.11.5",
+    "@tiptap/extension-placeholder": "^2.11.5",
+    "@tiptap/pm": "^2.11.5",
+    "@tiptap/starter-kit": "^2.11.5",
+    "@tiptap/vue-3": "^2.11.5",
+    "@xenova/transformers": "^2.17.2",
+    "docx": "^9.7.1",
+    "mammoth": "^1.9.0",
+    "marked": "^18.0.5",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "concurrently": "^9.1.2",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.5",
+    "vue-tsc": "^2.2.0",
+    "wait-on": "^8.0.2"
+  },
+  "build": {
+    "appId": "com.chinaconstruction.docmate",
+    "productName": "DocMate闪闪文档",
+    "directories": {
+      "output": "release"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/onnxruntime-node/**"
+    ],
+    "compression": "maximum",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "node_modules/@xenova/transformers/**/*",
+      "node_modules/onnxruntime-node/**/*",
+      "node_modules/mammoth/**/*",
+      "node_modules/marked/**/*",
+      "node_modules/docx/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "dist/闪闪文档.png",
+      "signAndEditExecutable": false
+    }
+  }
+}
