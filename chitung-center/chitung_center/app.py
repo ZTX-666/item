@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import subprocess
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -18,6 +18,7 @@ from chitung_center.confirmation_service import (
     resolve_and_execute,
 )
 from chitung_center.feishu_adapter_service import handle_feishu_event
+from chitung_center.whatsapp_adapter_service import handle_whatsapp_event
 from chitung_center.config import settings
 from chitung_center.document_service import build_document_revision_preview
 from chitung_center.docmate_service import (
@@ -60,8 +61,17 @@ from chitung_center.models import (
     SmartFormDraftRequest,
     TableMappingExtractRequest,
     TableMappingRunRequest,
+    WhatsAppAuthLogoutApiRequest,
+    WhatsAppAuthStartApiRequest,
+    WhatsAppAuthStatusApiRequest,
+    WhatsAppAuthStopApiRequest,
     WhatsAppGroupsApiRequest,
+    WhatsAppIngestApiRequest,
+    WhatsAppSendApiRequest,
     WhatsAppSearchApiRequest,
+    WhatsAppSyncStartApiRequest,
+    WhatsAppSyncStatusApiRequest,
+    WhatsAppSyncStopApiRequest,
     VisualPatrolBatchRequest,
     VisualPatrolConfirmRequest,
     VisualPatrolDraftRequest,
@@ -537,6 +547,12 @@ async def feishu_events(request: FeishuEventWebhookRequest) -> dict[str, object]
     return result
 
 
+@app.post("/integrations/whatsapp/events")
+async def whatsapp_events(request: Request) -> dict[str, object]:
+    payload = await request.json()
+    return await handle_whatsapp_event(payload)
+
+
 @app.get("/api/workflows")
 async def workflows() -> dict[str, object]:
     return {"ok": True, "items": [item.to_dict() for item in workflow_loader.list_workflows()]}
@@ -742,6 +758,128 @@ async def whatsapp_groups_api(request: WhatsAppGroupsApiRequest) -> dict[str, ob
         {"include_archived": request.include_archived},
     )
     return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/auth/start")
+async def whatsapp_auth_start_api(request: WhatsAppAuthStartApiRequest) -> dict[str, object]:
+    result = await toolbox_client.call_tool(
+        "whatsapp_auth_start",
+        {
+            "phone": request.phone,
+            "mode": request.mode,
+            "timeout_seconds": request.timeout_seconds,
+        },
+    )
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/auth/status")
+async def whatsapp_auth_status_api(request: WhatsAppAuthStatusApiRequest) -> dict[str, object]:
+    result = await toolbox_client.call_tool(
+        "whatsapp_auth_status",
+        {"include_logs": request.include_logs},
+    )
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/auth/stop")
+async def whatsapp_auth_stop_api(request: WhatsAppAuthStopApiRequest) -> dict[str, object]:
+    result = await toolbox_client.call_tool(
+        "whatsapp_auth_stop",
+        {"reason": request.reason},
+    )
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/auth/logout")
+async def whatsapp_auth_logout_api(request: WhatsAppAuthLogoutApiRequest) -> dict[str, object]:
+    result = await toolbox_client.call_tool(
+        "whatsapp_auth_logout",
+        {"confirmed": request.confirmed, "reason": request.reason},
+    )
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/groups/refresh")
+async def whatsapp_groups_refresh_api() -> dict[str, object]:
+    result = await toolbox_client.call_tool("whatsapp_groups_refresh", {"dry_run": False})
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/send")
+async def whatsapp_send_api(request: WhatsAppSendApiRequest) -> dict[str, object]:
+    result = await toolbox_client.call_tool(
+        "whatsapp_send_text_confirmed",
+        {
+            "chat": request.chat,
+            "text": request.text,
+            "confirmed": request.confirmed,
+            "dry_run": request.dry_run,
+            "confirmed_by": request.confirmed_by,
+        },
+    )
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/sync/start")
+async def whatsapp_sync_start_api(request: WhatsAppSyncStartApiRequest) -> dict[str, object]:
+    result = await toolbox_client.call_tool(
+        "whatsapp_sync_start",
+        {
+            "webhook_url": request.webhook_url,
+            "webhook_secret": request.webhook_secret,
+            "download_media": request.download_media,
+            "refresh_groups": request.refresh_groups,
+        },
+    )
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/sync/status")
+async def whatsapp_sync_status_api(request: WhatsAppSyncStatusApiRequest) -> dict[str, object]:
+    result = await toolbox_client.call_tool("whatsapp_sync_status", {"include_logs": request.include_logs})
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/sync/stop")
+async def whatsapp_sync_stop_api(request: WhatsAppSyncStopApiRequest) -> dict[str, object]:
+    result = await toolbox_client.call_tool("whatsapp_sync_stop", {"reason": request.reason})
+    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+
+
+@app.post("/api/whatsapp/ingest-search")
+async def whatsapp_ingest_search_api(request: WhatsAppIngestApiRequest) -> dict[str, object]:
+    search_result = await toolbox_client.call_tool(
+        "whatsapp_search",
+        {"q": request.q, "chat": request.chat, "limit": request.limit},
+    )
+    rows = []
+    if isinstance(search_result.get("data"), dict):
+        data_rows = search_result["data"].get("rows")
+        if isinstance(data_rows, list):
+            rows = [row for row in data_rows if isinstance(row, dict)]
+    routed: list[dict[str, object]] = []
+    if request.auto_route:
+        for row in rows[: min(len(rows), 10)]:
+            text = str(row.get("text") or row.get("content") or "").strip()
+            if not text:
+                continue
+            chat_name = str(row.get("chat_name") or row.get("chat") or row.get("chat_id") or "whatsapp")
+            msg_id = str(row.get("message_id") or row.get("id") or "")
+            chat_request = ChatMessageRequest(
+                message=text,
+                channel="whatsapp",
+                user_id=chat_name,
+                metadata={"source": "whatsapp_search", "message_id": msg_id, "raw": row},
+            )
+            response = await orchestrator.handle_message(chat_request)
+            routed.append(response.model_dump())
+    return {
+        "ok": bool(search_result.get("ok")),
+        "search": search_result,
+        "routed_count": len(routed),
+        "routed": routed,
+    }
 
 
 # ── Yaoyao structured input endpoints ───────────────────────────

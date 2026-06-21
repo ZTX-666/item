@@ -144,6 +144,88 @@ def tool_specs() -> list[ToolSpec]:
             },
         ),
         ToolSpec(
+            name="whatsapp_auth_start",
+            description="Start local wacli WhatsApp login. Returns QR payload and/or pairing code through status polling.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "phone": {"type": "string"},
+                    "mode": {"type": "string", "default": "qr"},
+                    "timeout_seconds": {"type": "integer", "default": 120},
+                },
+            },
+        ),
+        ToolSpec(
+            name="whatsapp_auth_status",
+            description="Poll current local WhatsApp/wacli login state, including QR payload or pairing code.",
+            input_schema={"type": "object", "properties": {"include_logs": {"type": "boolean", "default": True}}},
+        ),
+        ToolSpec(
+            name="whatsapp_auth_stop",
+            description="Stop the running local WhatsApp/wacli login process.",
+            input_schema={"type": "object", "properties": {"reason": {"type": "string", "default": "manual_stop"}}},
+        ),
+        ToolSpec(
+            name="whatsapp_auth_logout",
+            description="Logout local WhatsApp/wacli session after human confirmation.",
+            input_schema={"type": "object", "properties": {"confirmed": {"type": "boolean", "default": False}, "reason": {"type": "string", "default": "manual_logout"}}},
+        ),
+        ToolSpec(
+            name="whatsapp_groups_wacli",
+            description="List WhatsApp groups through local wacli.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "include_archived": {"type": "boolean", "default": False},
+                    "limit": {"type": "integer", "default": 50},
+                    "dry_run": {"type": "boolean", "default": False},
+                },
+            },
+        ),
+        ToolSpec(
+            name="whatsapp_groups_refresh",
+            description="Refresh joined WhatsApp groups live through local wacli and return the updated local list.",
+            input_schema={"type": "object", "properties": {"dry_run": {"type": "boolean", "default": False}}},
+        ),
+        ToolSpec(
+            name="whatsapp_send_text_confirmed",
+            description="Send WhatsApp text via local wacli only after human confirmation; dry_run validates the flow without sending.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "chat": {"type": "string"},
+                    "text": {"type": "string"},
+                    "confirmed": {"type": "boolean", "default": False},
+                    "dry_run": {"type": "boolean", "default": False},
+                    "confirmed_by": {"type": "string"},
+                },
+                "required": ["chat", "text"],
+            },
+        ),
+        ToolSpec(
+            name="whatsapp_sync_start",
+            description="Start wacli sync --webhook so live WhatsApp messages are delivered to Chitung Center for Agent handling.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "webhook_url": {"type": "string", "default": "http://127.0.0.1:8999/integrations/whatsapp/events"},
+                    "webhook_secret": {"type": "string"},
+                    "download_media": {"type": "boolean", "default": False},
+                    "refresh_groups": {"type": "boolean", "default": True},
+                },
+            },
+        ),
+        ToolSpec(
+            name="whatsapp_sync_status",
+            description="Return the local WhatsApp Agent listener status and recent wacli sync logs.",
+            input_schema={"type": "object", "properties": {"include_logs": {"type": "boolean", "default": True}}},
+        ),
+        ToolSpec(
+            name="whatsapp_sync_stop",
+            description="Stop the local WhatsApp Agent listener process.",
+            input_schema={"type": "object", "properties": {"reason": {"type": "string", "default": "manual_stop"}}},
+        ),
+        ToolSpec(
             name="generate_report",
             description="Generate the existing digital employee community Word report template.",
             input_schema={

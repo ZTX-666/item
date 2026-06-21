@@ -216,10 +216,30 @@ from .tools.vlm_workflows import (
     schedule_camera_patrol,
 )
 from .tools.whatsapp import (
+    WhatsAppAuthLogoutRequest,
+    WhatsAppAuthStartRequest,
+    WhatsAppAuthStatusRequest,
+    WhatsAppAuthStopRequest,
     WhatsAppDownloadMediaRequest,
+    WhatsAppGroupsRefreshRequest,
     WhatsAppSearchRequest,
+    WhatsAppSendTextRequest,
+    WhatsAppSyncStartRequest,
+    WhatsAppSyncStatusRequest,
+    WhatsAppSyncStopRequest,
+    WhatsAppWacliGroupsRequest,
+    auth_status,
     download_media,
+    list_groups_wacli,
+    logout_auth,
+    refresh_groups_wacli,
     search_messages,
+    send_text_confirmed,
+    start_auth,
+    start_sync,
+    stop_auth,
+    stop_sync,
+    sync_status,
 )
 
 
@@ -240,6 +260,26 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return search_messages(WhatsAppSearchRequest(**arguments)).model_dump()
     if name == "whatsapp_download_media":
         return download_media(WhatsAppDownloadMediaRequest(**arguments)).model_dump()
+    if name == "whatsapp_auth_start":
+        return start_auth(WhatsAppAuthStartRequest(**arguments)).model_dump()
+    if name == "whatsapp_auth_status":
+        return auth_status(WhatsAppAuthStatusRequest(**arguments)).model_dump()
+    if name == "whatsapp_auth_stop":
+        return stop_auth(WhatsAppAuthStopRequest(**arguments)).model_dump()
+    if name == "whatsapp_auth_logout":
+        return logout_auth(WhatsAppAuthLogoutRequest(**arguments)).model_dump()
+    if name == "whatsapp_groups_wacli":
+        return list_groups_wacli(WhatsAppWacliGroupsRequest(**arguments)).model_dump()
+    if name == "whatsapp_groups_refresh":
+        return refresh_groups_wacli(WhatsAppGroupsRefreshRequest(**arguments)).model_dump()
+    if name == "whatsapp_send_text_confirmed":
+        return send_text_confirmed(WhatsAppSendTextRequest(**arguments)).model_dump()
+    if name == "whatsapp_sync_start":
+        return start_sync(WhatsAppSyncStartRequest(**arguments)).model_dump()
+    if name == "whatsapp_sync_status":
+        return sync_status(WhatsAppSyncStatusRequest(**arguments)).model_dump()
+    if name == "whatsapp_sync_stop":
+        return stop_sync(WhatsAppSyncStopRequest(**arguments)).model_dump()
     if name == "generate_report":
         return generate_report(GenerateReportRequest(**arguments)).model_dump()
     if name == "notify_feishu":

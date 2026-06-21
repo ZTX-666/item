@@ -236,10 +236,30 @@ from .tools.secureeye_vlm import (
     merge_results,
 )
 from .tools.whatsapp import (
+    WhatsAppAuthLogoutRequest,
+    WhatsAppAuthStartRequest,
+    WhatsAppAuthStatusRequest,
+    WhatsAppAuthStopRequest,
     WhatsAppDownloadMediaRequest,
+    WhatsAppGroupsRefreshRequest,
     WhatsAppSearchRequest,
+    WhatsAppSendTextRequest,
+    WhatsAppSyncStartRequest,
+    WhatsAppSyncStatusRequest,
+    WhatsAppSyncStopRequest,
+    WhatsAppWacliGroupsRequest,
+    auth_status,
     download_media,
+    list_groups_wacli,
+    logout_auth,
+    refresh_groups_wacli,
     search_messages,
+    send_text_confirmed,
+    start_auth,
+    start_sync,
+    stop_auth,
+    stop_sync,
+    sync_status,
 )
 from .tools.yaoyao_ocr_engine import get_engine
 from .tools.yaoyao_pdf_render import get_pdf_render_service
@@ -319,6 +339,56 @@ def whatsapp_search(req: WhatsAppSearchRequest):
 @app.post("/tools/whatsapp_download_media")
 def whatsapp_download_media(req: WhatsAppDownloadMediaRequest):
     return download_media(req)
+
+
+@app.post("/tools/whatsapp_auth_start")
+def whatsapp_auth_start(req: WhatsAppAuthStartRequest):
+    return start_auth(req)
+
+
+@app.post("/tools/whatsapp_auth_status")
+def whatsapp_auth_status(req: WhatsAppAuthStatusRequest):
+    return auth_status(req)
+
+
+@app.post("/tools/whatsapp_auth_stop")
+def whatsapp_auth_stop(req: WhatsAppAuthStopRequest):
+    return stop_auth(req)
+
+
+@app.post("/tools/whatsapp_auth_logout")
+def whatsapp_auth_logout(req: WhatsAppAuthLogoutRequest):
+    return logout_auth(req)
+
+
+@app.post("/tools/whatsapp_groups_wacli")
+def whatsapp_groups_wacli(req: WhatsAppWacliGroupsRequest):
+    return list_groups_wacli(req)
+
+
+@app.post("/tools/whatsapp_groups_refresh")
+def whatsapp_groups_refresh(req: WhatsAppGroupsRefreshRequest):
+    return refresh_groups_wacli(req)
+
+
+@app.post("/tools/whatsapp_send_text_confirmed")
+def whatsapp_send_text_confirmed(req: WhatsAppSendTextRequest):
+    return send_text_confirmed(req)
+
+
+@app.post("/tools/whatsapp_sync_start")
+def whatsapp_sync_start(req: WhatsAppSyncStartRequest):
+    return start_sync(req)
+
+
+@app.post("/tools/whatsapp_sync_status")
+def whatsapp_sync_status(req: WhatsAppSyncStatusRequest):
+    return sync_status(req)
+
+
+@app.post("/tools/whatsapp_sync_stop")
+def whatsapp_sync_stop(req: WhatsAppSyncStopRequest):
+    return stop_sync(req)
 
 
 @app.post("/tools/generate_report")
