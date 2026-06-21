@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "appRoot": "E:\\publish3.0",
+  "storeDir": "C:\\Users\\User\\ChitongLingxun\\_unbound",
+  "updatedAt": "2026-06-21T11:05:33.0889748Z",
+  "tools": {
+    "git": {
+      "path": "C:\\Program Files\\Git\\cmd\\git.exe",
+      "source": "system",
+      "version": "git version 2.54.0.windows.1"
+    },
+    "go": {
+      "path": "C:\\Program Files\\Go\\bin\\go.exe",
+      "source": "system",
+      "version": "go version go1.26.3 windows/amd64"
+    },
+    "gcc": {
+      "path": "C:\\Users\\User\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\gcc.exe",
+      "source": "system",
+      "version": "gcc.exe (MinGW-W64 x86_64-ucrt-posix-seh, built by Brecht Sanders, r2) 16.1.0"
+    },
+    "wacli": {
+      "path": "E:\\publish3.0\\runtime\\bin\\wacli.exe",
+      "source": "local-copied",
+      "version": "wacli 0.11.0"
+    },
+    "python": {
+      "path": "C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "source": "system",
+      "version": "Python 3.11.9"
+    }
+  }
+}

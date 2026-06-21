@@ -1,0 +1,100 @@
+{
+  "id": "T155",
+  "index": 155,
+  "title": "Health Declaration and Assessment 健康聲明及檢查 **to be completed by SO 由安全主任填寫**",
+  "policy_context": "5. 協助工友安裝幸福工友App，並向工友講解幸福工友App應用，包括行為安全之星、安全評核及個人違反地盤安全守則保證書等； > 6. 工友填寫的上述資料涉及個人隱私，所有資料不得外洩。 > 附件",
+  "nearby_paragraphs": [
+    "Personal Data Collection Statement 收集個人資料聲明",
+    "The personal data provided will only be used by The Company for the purposes of assessing the health and safety aspects of your position description to you. The collected data will be disclosed to the worker, employee compensation insurer and the parties, as required by the Laws of the Hong Kong SAR.",
+    "你所提供的個人資料，本公司只會用於因健康及安全的理由而評估閣下的工作性質的合適性。為達到以上所述之目的和為此而有需要時，你提供的個人資料或該等資料的副本，可能透露給相關保險公司。",
+    "地盤名稱：____________________________________",
+    "甲部",
+    "Personal Information 個人資料 ** to be completed by worker 由工友填寫**",
+    "乙部",
+    "Health Declaration and Assessment 健康聲明及檢查 **to be completed by SO 由安全主任填寫**"
+  ],
+  "rows": 13,
+  "columns": 3,
+  "non_empty_cell_count": 17,
+  "first_row": [
+    "",
+    "No abnormality 未有異常",
+    "Enter details 請說明"
+  ],
+  "headers_guess": [
+    "",
+    "No abnormality 未有異常",
+    "Enter details 請說明"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T155_Health Declaration and Assessment 健康聲明及檢查 _to be completed by SO 由安全主任.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T155_Health Declaration and Assessment 健康聲明及檢查 _to be completed by SO 由安全主任.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T155_Health Declaration and Assessment 健康聲明及檢查 _to be completed by SO 由安全主任.md",
+  "cells": [
+    [
+      "",
+      "No abnormality 未有異常",
+      "Enter details 請說明"
+    ],
+    [
+      "Smoker, Alcohol consumer 吸煙，飲酒",
+      "",
+      ""
+    ],
+    [
+      "Height, Weight, Physical disability, Allergy 身高，體重，身體殘疾，過敏",
+      "",
+      ""
+    ],
+    [
+      "Medical History(e.g. HBP,DM,Heart Disease, Epilepsy etc.) 病歷(如高血壓，糖尿病，心臟病，羊癲癇等)",
+      "",
+      ""
+    ],
+    [
+      "Current / long term medication 近期/長期服用的藥物",
+      "",
+      ""
+    ],
+    [
+      "Past work-related injury 過往與工作有關之受傷記錄",
+      "",
+      ""
+    ],
+    [
+      "Past Employee’s Compensation Claim 過往申索工傷補償記錄",
+      "",
+      ""
+    ],
+    [
+      "Past Hospitalization 過往入住醫院記錄",
+      "",
+      ""
+    ],
+    [
+      "Temperature, Pulse Rate 體溫，脈搏速率",
+      "/",
+      ""
+    ],
+    [
+      "Blood Pressure 血壓(包括上壓/下壓)",
+      "/",
+      ""
+    ],
+    [
+      "Eye (Vision chart test, Ishihara test) 視覺(視力測試，色弱測試)",
+      "",
+      ""
+    ],
+    [
+      "Ear (Tuning fork, Whispered voice) 聽覺(音叉測試，低語測試)",
+      "",
+      ""
+    ],
+    [
+      "Last Chest X-ray Record 最近肺部X光記錄",
+      "",
+      "DATE: 日期:"
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

@@ -1,0 +1,34 @@
+{
+  "id": "T049",
+  "index": 49,
+  "title": "註: 1. 所有檢查項目必須全部符合要求方可進行吊運，否則停止吊運工作:",
+  "policy_context": "3. 填妥的表格應交地盤經理簽名確認，副本交地盤安全部存檔備案。 > 貨車式起重機安全吊運守則 > 2. 嚴禁使用葫蘆勾(如事先獲得《使用葫蘆勾工作許可證》者除外)。",
+  "nearby_paragraphs": [
+    "註：嚴禁使用葫蘆勾吊運(獲得《使用葫蘆勾工作許可證》者除外)",
+    "附件6.10",
+    "附件6.11",
+    "貨車式起重機吊運安全檢查表",
+    "地盤名稱：__________________ 日期：________________",
+    "註: 1. 所有檢查項目必須全部符合要求方可進行吊運，否則停止吊運工作:",
+    "2. 嚴禁使用葫蘆勾(如事先獲得《使用葫蘆勾工作許可證》者除外)。",
+    "附件6.12"
+  ],
+  "rows": 1,
+  "columns": 1,
+  "non_empty_cell_count": 1,
+  "first_row": [
+    "使用葫蘆勾工作許可證"
+  ],
+  "headers_guess": [
+    "使用葫蘆勾工作許可證"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T049_註_ 1. 所有檢查項目必須全部符合要求方可進行吊運，否則停止吊運工作.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T049_註_ 1. 所有檢查項目必須全部符合要求方可進行吊運，否則停止吊運工作.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T049_註_ 1. 所有檢查項目必須全部符合要求方可進行吊運，否則停止吊運工作.md",
+  "cells": [
+    [
+      "使用葫蘆勾工作許可證"
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

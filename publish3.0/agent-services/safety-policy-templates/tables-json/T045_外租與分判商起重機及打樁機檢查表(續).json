@@ -1,0 +1,41 @@
+{
+  "id": "T045",
+  "index": 45,
+  "title": "外租與分判商起重機及打樁機檢查表(續)",
+  "policy_context": "吊運安全守則 > 2. 監管組織： > 3. 安全環保部：",
+  "nearby_paragraphs": [
+    "_________________________________________________________________________",
+    "主管簽署：______________________ 日期：____________________",
+    "簽署者職位：____________________",
+    "抄送：安全環保部、監管組織、地盤安全部",
+    "附件6.6",
+    "外租與分判商起重機及打樁機檢查表",
+    "地盤名稱：______________________ 日期：__________________",
+    "外租與分判商起重機及打樁機檢查表(續)"
+  ],
+  "rows": 2,
+  "columns": 2,
+  "non_empty_cell_count": 3,
+  "first_row": [
+    "可否使用該機械",
+    "需維修或整改詳情"
+  ],
+  "headers_guess": [
+    "可否使用該機械",
+    "需維修或整改詳情"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T045_外租與分判商起重機及打樁機檢查表(續).docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T045_外租與分判商起重機及打樁機檢查表(續).json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T045_外租與分判商起重機及打樁機檢查表(續).md",
+  "cells": [
+    [
+      "可否使用該機械",
+      "需維修或整改詳情"
+    ],
+    [
+      "可 否",
+      ""
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

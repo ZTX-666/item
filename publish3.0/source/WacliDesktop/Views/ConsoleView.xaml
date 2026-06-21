@@ -1,0 +1,38 @@
+<UserControl x:Class="WacliDesktop.Views.ConsoleView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Border Style="{StaticResource SgCard}" Padding="8">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="200"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+
+      <Border Grid.Row="0" Background="#fafafa" CornerRadius="6"
+              BorderBrush="{StaticResource SgBorderBrush}" BorderThickness="1" Padding="6,4">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl x:Name="QuickCmdGroups"/>
+        </ScrollViewer>
+      </Border>
+
+      <Grid Grid.Row="1" Margin="0,4,0,4">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <TextBox x:Name="CmdArgsInput" FontFamily="Consolas" FontSize="11"
+                 Text="--read-only messages list --limit 10" VerticalContentAlignment="Center"/>
+        <Button Grid.Column="1" Content="运行" Style="{StaticResource PrimaryButton}" Margin="4,0,0,0" Click="BtnCmdRun_Click"/>
+      </Grid>
+
+      <Border Grid.Row="2" Background="#fafafa" CornerRadius="6"
+              BorderBrush="{StaticResource SgBorderBrush}" BorderThickness="1" Padding="4">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <TextBox x:Name="CmdOutput" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                   FontFamily="Consolas" FontSize="11" BorderThickness="0" Background="Transparent"/>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

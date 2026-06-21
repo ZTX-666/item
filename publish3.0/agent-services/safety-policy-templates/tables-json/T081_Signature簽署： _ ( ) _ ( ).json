@@ -1,0 +1,45 @@
+{
+  "id": "T081",
+  "index": 81,
+  "title": "Signature簽署： / ( ) / ( )",
+  "policy_context": "四、獨立第三方審核 > 五、其他事項 > 附件",
+  "nearby_paragraphs": [
+    "Permit No.許可證號碼: _______________",
+    "Certification 證明",
+    "I certify that the above precautions have already been taken. I had briefed the safety procedures to all workers involved in the work and they will be strictly followed in the duration of the work.",
+    "本人證明前述安全措施已全部妥善執行。本人已清楚向下列工作人員講解有關安全工作步驟，並保證遵守。",
+    "(to be signed before commencement of works 開工前簽發)",
+    "Acceptance of the Permit 接受有關許可證",
+    "I have read and understood this Permit and shall undertake to work in accordance with all the conditions laid down in it.",
+    "本人已細閱及明白有關許可證，並承諾於工作中謹遵有關條款。"
+  ],
+  "rows": 2,
+  "columns": 3,
+  "non_empty_cell_count": 5,
+  "first_row": [
+    "Signature簽署：",
+    "( )",
+    "( )"
+  ],
+  "headers_guess": [
+    "Signature簽署：",
+    "( )",
+    "( )"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T081_Signature簽署： _ ( ) _ ( ).docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T081_Signature簽署： _ ( ) _ ( ).json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T081_Signature簽署： _ ( ) _ ( ).md",
+  "cells": [
+    [
+      "Signature簽署：",
+      "( )",
+      "( )"
+    ],
+    [
+      "",
+      "Supervisor (監督人員)",
+      "Permit Holder (持有許可證人士)"
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

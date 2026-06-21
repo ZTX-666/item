@@ -1,0 +1,55 @@
+{
+  "id": "T076",
+  "index": 76,
+  "title": "Description of work工作性質: / 電梯工程 / 棚架工作 / 雜項",
+  "policy_context": "四、獨立第三方審核 > 五、其他事項 > 附件",
+  "nearby_paragraphs": [
+    "附件9.2 : 《升降機槽工作許可證管理流程圖(第二階段)》",
+    "附件9.1",
+    "工作許可證 (升降機槽內工作)(範本)",
+    "Permit to Work (Work inside lift shaft)",
+    "Permit No.許可證號碼: _______________",
+    "Project地盤名稱 : _____________________________",
+    "Location 工作地點 : ___________________________",
+    "Block 座數： Lift shaft no.升降機槽： Floor 樓層："
+  ],
+  "rows": 3,
+  "columns": 4,
+  "non_empty_cell_count": 9,
+  "first_row": [
+    "Description of work工作性質:",
+    "電梯工程",
+    "棚架工作",
+    "雜項"
+  ],
+  "headers_guess": [
+    "Description of work工作性質:",
+    "電梯工程",
+    "棚架工作",
+    "雜項"
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T076_Description of work工作性質_ _ 電梯工程 _ 棚架工作 _ 雜項.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T076_Description of work工作性質_ _ 電梯工程 _ 棚架工作 _ 雜項.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T076_Description of work工作性質_ _ 電梯工程 _ 棚架工作 _ 雜項.md",
+  "cells": [
+    [
+      "Description of work工作性質:",
+      "電梯工程",
+      "棚架工作",
+      "雜項"
+    ],
+    [
+      "",
+      "鐵模工程",
+      "清潔",
+      "平水"
+    ],
+    [
+      "",
+      "扎鐵工程",
+      "其他 – 請註明:",
+      ""
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}

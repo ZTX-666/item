@@ -1,0 +1,34 @@
+{
+  "id": "T080",
+  "index": 80,
+  "title": "附件",
+  "policy_context": "四、獨立第三方審核 > 五、其他事項 > 附件",
+  "nearby_paragraphs": [
+    "附件9.1（續）",
+    "工作許可證 (升降機槽內工作)(範本)",
+    "Permit to Work (Work inside lift shaft)",
+    "Permit No.許可證號碼: _______________",
+    "Certification 證明",
+    "I certify that the above precautions have already been taken. I had briefed the safety procedures to all workers involved in the work and they will be strictly followed in the duration of the work.",
+    "本人證明前述安全措施已全部妥善執行。本人已清楚向下列工作人員講解有關安全工作步驟，並保證遵守。",
+    "(to be signed before commencement of works 開工前簽發)"
+  ],
+  "rows": 1,
+  "columns": 1,
+  "non_empty_cell_count": 0,
+  "first_row": [
+    ""
+  ],
+  "headers_guess": [
+    ""
+  ],
+  "docx_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-docx\\T080_附件.docx",
+  "json_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-json\\T080_附件.json",
+  "markdown_path": "E:\\China Oversea  Final\\safety-policy-templates-20241025\\tables-md\\T080_附件.md",
+  "cells": [
+    [
+      ""
+    ]
+  ],
+  "source": "c:\\Users\\User\\Desktop\\安全管理辦法彙編20241025（無修訂版）.docx"
+}
