@@ -1,0 +1,33 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: change-me-root
+      MYSQL_DATABASE: wacli_sync
+      MYSQL_USER: sync_writer
+      MYSQL_PASSWORD: change-me-writer
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+  sync-api:
+    build: .
+    ports:
+      - "8090:8090"
+    environment:
+      SYNC_API_TOKEN: change-me-sync-token
+      MYSQL_HOST: mysql
+      MYSQL_USER: sync_writer
+      MYSQL_PASSWORD: change-me-writer
+      MYSQL_DATABASE: wacli_sync
+      MEDIA_STORAGE_DIR: /data/media
+    volumes:
+      - media_data:/data/media
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
+  media_data:

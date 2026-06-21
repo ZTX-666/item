@@ -1,0 +1,34 @@
+<Window x:Class="WacliDesktop.SetupProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="配置环境"
+        Width="620" Height="460" MinWidth="520" MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        Icon="/Assets/app-icon.ico"
+        Background="{StaticResource SgBgBrush}">
+  <Grid Margin="8">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <Border Grid.Row="0" Background="{StaticResource SgHeaderGradient}" CornerRadius="8" Padding="12,8" Margin="0,0,0,8">
+      <TextBlock Text="配置环境" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
+    </Border>
+
+    <TextBlock Grid.Row="1" Text="一键配置环境：扫描本机 → 复用已有 → 补全缺失 → 保存路径"
+               FontSize="13" Foreground="{StaticResource SgMutedBrush}" Margin="4,0,4,8"/>
+
+    <Border Grid.Row="2" Style="{StaticResource SgCard}" Padding="8">
+      <TextBox x:Name="LogBox" IsReadOnly="True" AcceptsReturn="True"
+               VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="13"
+               BorderThickness="0" Background="Transparent"/>
+    </Border>
+
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+      <Button x:Name="BtnClose" Content="关闭" IsEnabled="False" Click="Close_Click" Width="88"/>
+    </StackPanel>
+  </Grid>
+</Window>

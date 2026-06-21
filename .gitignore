@@ -1,0 +1,26 @@
+bin/
+obj/
+node_modules/
+.venv/
+__pycache__/
+logs/
+.env
+.env.*
+
+# Build / release outputs
+publish*/
+releease/
+*.zip
+*.exe
+*.7z
+*.msi
+
+# Runtime / local files
+*.log
+*.db
+*.sqlite
+*.sqlite3
+*.session
+*.lnk
+Thumbs.db
+.DS_Store
