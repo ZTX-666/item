@@ -38,6 +38,11 @@ obj/
 patrol-output/
 logs/
 *.log
+cctv-gateway/cctv-token-cache.json
+cctv-gateway/csmart-channel-list-latest.json
+cctv-gateway/v16-stream-capture/
+cctv-gateway/v16b-stream-intercept/
+cctv-gateway/v16c-stream-data/
 
 # Models & large binaries (vlm-detection/weights tracked via Git LFS — see .gitattributes)
 *.pth

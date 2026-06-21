@@ -15,6 +15,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'confirmations', name: 'guardian-confirmations', component: () => import('../pages/PendingConfirmationsPage.vue') },
       { path: 'hazards', name: 'guardian-hazards', component: () => import('../pages/HazardLedgerPage.vue') },
       { path: 'patrol', name: 'guardian-patrol', component: () => import('../pages/VisualPatrolPage.vue') },
+      { path: 'cctv', name: 'guardian-cctv', component: () => import('../pages/CctvPlayerPage.vue') },
     ],
   },
   {

@@ -32,6 +32,7 @@ const panels: Record<string, PanelDef> = {
       { icon: '✅', label: '待确认事项', path: '/guardian/confirmations' },
       { icon: '📋', label: '隐患台账', path: '/guardian/hazards' },
       { icon: '📷', label: '视觉巡检', path: '/guardian/patrol' },
+      { icon: '🎥', label: 'CCTV 实时播放', path: '/guardian/cctv', note: 'C-SMART' },
     ],
   },
   docmate: {

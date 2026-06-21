@@ -1,0 +1,11 @@
+{
+  "name": "cctv-gateway",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Local C-SMART CCTV iframe playback gateway for Chitung",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.cjs",
+    "test": "node tests/core.test.cjs"
+  }
+}

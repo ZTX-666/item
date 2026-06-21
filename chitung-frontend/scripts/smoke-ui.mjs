@@ -5,6 +5,8 @@ const files = {
   settings: 'src/components/system/SystemSettingsPanel.vue',
   camera: 'src/components/cards/CameraGrid.vue',
   api: 'src/services/chitungApi.ts',
+  router: 'src/router/index.ts',
+  panelSidebar: 'src/components/layout/PanelSidebar.vue',
 }
 
 const checks = [
@@ -18,6 +20,8 @@ const checks = [
   ['service restart button', files.settings, '重启服务'],
   ['report api client', files.api, 'generateReport'],
   ['notification api client', files.api, 'sendCaseNotification'],
+  ['cctv route', files.router, 'guardian-cctv'],
+  ['cctv sidebar item', files.panelSidebar, 'CCTV 实时播放'],
 ]
 
 let failed = false
