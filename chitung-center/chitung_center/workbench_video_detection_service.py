@@ -210,9 +210,12 @@ def list_video_detection_reports(limit: int = 20) -> dict[str, Any]:
 
 async def _search_policy_context(direction: str) -> list[str]:
     try:
-        result = await rag_service.query(direction, top_k=3)
+        result = await rag_service.query(direction, top_k=3, collection="safety")
     except Exception:
-        return []
+        try:
+            result = await rag_service.query(direction, top_k=3)
+        except Exception:
+            return []
     items = result.get("items") if isinstance(result, dict) else []
     if not isinstance(items, list):
         return []

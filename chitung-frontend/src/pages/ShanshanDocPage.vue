@@ -1,27 +1,22 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useDocmateSession } from '../composables/useDocmateSession'
-import DocmateDiffReview from '../components/documents/DocmateDiffReview.vue'
 import type { DocmateChange } from '../types/domain'
 
 const {
   state,
   isLoaded,
-  hasWork,
-  isDone,
   docName,
   docStats,
   pendingChanges,
   previewParagraphs,
   acceptedAppends,
   uploadDocument,
-  generateChanges,
   unload,
 } = useDocmateSession()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const dragOver = ref(false)
-const instruction = ref('')
 
 function pickFile() {
   fileInput.value?.click()
@@ -42,11 +37,6 @@ async function onDrop(event: DragEvent) {
   dragOver.value = false
   const file = event.dataTransfer?.files?.[0]
   if (file) await ingest(file)
-}
-
-async function handleGenerateChanges() {
-  const result = await generateChanges(instruction.value)
-  if (result.ok) instruction.value = ''
 }
 
 interface Segment {
@@ -200,35 +190,6 @@ function paragraphChanged(text: string): boolean {
       </div>
     </main>
 
-    <aside class="sd-panel sd-panel--right">
-      <h2 class="sd-title">AI 改稿</h2>
-      <div class="edit-box">
-        <label for="docmate-instruction">DocMate Skill 指令</label>
-        <textarea
-          id="docmate-instruction"
-          v-model="instruction"
-          rows="4"
-          placeholder="例如：把语气改正式、把第三段改成整改通知语气、删除重复表述"
-          :disabled="!isLoaded || state.step === 'generating' || state.step === 'committing'"
-        ></textarea>
-        <button
-          class="btn btn--accent btn--block"
-          :disabled="!isLoaded || !instruction.trim() || state.step === 'generating' || state.step === 'committing'"
-          @click="handleGenerateChanges"
-        >
-          <span v-if="state.step === 'generating'" class="spinner"></span>
-          <span>{{ state.step === 'generating' ? '生成中...' : '生成修改建议' }}</span>
-        </button>
-      </div>
-
-      <div v-if="!isLoaded" class="review-empty">
-        上传文档后即可生成修改建议。
-      </div>
-      <div v-else-if="!hasWork && !isDone && state.step !== 'committing'" class="review-empty">
-        修改建议会出现在这里，也会同步到全局 AI 助手的 DocMate 审阅区。
-      </div>
-      <DocmateDiffReview v-else />
-    </aside>
   </div>
 </template>
 
@@ -236,7 +197,7 @@ function paragraphChanged(text: string): boolean {
 .shanshan-doc {
   display: grid;
   gap: 16px;
-  grid-template-columns: 280px minmax(0, 1fr) 340px;
+  grid-template-columns: 280px minmax(0, 1fr);
   height: calc(100vh - 56px);
   overflow: hidden;
   padding: 16px;
@@ -364,32 +325,6 @@ function paragraphChanged(text: string): boolean {
   font-size: 11px;
   line-height: 1.6;
   margin: 0;
-}
-
-.edit-box {
-  display: grid;
-  gap: 8px;
-}
-
-.edit-box label {
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.edit-box textarea {
-  min-height: 112px;
-  width: 100%;
-}
-
-.review-empty {
-  background: var(--bg-subtle);
-  border: 1px dashed var(--border-normal);
-  border-radius: var(--radius-md);
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.6;
-  padding: 12px;
 }
 
 .doc-info {

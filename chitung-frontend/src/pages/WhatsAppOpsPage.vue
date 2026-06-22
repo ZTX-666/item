@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import QRCode from 'qrcode'
 import {
+  getWhatsAppMediaUrl,
   getWhatsAppAgentListenerStatus,
   getWhatsAppAuthStatus,
   getWhatsAppGroups,
@@ -22,6 +24,7 @@ import {
 
 type BrowseTab = 'messages' | 'attachments' | 'chats'
 type NoticeTone = 'info' | 'warning' | 'error' | 'success'
+type MainTab = 'browse' | 'sql' | 'commands'
 
 interface Notice {
   tone: NoticeTone
@@ -34,7 +37,7 @@ interface QuickCommand {
   group: string
 }
 
-const query = ref('整改')
+const query = ref('')
 const hkPhone = ref('')
 const authLoading = ref(false)
 const syncLoading = ref(false)
@@ -59,12 +62,63 @@ const activeBrowseTab = ref<BrowseTab>('messages')
 
 const sqlTables = ref<string[]>([])
 const selectedSqlTable = ref('messages')
-const sqlInput = ref('SELECT * FROM messages ORDER BY ts DESC')
-const sqlLimit = ref(100)
+const sqlInput = ref('')
+const sqlLimit = ref(50)
+const sqlPage = ref(1)
+const sqlTotal = ref(0)
 const sqlResult = ref<WhatsAppSqlSelectData>({ columns: [], rows: [] })
 
 const commandOutput = ref('等待执行快捷命令。')
 const authTimer = ref<number | null>(null)
+const route = useRoute()
+const router = useRouter()
+const defaultMessagesSql = `
+SELECT
+  datetime(m.ts, 'unixepoch', 'localtime') AS message_date,
+  m.sender_jid AS whatsapp_id,
+  m.sender_name,
+  m.chat_jid,
+  m.chat_name,
+  CASE WHEN m.from_me = 1 THEN '发出' ELSE '收到' END AS direction,
+  COALESCE(NULLIF(TRIM(m.text), ''), NULLIF(TRIM(m.display_text), ''), '') AS message_text,
+  COALESCE(NULLIF(TRIM(m.media_type), ''), '') AS attachment_type,
+  COALESCE(NULLIF(TRIM(m.filename), ''), '') AS attachment_filename,
+  COALESCE(NULLIF(TRIM(m.mime_type), ''), '') AS attachment_mime,
+  COALESCE(NULLIF(TRIM(m.media_caption), ''), '') AS attachment_caption,
+  COALESCE(NULLIF(TRIM(m.local_path), ''), '') AS attachment_local_path,
+  CASE
+    WHEN m.local_path IS NOT NULL AND TRIM(m.local_path) != '' THEN '已下载'
+    WHEN m.media_type IS NOT NULL AND TRIM(m.media_type) != '' THEN '未下载'
+    ELSE '无附件'
+  END AS attachment_status,
+  m.msg_id,
+  m.ts AS ts_unix
+FROM messages m
+ORDER BY m.ts DESC`.trim()
+const attachmentsSql = `
+SELECT
+  datetime(m.ts, 'unixepoch', 'localtime') AS message_date,
+  m.sender_jid AS whatsapp_id,
+  m.sender_name,
+  m.chat_jid,
+  m.chat_name,
+  COALESCE(NULLIF(TRIM(m.text), ''), NULLIF(TRIM(m.display_text), ''), '') AS message_text,
+  m.media_type AS attachment_type,
+  COALESCE(m.filename, '') AS attachment_filename,
+  COALESCE(m.mime_type, '') AS attachment_mime,
+  COALESCE(m.media_caption, '') AS attachment_caption,
+  COALESCE(m.local_path, '') AS attachment_local_path,
+  CASE
+    WHEN m.local_path IS NOT NULL AND TRIM(m.local_path) != '' THEN '已下载'
+    ELSE '未下载'
+  END AS attachment_status,
+  m.msg_id
+FROM messages m
+WHERE m.media_type IS NOT NULL AND TRIM(m.media_type) != ''
+ORDER BY m.ts DESC`.trim()
+const chatsSql = `
+SELECT * FROM chats ORDER BY rowid DESC`.trim()
+sqlInput.value = defaultMessagesSql
 
 const browseTabs: Array<{ id: BrowseTab; label: string }> = [
   { id: 'messages', label: '消息' },
@@ -101,9 +155,31 @@ const quickCommands: QuickCommand[] = [
 const selectedCommand = ref<QuickCommand>(quickCommands[0])
 
 const selectedCommandLine = computed(() => `wacli ${resolvedCommandArgs(selectedCommand.value).join(' ')}`)
+const activeMainTab = computed<MainTab | null>(() => {
+  if (route.path.endsWith('/browse')) return 'browse'
+  if (route.path.endsWith('/sql')) return 'sql'
+  if (route.path.endsWith('/commands')) return 'commands'
+  return null
+})
 
 const authStatusText = computed(() => stringValue(authStatus.value, ['status', 'state'], '未连接'))
-const syncStatusText = computed(() => stringValue(syncStatus.value, ['status', 'state'], '未启动'))
+const authStatusDisplay = computed(() => statusLabel(authStatusText.value, 'auth'))
+const syncProgressFromAuth = computed(() => latestSyncedCount(authStatus.value))
+const syncProgressCount = computed(() => stringValue(syncStatus.value, ['messages_synced', 'synced', 'count'], syncProgressFromAuth.value))
+const authIsBootstrappingSync = computed(() => {
+  const status = authStatusValue(authStatus.value)
+  return Boolean(authStatus.value?.process_running && syncProgressFromAuth.value !== '0' && ['authenticated', 'connected', 'history_sync'].includes(status))
+})
+const syncListenerRunning = computed(() => {
+  const status = stringValue(syncStatus.value, ['status', 'state'], '').toLowerCase()
+  return Boolean(syncStatus.value?.running || syncStatus.value?.process_running || ['starting', 'connected', 'history_sync', 'message', 'progress'].includes(status))
+})
+const syncStatusText = computed(() => {
+  const status = stringValue(syncStatus.value, ['status', 'state'], '未启动')
+  if ((status === 'idle' || status === '未启动') && authIsBootstrappingSync.value) return '认证引导同步中'
+  return status
+})
+const syncStatusDisplay = computed(() => statusLabel(syncStatusText.value, 'sync'))
 const pairingCode = computed(() => stringValue(authStatus.value, ['pairing_code', 'pairingCode', 'code'], '等待配对码'))
 const currentPhone = computed(() => stringValue(authStatus.value, ['phone', 'current_phone', 'account'], '未选择'))
 const authLogs = computed(() => arrayValue(authStatus.value, ['logs', 'log']).slice(-8))
@@ -118,37 +194,44 @@ const overviewCards = computed(() => [
   },
   {
     label: '同步监听',
-    value: syncStatusText.value,
-    helper: `消息 ${stringValue(syncStatus.value, ['messages_synced', 'synced', 'count'], '0')}`,
-    tone: syncStatusText.value.includes('running') || syncStatusText.value.includes('启动') ? 'green' : 'orange',
+    value: syncStatusDisplay.value,
+    helper: `已同步消息 ${syncProgressCount.value} 条`,
+    tone: syncStatusText.value.includes('running') || syncStatusText.value.includes('启动') || syncStatusText.value.includes('同步中') ? 'green' : 'orange',
   },
   {
     label: '聊天列表',
     value: String(groupRows.value.length),
-    helper: '可搜索、刷新、选择',
+    helper: groupRows.value.length ? '已从本地数据库读取' : '点击刷新或开始同步',
     tone: 'blue',
   },
   {
     label: '消息结果',
     value: String(messageRows.value.length),
-    helper: query.value || '等待关键词',
+    helper: query.value ? `关键词：${query.value}` : '当前显示最近消息',
     tone: 'red',
   },
 ])
 
 const browseColumns = computed(() => {
-  if (activeBrowseTab.value === 'chats') return ['名称', 'ID', '成员', '状态']
-  if (activeBrowseTab.value === 'attachments') return ['日期', '聊天', '文件', '类型', '状态']
-  return ['日期', '聊天', '发送人', '内容', 'ID']
+  if (activeBrowseTab.value === 'chats') return ['名称', 'ID', '类型', '未读', '状态']
+  if (activeBrowseTab.value === 'attachments') return ['项目', '日期', '聊天', '文件', '类型', '状态']
+  return ['项目', '群组', '日期', 'ID', '发送人', '附件', '状态', '消息']
 })
 
-const browseTableRows = computed<Array<Record<string, string>>>(() => {
+const browseTableRows = computed<Array<Record<string, unknown>>>(() => {
   if (activeBrowseTab.value === 'chats') {
     return groupRows.value.map((row) => ({
       名称: stringValue(row, ['name', 'Name', 'subject'], '未命名聊天'),
       ID: stringValue(row, ['id', 'jid', 'JID'], '—'),
-      成员: stringValue(row, ['participants', 'member_count', 'members'], '—'),
-      状态: boolishValue(row, ['archived', 'is_archived']) ? '已归档' : '活跃',
+      类型: stringValue(row, ['kind', 'type'], stringValue(row, ['jid', 'id', 'JID'], '').includes('@g.us') ? '群组' : '私聊'),
+      未读: stringValue(row, ['unread_count', 'unread', 'unreadCount'], '0'),
+      状态: boolishValue(row, ['archived', 'is_archived'])
+        ? '已归档'
+        : boolishValue(row, ['pinned'])
+          ? '置顶'
+          : boolishValue(row, ['muted'])
+            ? '静音'
+            : '活跃',
     }))
   }
 
@@ -156,27 +239,70 @@ const browseTableRows = computed<Array<Record<string, string>>>(() => {
     return messageRows.value
       .filter(hasAttachment)
       .map((row) => ({
-        日期: stringValue(row, ['message_date', 'messageDate', 'date', 'timestamp'], '—'),
+        项目: '',
+        日期: stringValue(row, ['message_time', 'message_date', 'messageDate', 'date', 'timestamp', 'ts'], '—'),
         聊天: stringValue(row, ['chat_name', 'chatName', 'chat_id', 'chatJid'], '—'),
-        文件: stringValue(row, ['attachment_filename', 'attachmentFilename', 'filename', 'file_name'], '未命名附件'),
-        类型: stringValue(row, ['attachment_type', 'attachmentType', 'mime', 'attachment_mime'], '—'),
-        状态: stringValue(row, ['attachment_status', 'attachmentStatus', 'status'], '等待补全'),
+        文件: stringValue(row, ['attachment_filename', 'attachmentFilename', 'filename', 'file_name', 'local_path'], '未命名附件'),
+        类型: stringValue(row, ['attachment_type', 'attachmentType', 'media_type', 'mime', 'attachment_mime'], '—'),
+        状态: attachmentStatus(row),
+        _source: row,
       }))
   }
 
   return messageRows.value.map((row) => ({
-    日期: stringValue(row, ['message_date', 'messageDate', 'date', 'timestamp'], '—'),
-    聊天: stringValue(row, ['chat_name', 'chatName', 'chat_id', 'chatJid'], '—'),
+    项目: '',
+    群组: groupDisplay(row),
+    日期: stringValue(row, ['message_time', 'message_date', 'messageDate', 'date', 'timestamp', 'ts'], '—'),
+    ID: stringValue(row, ['whatsapp_id', 'sender_jid', 'senderJid'], '—'),
     发送人: stringValue(row, ['sender_name', 'senderName', 'sender', 'from'], '—'),
-    内容: stringValue(row, ['text', 'message_text', 'messageText', 'content'], '(无文本)'),
-    ID: stringValue(row, ['message_id', 'msg_id', 'id'], '—'),
+    附件: stringValue(row, ['attachment_type', 'media_type'], '—'),
+    状态: attachmentStatus(row),
+    消息: stringValue(row, ['message_text', 'display_text', 'text', 'messageText', 'content'], '(无文本)'),
+    _source: row,
   }))
 })
 
 const sqlResultColumns = computed(() => {
-  if (sqlResult.value.columns.length) return sqlResult.value.columns
-  const first = sqlResult.value.rows[0]
-  return first ? Object.keys(first) : []
+  const columns = sqlResult.value.columns.length
+    ? sqlResult.value.columns
+    : Object.keys(sqlResult.value.rows[0] ?? {})
+  if (isMessageResult(sqlResult.value.rows, columns)) return ['项目', ...columns]
+  return columns
+})
+
+const sqlTotalPages = computed(() => Math.max(1, Math.ceil(sqlTotal.value / Math.max(1, sqlLimit.value || 50))))
+const sqlOffset = computed(() => (sqlPage.value - 1) * Math.max(1, sqlLimit.value || 50))
+const sqlPageSummary = computed(() => {
+  if (!sqlTotal.value) return '暂无记录'
+  const start = sqlOffset.value + 1
+  const end = Math.min(sqlOffset.value + sqlResult.value.rows.length, sqlTotal.value)
+  return `${start}-${end} / ${sqlTotal.value} 条`
+})
+const sqlPageButtons = computed<Array<number | 'ellipsis'>>(() => {
+  const total = sqlTotalPages.value
+  const current = sqlPage.value
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
+
+  const pages = new Set<number>([1, total])
+  for (let page = current - 1; page <= current + 1; page += 1) {
+    if (page > 1 && page < total) pages.add(page)
+  }
+  if (current <= 3) {
+    pages.add(2)
+    pages.add(3)
+  }
+  if (current >= total - 2) {
+    pages.add(total - 1)
+    pages.add(total - 2)
+  }
+
+  const sorted = [...pages].sort((a, b) => a - b)
+  const result: Array<number | 'ellipsis'> = []
+  sorted.forEach((page, index) => {
+    if (index > 0 && page - sorted[index - 1] > 1) result.push('ellipsis')
+    result.push(page)
+  })
+  return result
 })
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -227,8 +353,34 @@ function stringValue(record: Record<string, unknown> | null, keys: string[], fal
   return fallback
 }
 
+function statusLabel(value: string, kind: 'auth' | 'sync' = 'sync'): string {
+  const normalized = value.toLowerCase()
+  const labels: Record<string, string> = {
+    authenticated: '认证成功',
+    connected: kind === 'auth' ? '已连接' : '同步已连接',
+    idle: '未启动',
+    starting: '启动中',
+    stopped: '已停止',
+    failed: '失败',
+    message: '同步消息中',
+    progress: '同步进行中',
+    history_sync: '历史同步中',
+    logged_out: '已退出登录',
+    qr_timed_out: '二维码已过期',
+  }
+  return labels[normalized] || value || '未知'
+}
+
 function boolishValue(record: Record<string, unknown>, keys: string[]): boolean {
   return keys.some((key) => record[key] === true || record[key] === 'true' || record[key] === 1)
+}
+
+function groupDisplay(row: Record<string, unknown>): string {
+  const chatJid = stringValue(row, ['chat_jid', 'chatJid'], '')
+  const chatName = stringValue(row, ['chat_name', 'chatName'], '')
+  if (!chatJid) return '—'
+  if (chatJid.endsWith('@g.us')) return chatName || chatJid
+  return '私聊'
 }
 
 function arrayValue(record: Record<string, unknown> | null, keys: string[]): unknown[] {
@@ -240,12 +392,130 @@ function arrayValue(record: Record<string, unknown> | null, keys: string[]): unk
   return []
 }
 
+function mediaKind(row: Record<string, unknown>): string {
+  const filename = stringValue(row, ['attachment_filename', 'filename', 'file_name'], '').toLowerCase()
+  const mime = stringValue(row, ['attachment_mime', 'mime_type', 'mime'], '').toLowerCase()
+  const type = stringValue(row, ['attachment_type', 'media_type'], '').toLowerCase()
+  const ext = filename.includes('.') ? filename.split('.').pop() || '' : ''
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic'].includes(ext) || type === 'image' || type === 'sticker' || mime.startsWith('image/')) return type === 'sticker' ? 'sticker' : 'image'
+  if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext) || type === 'video' || mime.startsWith('video/')) return 'video'
+  if (['mp3', 'wav', 'ogg', 'opus', 'm4a', 'aac'].includes(ext) || type === 'audio' || type === 'ptt' || mime.startsWith('audio/')) return 'audio'
+  if (ext === 'pdf' || mime.includes('pdf')) return 'pdf'
+  if (['xls', 'xlsx', 'csv', 'et'].includes(ext) || mime.includes('excel') || mime.includes('spreadsheet')) return 'spreadsheet'
+  if (['ppt', 'pptx', 'dps'].includes(ext) || mime.includes('powerpoint') || mime.includes('presentation')) return 'presentation'
+  if (['doc', 'docx', 'wps', 'rtf', 'odt', 'txt'].includes(ext) || type === 'document' || mime.includes('word')) return 'doc'
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'archive'
+  if (['exe', 'msi', 'bat', 'cmd', 'com'].includes(ext)) return 'exe'
+  return type || 'generic'
+}
+
+function mediaIcon(row: Record<string, unknown>): string {
+  return {
+    image: 'IMG',
+    sticker: 'STK',
+    video: 'VID',
+    audio: 'AUD',
+    pdf: 'PDF',
+    spreadsheet: 'XLS',
+    presentation: 'PPT',
+    doc: 'DOC',
+    archive: 'ZIP',
+    exe: 'EXE',
+  }[mediaKind(row)] || 'FILE'
+}
+
+function mediaPreviewUrl(row: Record<string, unknown>): string {
+  const localPath = stringValue(row, ['attachment_local_path', 'local_path'], '')
+  const msgId = stringValue(row, ['msg_id'], '')
+  if (!localPath || !msgId) return ''
+  if (!['image', 'sticker'].includes(mediaKind(row))) return ''
+  return getWhatsAppMediaUrl(msgId)
+}
+
+function mediaFileUrl(row: Record<string, unknown>): string {
+  const localPath = stringValue(row, ['attachment_local_path', 'local_path'], '')
+  const msgId = stringValue(row, ['msg_id'], '')
+  if (!localPath || !msgId) return ''
+  return getWhatsAppMediaUrl(msgId)
+}
+
+function openMedia(row: Record<string, unknown>) {
+  const url = mediaFileUrl(row)
+  if (!url) return
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function attachmentStatus(row: Record<string, unknown>): string {
+  const explicit = stringValue(row, ['attachment_status'], '')
+  if (explicit) return explicit
+  const localPath = stringValue(row, ['attachment_local_path', 'local_path'], '')
+  const type = stringValue(row, ['attachment_type', 'media_type'], '')
+  if (localPath) return '已下载'
+  if (type) return '未下载'
+  return '无附件'
+}
+
+function isMessageResult(rows: Array<Record<string, unknown>>, columns: string[]): boolean {
+  return columns.some((column) => ['msg_id', 'sender_jid', 'whatsapp_id', 'attachment_type', 'media_type'].includes(column)) ||
+    rows.some((row) => Boolean(row.msg_id || row.sender_jid || row.whatsapp_id))
+}
+
+function latestSyncedCount(record: Record<string, unknown> | null): string {
+  const logs = arrayValue(record, ['logs', 'log'])
+  for (const item of [...logs].reverse()) {
+    const line = typeof item === 'string' ? item : ''
+    if (!line) continue
+    try {
+      const event = JSON.parse(line) as { data?: { messages_synced?: unknown } }
+      const synced = event.data?.messages_synced
+      if (synced !== undefined && synced !== null && synced !== '') return String(synced)
+    } catch {
+      const match = line.match(/messages_synced["']?\s*:\s*(\d+)/)
+      if (match) return match[1]
+    }
+  }
+  return '0'
+}
+
 function arrayFromData(data: Record<string, unknown>, keys: string[]): Array<Record<string, unknown>> {
   for (const key of keys) {
     const value = data[key]
     if (Array.isArray(value)) return value.map(asRecord)
   }
   return []
+}
+
+async function loadMessagesFromSql(sql = defaultMessagesSql) {
+  const result = await runWhatsAppSqlSelect({ sql, limit: 50 })
+  if (!result.ok) {
+    messageRows.value = []
+    browseNotice.value = {
+      tone: result.unavailable ? 'warning' : 'error',
+      text: result.error || 'SQLite 消息读取暂不可用。',
+    }
+    return
+  }
+  messageRows.value = result.data?.rows ?? []
+  if (!messageRows.value.length) {
+    browseNotice.value = { tone: 'info', text: 'SQLite 已连接，但当前查询没有返回消息。' }
+  }
+}
+
+async function loadChatsFromSql() {
+  const result = await runWhatsAppSqlSelect({ sql: chatsSql, limit: 200 })
+  if (!result.ok) {
+    groupRows.value = []
+    browseNotice.value = {
+      tone: result.unavailable ? 'warning' : 'error',
+      text: result.error || 'SQLite 聊天列表读取暂不可用。',
+    }
+    return false
+  }
+  groupRows.value = result.data?.rows ?? []
+  if (!groupRows.value.length) {
+    browseNotice.value = { tone: 'info', text: 'SQLite 已连接，但 chats 表还没有聊天记录。请先点击开始同步。' }
+  }
+  return groupRows.value.length > 0
 }
 
 function hasAttachment(row: Record<string, unknown>): boolean {
@@ -257,6 +527,8 @@ function hasAttachment(row: Record<string, unknown>): boolean {
     'attachment_type',
     'attachmentType',
     'attachment_local_path',
+    'media_type',
+    'local_path',
   ].some((key) => Boolean(row[key]))
 }
 
@@ -267,7 +539,15 @@ function setTab(tab: BrowseTab) {
   }
 }
 
+function selectMainTab(tab: MainTab) {
+  router.push(`/lingxun/${tab}`)
+}
+
 function selectOverview(target: string) {
+  if (target === 'browse' || target === 'sql' || target === 'commands') {
+    selectMainTab(target)
+    return
+  }
   document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -414,26 +694,48 @@ async function stopSync() {
   }
 }
 
+async function toggleSync() {
+  if (syncListenerRunning.value) await stopSync()
+  else await startSync()
+}
+
 async function loadBrowseData(refresh = false) {
   browseLoading.value = true
   browseNotice.value = null
   try {
     if (activeBrowseTab.value === 'chats') {
+      const loadedFromSql = await loadChatsFromSql()
+      if (loadedFromSql && !refresh) return
+
       const resp = refresh ? await refreshWhatsAppGroups() : await getWhatsAppGroups()
       const data = toolData(resp)
       if (!toolOk(resp)) {
-        groupRows.value = []
-        browseNotice.value = { tone: 'warning', text: responseText(resp, '聊天列表暂不可用。') }
+        if (!groupRows.value.length) {
+          browseNotice.value = { tone: 'warning', text: responseText(resp, '聊天列表暂不可用，SQLite 兜底也没有返回数据。') }
+        }
         return
       }
       groupRows.value = arrayFromData(data, ['groups', 'items', 'rows', 'chats'])
       if (!groupRows.value.length) {
-        browseNotice.value = { tone: 'info', text: '聊天列表为空，或本地归档服务尚未返回数据。' }
+        await loadChatsFromSql()
+        if (!groupRows.value.length) {
+          browseNotice.value = { tone: 'info', text: '聊天列表为空，或本地归档服务尚未返回数据。请先开始同步。' }
+        }
       }
       return
     }
 
-    const resp = await searchWhatsAppMessages({ q: query.value, limit: 50 })
+    if (activeBrowseTab.value === 'attachments' && !query.value.trim()) {
+      await loadMessagesFromSql(attachmentsSql)
+      return
+    }
+
+    if (!query.value.trim()) {
+      await loadMessagesFromSql(defaultMessagesSql)
+      return
+    }
+
+    const resp = await searchWhatsAppMessages({ q: query.value.trim(), limit: 50 })
     const data = toolData(resp)
     if (!toolOk(resp)) {
       messageRows.value = []
@@ -493,7 +795,11 @@ async function loadSqlTables() {
 
 function selectSqlTable(table: string) {
   selectedSqlTable.value = table
-  sqlInput.value = `SELECT * FROM ${table} ORDER BY rowid DESC`
+  sqlPage.value = 1
+  sqlInput.value =
+    table === 'messages'
+      ? defaultMessagesSql
+      : `SELECT * FROM ${table}`
 }
 
 function isSafeSelect(sql: string): boolean {
@@ -503,18 +809,24 @@ function isSafeSelect(sql: string): boolean {
   return !/\b(insert|update|delete|drop|alter|create|replace|attach|detach|vacuum|reindex)\b/.test(trimmed)
 }
 
-async function runSql() {
+async function runSql(page = sqlPage.value) {
   if (!isSafeSelect(sqlInput.value)) {
     sqlNotice.value = { tone: 'error', text: '这里只允许单条 SELECT 查询。' }
     return
   }
 
+  sqlPage.value = Math.max(1, page)
   sqlLoading.value = true
   sqlNotice.value = null
   try {
-    const result = await runWhatsAppSqlSelect({ sql: sqlInput.value, limit: sqlLimit.value })
+    const result = await runWhatsAppSqlSelect({
+      sql: sqlInput.value,
+      limit: sqlLimit.value,
+      offset: sqlOffset.value,
+    })
     if (!result.ok) {
       sqlResult.value = { columns: [], rows: [] }
+      sqlTotal.value = 0
       sqlNotice.value = {
         tone: result.unavailable ? 'warning' : 'error',
         text: result.error || 'SQLite 查询暂不可用。',
@@ -522,12 +834,23 @@ async function runSql() {
       return
     }
     sqlResult.value = result.data ?? { columns: [], rows: [] }
+    sqlTotal.value = Number(result.data?.total ?? sqlResult.value.rows.length)
     if (!sqlResult.value.rows.length) {
       sqlNotice.value = { tone: 'info', text: '查询成功，但没有返回行。' }
     }
   } finally {
     sqlLoading.value = false
   }
+}
+
+async function resetAndRunSql() {
+  await runSql(1)
+}
+
+async function goSqlPage(page: number) {
+  const target = Math.min(Math.max(1, page), sqlTotalPages.value)
+  if (target === sqlPage.value && sqlResult.value.rows.length) return
+  await runSql(target)
 }
 
 function resolvedCommandArgs(command: QuickCommand): string[] {
@@ -583,7 +906,8 @@ function cellValue(row: Record<string, unknown>, column: string): string {
 
 onMounted(async () => {
   startAuthPoller()
-  await Promise.allSettled([pollAuth(), pollSync(), loadSqlTables(), loadBrowseData(false)])
+  await Promise.allSettled([pollAuth(), pollSync(), loadSqlTables(), loadBrowseData(false), loadChatsFromSql()])
+  await runSql()
 })
 
 onUnmounted(() => {
@@ -595,18 +919,18 @@ onUnmounted(() => {
   <main class="whatsapp-workbench">
     <section class="lingxun-hero">
       <div>
-        <p class="eyebrow">赤瞳灵讯</p>
+        <p class="eyebrow">赤瞳聆讯</p>
         <h1>WhatsApp 控制台</h1>
         <p class="hero-copy">面向 wacli 本地归档、配对登录、SQLite 检索和命令诊断的统一操作台。</p>
       </div>
       <div class="hero-status">
-        <span class="status-dot" :class="authStatusText.includes('已') ? 'status-dot--green' : 'status-dot--orange'" />
-        <strong>{{ authStatusText }}</strong>
-        <small>{{ syncStatusText }}</small>
+        <span class="status-dot" :class="authStatusText.includes('authenticated') || authStatusText.includes('已') ? 'status-dot--green' : 'status-dot--orange'" />
+        <strong>{{ authStatusDisplay }}</strong>
+        <small>{{ syncStatusDisplay }}</small>
       </div>
     </section>
 
-    <section class="overview-grid" aria-label="总览入口">
+    <section v-show="activeMainTab === null" class="overview-grid" aria-label="总览入口">
       <button
         v-for="card in overviewCards"
         :key="card.label"
@@ -620,7 +944,7 @@ onUnmounted(() => {
       </button>
     </section>
 
-    <section id="login" class="module-panel login-panel">
+    <section v-show="activeMainTab === null" id="login" class="module-panel login-panel">
       <div class="module-header">
         <div>
           <h2>登录配对</h2>
@@ -655,6 +979,13 @@ onUnmounted(() => {
               获取配对码
             </button>
             <button class="secondary-button" :disabled="authLoading" @click="stopLogin">停止认证</button>
+            <button
+              :class="syncListenerRunning ? 'danger-button' : 'primary-button'"
+              :disabled="authLoading || syncLoading"
+              @click="toggleSync"
+            >
+              {{ syncListenerRunning ? '停止同步' : '开始同步' }}
+            </button>
           </div>
         </div>
         <div class="status-console">
@@ -672,7 +1003,7 @@ onUnmounted(() => {
       <p v-if="authNotice" class="notice" :class="`notice--${authNotice.tone}`">{{ authNotice.text }}</p>
     </section>
 
-    <section id="browse" class="module-panel">
+    <section v-show="activeMainTab === 'browse'" id="browse" class="module-panel">
       <div class="module-header">
         <div>
           <h2>数据浏览</h2>
@@ -716,7 +1047,22 @@ onUnmounted(() => {
           </thead>
           <tbody>
             <tr v-for="(row, index) in browseTableRows" :key="rowKey(row, index)">
-              <td v-for="column in browseColumns" :key="column">{{ cellValue(row, column) }}</td>
+              <td v-for="column in browseColumns" :key="column">
+                <button
+                  v-if="column === '项目'"
+                  class="media-project"
+                  :class="{ 'media-project--clickable': mediaFileUrl(asRecord(row._source ?? row)) }"
+                  :disabled="!mediaFileUrl(asRecord(row._source ?? row))"
+                  title="打开文件"
+                  @click="openMedia(asRecord(row._source ?? row))"
+                >
+                  <img v-if="mediaPreviewUrl(asRecord(row._source ?? row))" :src="mediaPreviewUrl(asRecord(row._source ?? row))" alt="附件缩略图" />
+                  <span v-else class="file-icon" :class="`file-icon--${mediaKind(asRecord(row._source ?? row))}`">
+                    {{ mediaIcon(asRecord(row._source ?? row)) }}
+                  </span>
+                </button>
+                <template v-else>{{ cellValue(row, column) }}</template>
+              </td>
             </tr>
             <tr v-if="!browseTableRows.length">
               <td :colspan="browseColumns.length" class="empty-cell">暂无数据，页面仍可继续操作。</td>
@@ -726,7 +1072,7 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <section id="sql" class="module-panel sql-panel">
+    <section v-show="activeMainTab === 'sql'" id="sql" class="module-panel sql-panel">
       <div class="module-header">
         <div>
           <h2>SQLite 查询</h2>
@@ -756,7 +1102,7 @@ onUnmounted(() => {
               <span>Limit</span>
               <input v-model.number="sqlLimit" type="number" min="1" max="500" />
             </label>
-            <button class="primary-button" :disabled="sqlLoading" @click="runSql">
+            <button class="primary-button" :disabled="sqlLoading" @click="resetAndRunSql">
               {{ sqlLoading ? '查询中' : '运行 SELECT' }}
             </button>
           </div>
@@ -773,7 +1119,20 @@ onUnmounted(() => {
           </thead>
           <tbody>
             <tr v-for="(row, index) in sqlResult.rows" :key="rowKey(row, index)">
-              <td v-for="column in sqlResultColumns" :key="column">{{ cellValue(row, column) }}</td>
+              <td v-for="column in sqlResultColumns" :key="column">
+                <button
+                  v-if="column === '项目'"
+                  class="media-project"
+                  :class="{ 'media-project--clickable': mediaFileUrl(row) }"
+                  :disabled="!mediaFileUrl(row)"
+                  title="打开文件"
+                  @click="openMedia(row)"
+                >
+                  <img v-if="mediaPreviewUrl(row)" :src="mediaPreviewUrl(row)" alt="附件缩略图" />
+                  <span v-else class="file-icon" :class="`file-icon--${mediaKind(row)}`">{{ mediaIcon(row) }}</span>
+                </button>
+                <template v-else>{{ cellValue(row, column) }}</template>
+              </td>
             </tr>
             <tr v-if="!sqlResult.rows.length">
               <td :colspan="Math.max(sqlResultColumns.length, 1)" class="empty-cell">暂无查询结果。</td>
@@ -781,17 +1140,35 @@ onUnmounted(() => {
           </tbody>
         </table>
       </div>
+      <div class="sql-pagination" aria-label="SQLite query pagination">
+        <span>{{ sqlPageSummary }}</span>
+        <div class="pagination-buttons">
+          <button class="secondary-button" :disabled="sqlLoading || sqlPage <= 1" @click="goSqlPage(sqlPage - 1)">左翻</button>
+          <template v-for="(page, index) in sqlPageButtons" :key="`${page}-${index}`">
+            <span v-if="page === 'ellipsis'" class="pagination-ellipsis">...</span>
+            <button
+              v-else
+              class="page-button"
+              :class="{ active: page === sqlPage }"
+              :disabled="sqlLoading"
+              @click="goSqlPage(page)"
+            >
+              {{ page }}
+            </button>
+          </template>
+          <button class="secondary-button" :disabled="sqlLoading || sqlPage >= sqlTotalPages" @click="goSqlPage(sqlPage + 1)">右翻</button>
+          <button class="secondary-button" :disabled="sqlLoading || sqlPage >= sqlTotalPages" @click="goSqlPage(sqlTotalPages)">最后一页</button>
+        </div>
+      </div>
     </section>
 
-    <section id="commands" class="module-panel command-panel">
+    <section v-show="activeMainTab === 'commands'" id="commands" class="module-panel command-panel">
       <div class="module-header">
         <div>
           <h2>命令工具</h2>
           <p>快捷命令按钮、只读命令输入和输出</p>
         </div>
         <div class="module-actions">
-          <button class="primary-button" :disabled="syncLoading" @click="startSync">启动同步</button>
-          <button class="secondary-button" :disabled="syncLoading" @click="stopSync">停止同步</button>
           <button class="secondary-button" :disabled="syncLoading" @click="pollSync">刷新状态</button>
         </div>
       </div>
@@ -824,16 +1201,6 @@ onUnmounted(() => {
       <pre class="sync-log">{{ syncLogs.length ? JSON.stringify(syncLogs, null, 2) : '暂无同步日志。' }}</pre>
     </section>
 
-    <section class="module-panel footer-entries">
-      <div>
-        <p class="eyebrow">环境入口</p>
-        <h2>配置环境 / 耀耀工厂</h2>
-      </div>
-      <div class="entry-actions">
-        <a class="entry-button" href="#/center/settings">配置环境</a>
-        <a class="entry-button entry-button--red" href="#/yaoyao/structured">耀耀工厂</a>
-      </div>
-    </section>
   </main>
 </template>
 
@@ -975,16 +1342,14 @@ label span {
 
 .module-actions,
 .button-row,
-.browse-toolbar,
-.entry-actions {
+.browse-toolbar {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-button,
-.entry-button {
+button {
   border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 700;
@@ -996,8 +1361,7 @@ button:disabled {
 }
 
 .primary-button,
-.danger-button,
-.entry-button--red {
+.danger-button {
   border: 0;
   color: var(--text-white);
   padding: 8px 12px;
@@ -1215,6 +1579,140 @@ pre {
   overflow-wrap: anywhere;
 }
 
+.media-project {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  min-width: 42px;
+  padding: 2px;
+}
+
+.media-project:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.media-project--clickable {
+  cursor: pointer;
+}
+
+.media-project--clickable:hover {
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+
+.media-project img {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  height: 34px;
+  object-fit: cover;
+  width: 34px;
+}
+
+.file-icon {
+  align-items: center;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  color: #3730a3;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 900;
+  height: 34px;
+  justify-content: center;
+  letter-spacing: 0.02em;
+  width: 34px;
+}
+
+.file-icon--image,
+.file-icon--sticker {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #047857;
+}
+
+.file-icon--video {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.file-icon--audio {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #6d28d9;
+}
+
+.file-icon--pdf {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+}
+
+.file-icon--spreadsheet {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.file-icon--presentation {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+.file-icon--doc {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.file-icon--archive {
+  background: #fefce8;
+  border-color: #fef08a;
+  color: #a16207;
+}
+
+.sql-pagination {
+  align-items: center;
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.pagination-buttons {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.page-button {
+  background: var(--bg-white);
+  border: 1px solid var(--border-normal);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  min-width: 34px;
+  padding: 7px 10px;
+}
+
+.page-button.active {
+  background: var(--brand-red);
+  border-color: var(--brand-red);
+  color: var(--text-white);
+}
+
+.pagination-ellipsis {
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
 .empty-cell {
   color: var(--text-secondary) !important;
   text-align: center !important;
@@ -1291,25 +1789,6 @@ pre {
   margin-top: 10px;
 }
 
-.footer-entries {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-}
-
-.entry-button {
-  background: var(--bg-white);
-  border: 1px solid var(--border-normal);
-  color: var(--text-primary);
-  padding: 8px 12px;
-  text-decoration: none;
-}
-
-.entry-button--red {
-  background: var(--brand-red);
-  border-color: var(--brand-red);
-}
-
 .notice {
   border-radius: var(--radius-md);
   font-size: 12px;
@@ -1354,8 +1833,7 @@ pre {
   }
 
   .lingxun-hero,
-  .module-header,
-  .footer-entries {
+  .module-header {
     align-items: stretch;
     flex-direction: column;
   }

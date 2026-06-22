@@ -40,7 +40,7 @@ const displayCameras = computed(() => {
     </div>
 
     <div v-if="!displayCameras.length" class="camera-empty">
-      <p>尚未配置摄像头。请在「系统设置」中保存 RTMP 地址后再巡检。</p>
+      <p>尚未配置摄像头。请先确认 CCTV 网关或 C-SMART 通道缓存已配置。</p>
       <p class="camera-empty__hint">未配置时不会显示伪在线画面。</p>
     </div>
     <div v-else class="camera-grid">

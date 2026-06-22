@@ -247,8 +247,8 @@ function fillSample() {
 
 <style scoped>
 .table-mapping-page {
-  background: #0f1117;
-  color: #d6deeb;
+  background: var(--bg-page);
+  color: var(--text-primary);
   display: grid;
   gap: 14px;
   grid-template-columns: 300px minmax(360px, 1fr) 360px;
@@ -258,9 +258,10 @@ function fillSample() {
 }
 
 .mapping-card {
-  background: #171b22;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 14px;
+  background: var(--bg-white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -276,13 +277,13 @@ function fillSample() {
 }
 
 .mapping-card__header h2 {
-  color: #f8fafc;
+  color: var(--text-primary);
   font-size: 18px;
   margin: 2px 0 0;
 }
 
 .eyebrow {
-  color: #60a5fa;
+  color: var(--brand-cyan);
   font-size: 12px;
   letter-spacing: 0.08em;
   margin: 0;
@@ -299,21 +300,22 @@ function fillSample() {
 .field span,
 .hint,
 .mapping-row__source {
-  color: #8b949e;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
 .input {
-  background: #0f131a;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 8px;
-  color: #e5e7eb;
+  background: var(--bg-white);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
   min-height: 36px;
   padding: 8px 10px;
 }
 
 .input:focus {
-  border-color: #60a5fa;
+  border-color: var(--brand-cyan);
+  box-shadow: var(--ring);
   outline: none;
 }
 
@@ -321,8 +323,9 @@ function fillSample() {
 .preview-box,
 .result-box,
 .error-card {
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -333,7 +336,7 @@ function fillSample() {
 .form-summary span,
 .preview-box p,
 .result-box p {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 12px;
   margin: 0;
 }
@@ -346,16 +349,16 @@ function fillSample() {
 }
 
 .options {
-  color: #94a3b8;
+  color: var(--text-secondary);
   flex-direction: column;
   font-size: 12px;
 }
 
 .btn {
-  background: rgba(148, 163, 184, 0.12);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 8px;
-  color: #dbeafe;
+  background: var(--bg-white);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 9px 12px;
 }
@@ -366,35 +369,37 @@ function fillSample() {
 }
 
 .btn--primary {
-  background: rgba(37, 99, 235, 0.85);
-  border-color: rgba(96, 165, 250, 0.45);
+  background: var(--brand-cyan);
+  border-color: var(--brand-cyan);
+  color: var(--text-white);
 }
 
 .btn--accent {
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  background: linear-gradient(135deg, var(--brand-red), var(--brand-red-dark));
   border: 0;
+  color: var(--text-white);
   font-weight: 700;
   width: 100%;
 }
 
 .status-pill,
 .counter {
-  border: 1px solid rgba(248, 113, 113, 0.4);
+  border: 1px solid rgb(231 0 18 / 24%);
   border-radius: 999px;
-  color: #fca5a5;
+  color: var(--brand-red);
   font-size: 12px;
   padding: 4px 8px;
   white-space: nowrap;
 }
 
 .status-pill--ok {
-  border-color: rgba(34, 197, 94, 0.4);
-  color: #86efac;
+  border-color: rgb(63 158 45 / 30%);
+  color: var(--brand-green);
 }
 
 .counter {
-  border-color: rgba(96, 165, 250, 0.38);
-  color: #93c5fd;
+  border-color: rgb(15 158 213 / 28%);
+  color: var(--brand-cyan);
 }
 
 .field-list {
@@ -415,7 +420,7 @@ function fillSample() {
 }
 
 .mapping-row__name {
-  color: #cbd5e1;
+  color: var(--text-primary);
   font-size: 13px;
 }
 
@@ -430,13 +435,13 @@ function fillSample() {
 }
 
 .result-box--ok {
-  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-color: rgb(63 158 45 / 30%);
 }
 
 .log-box {
-  background: #090b10;
-  border-radius: 10px;
-  color: #cbd5e1;
+  background: #1f2329;
+  border-radius: var(--radius-lg);
+  color: #dbeafe;
   flex: 1;
   font-size: 12px;
   line-height: 1.5;
@@ -448,11 +453,11 @@ function fillSample() {
 
 .log-box--error,
 .error-card {
-  color: #fca5a5;
+  color: var(--color-error);
 }
 
 .empty-state {
-  color: #64748b;
+  color: var(--text-muted);
   margin: auto;
 }
 </style>

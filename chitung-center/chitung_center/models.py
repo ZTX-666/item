@@ -335,6 +335,7 @@ class WhatsAppSqlTablesApiRequest(BaseModel):
 class WhatsAppSqlQueryApiRequest(BaseModel):
     sql: str = Field(min_length=1)
     limit: int = Field(default=100, ge=1, le=500)
+    offset: int = Field(default=0, ge=0)
     db_path: str | None = None
 
 

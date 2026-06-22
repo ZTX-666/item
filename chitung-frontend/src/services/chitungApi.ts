@@ -234,6 +234,9 @@ export async function uploadRagDocument(file: File, collection = 'default'): Pro
   doc_id: string
   chunk_count: number
   file_name: string
+  file_type?: string
+  collection?: string
+  created_at?: string
 }> {
   const form = new FormData()
   form.append('file', file)
@@ -243,11 +246,20 @@ export async function uploadRagDocument(file: File, collection = 'default'): Pro
     body: form,
   })
   await ensureOk(response, 'RAG document upload failed')
-  return response.json() as Promise<{ ok: boolean; doc_id: string; chunk_count: number; file_name: string }>
+  return response.json() as Promise<{
+    ok: boolean
+    doc_id: string
+    chunk_count: number
+    file_name: string
+    file_type?: string
+    collection?: string
+    created_at?: string
+  }>
 }
 
-export async function listRagDocuments(): Promise<RagDocument[]> {
-  const response = await fetch(`${CENTER_BASE_URL}/api/rag/documents`)
+export async function listRagDocuments(collection?: string): Promise<RagDocument[]> {
+  const query = collection ? `?collection=${encodeURIComponent(collection)}` : ''
+  const response = await fetch(`${CENTER_BASE_URL}/api/rag/documents${query}`)
   await ensureOk(response, 'RAG documents list failed')
   const data = (await response.json()) as { items?: RagDocument[] }
   return data.items ?? []
@@ -298,8 +310,9 @@ export async function askRag(request: {
   return response.json() as Promise<RagAskResponse>
 }
 
-export async function getRagStats(): Promise<RagStats> {
-  const response = await fetch(`${CENTER_BASE_URL}/api/rag/stats`)
+export async function getRagStats(collection?: string): Promise<RagStats> {
+  const query = collection ? `?collection=${encodeURIComponent(collection)}` : ''
+  const response = await fetch(`${CENTER_BASE_URL}/api/rag/stats${query}`)
   await ensureOk(response, 'RAG stats failed')
   return response.json() as Promise<RagStats>
 }
@@ -869,7 +882,7 @@ export async function startWhatsAppAgentListener(request: {
     body: JSON.stringify({
       webhook_url: request.webhookUrl ?? `${CENTER_BASE_URL}/integrations/whatsapp/events`,
       webhook_secret: '',
-      download_media: request.downloadMedia ?? false,
+      download_media: request.downloadMedia ?? true,
       refresh_groups: request.refreshGroups ?? true,
     }),
   })
@@ -953,6 +966,10 @@ export interface WhatsAppSqlTablesData {
 export interface WhatsAppSqlSelectData {
   columns: string[]
   rows: Array<Record<string, unknown>>
+  limit?: number
+  offset?: number
+  total?: number
+  database_path?: string
 }
 
 export interface WhatsAppCommandResultData {
@@ -1033,10 +1050,12 @@ export async function listWhatsAppSqlTables(): Promise<WhatsAppToolResult<WhatsA
 export async function runWhatsAppSqlSelect(request: {
   sql: string
   limit?: number
+  offset?: number
 }): Promise<WhatsAppToolResult<WhatsAppSqlSelectData>> {
   return postWhatsAppTool<WhatsAppSqlSelectData>('/api/whatsapp/sql/query', {
     sql: request.sql,
-    limit: request.limit ?? 100,
+    limit: request.limit ?? 50,
+    offset: request.offset ?? 0,
   })
 }
 
@@ -1047,6 +1066,10 @@ export async function runWhatsAppCommand(request: {
     args: request.args.join(' '),
     read_only: true,
   })
+}
+
+export function getWhatsAppMediaUrl(msgId: string): string {
+  return `${CENTER_BASE_URL}/api/whatsapp/media/${encodeURIComponent(msgId)}`
 }
 
 export async function createHybridPlan(request: {

@@ -3,8 +3,6 @@ type NavItem = {
   icon: string
   label: string
   page: string
-  badge?: string
-  badgeTone?: 'blue'
 }
 
 type NavGroup = {
@@ -24,12 +22,11 @@ const groups: NavGroup[] = [
   {
     title: '主菜单',
     items: [
-      { icon: '📊', label: '工作台总览', page: 'workbench' },
       { icon: '📋', label: '隐患台账', page: 'hazard-ledger' },
-      { icon: '📷', label: '视觉巡检', page: 'visual-patrol', badge: 'LIVE', badgeTone: 'blue' },
+      { icon: '📷', label: '视觉巡检', page: 'visual-patrol' },
       { icon: '📝', label: '智能填表', page: 'smart-form' },
-      { icon: '✨', label: '闪闪文档', page: 'shanshan-doc', badge: 'DOCX', badgeTone: 'blue' },
-      { icon: '📖', label: '耀耀慧读', page: 'yaoyao-structured-input', badge: 'OCR', badgeTone: 'blue' },
+      { icon: '✨', label: '闪闪文档', page: 'shanshan-doc' },
+      { icon: '📖', label: '耀耀慧读', page: 'yaoyao-structured-input' },
     ],
   },
   {
@@ -58,13 +55,6 @@ const groups: NavGroup[] = [
       >
         <span class="sidebar__item-icon">{{ item.icon }}</span>
         <span>{{ item.label }}</span>
-        <span
-          v-if="item.badge"
-          class="sidebar__badge"
-          :class="{ 'sidebar__badge--blue': item.badgeTone === 'blue' }"
-        >
-          {{ item.badge }}
-        </span>
       </button>
     </section>
   </aside>

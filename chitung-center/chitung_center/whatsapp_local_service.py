@@ -6,6 +6,7 @@ import shlex
 import shutil
 import sqlite3
 import subprocess
+import mimetypes
 from pathlib import Path
 from typing import Any
 
@@ -61,22 +62,53 @@ def list_whatsapp_sql_tables(db_path: str | None = None) -> dict[str, Any]:
     }
 
 
-def run_whatsapp_sql_query(sql: str, limit: int = 100, db_path: str | None = None) -> dict[str, Any]:
+def run_whatsapp_sql_query(
+    sql: str,
+    limit: int = 100,
+    db_path: str | None = None,
+    offset: int = 0,
+) -> dict[str, Any]:
     resolved = _resolve_db_path(db_path)
     if not resolved:
         return {
             "ok": False,
             "summary": "未找到 WhatsApp SQLite 数据库。",
             "error": "database_not_found",
-            "data": {"columns": [], "rows": [], "database_path": "", "default_store_dir": str(_default_store_dir())},
+            "data": {
+                "columns": [],
+                "rows": [],
+                "database_path": "",
+                "default_store_dir": str(_default_store_dir()),
+                "limit": limit,
+                "offset": offset,
+                "total": 0,
+            },
         }
     safe_sql = _validate_select(sql)
     bounded_limit = max(1, min(int(limit or 100), 500))
-    wrapped_sql = f"SELECT * FROM ({safe_sql}) LIMIT ?"
-    with _connect_readonly(resolved) as conn:
-        cursor = conn.execute(wrapped_sql, (bounded_limit,))
-        rows = cursor.fetchall()
-        columns = [item[0] for item in cursor.description or []]
+    bounded_offset = max(0, int(offset or 0))
+    count_sql = f"SELECT COUNT(*) AS total FROM ({safe_sql})"
+    wrapped_sql = f"SELECT * FROM ({safe_sql}) LIMIT ? OFFSET ?"
+    try:
+        with _connect_readonly(resolved) as conn:
+            total = int(conn.execute(count_sql).fetchone()["total"])
+            cursor = conn.execute(wrapped_sql, (bounded_limit, bounded_offset))
+            rows = cursor.fetchall()
+            columns = [item[0] for item in cursor.description or []]
+    except sqlite3.Error as exc:
+        return {
+            "ok": False,
+            "summary": "SQLite 查询执行失败。",
+            "error": str(exc),
+            "data": {
+                "columns": [],
+                "rows": [],
+                "database_path": str(resolved),
+                "limit": bounded_limit,
+                "offset": bounded_offset,
+                "total": 0,
+            },
+        }
     return {
         "ok": True,
         "summary": f"查询完成，返回 {len(rows)} 行。",
@@ -85,7 +117,48 @@ def run_whatsapp_sql_query(sql: str, limit: int = 100, db_path: str | None = Non
             "rows": [dict(row) for row in rows],
             "database_path": str(resolved),
             "limit": bounded_limit,
+            "offset": bounded_offset,
+            "total": total,
         },
+    }
+
+
+def resolve_whatsapp_media_file(msg_id: str) -> dict[str, Any]:
+    resolved = _resolve_db_path(None)
+    if not resolved:
+        return {"ok": False, "error": "database_not_found"}
+    cleaned = (msg_id or "").strip()
+    if not cleaned:
+        return {"ok": False, "error": "empty_msg_id"}
+
+    with _connect_readonly(resolved) as conn:
+        row = conn.execute(
+            """
+            SELECT local_path, mime_type, filename, media_type
+            FROM messages
+            WHERE msg_id = ?
+            LIMIT 1
+            """,
+            (cleaned,),
+        ).fetchone()
+    if not row:
+        return {"ok": False, "error": "message_not_found"}
+
+    path_text = str(row["local_path"] or "").strip()
+    if not path_text:
+        return {"ok": False, "error": "media_not_downloaded"}
+    path = Path(path_text).expanduser()
+    if not path.exists() or not path.is_file():
+        return {"ok": False, "error": "media_file_not_found", "path": str(path)}
+
+    mime_type = str(row["mime_type"] or "").strip() or mimetypes.guess_type(str(path))[0] or "application/octet-stream"
+    filename = str(row["filename"] or "").strip() or path.name
+    return {
+        "ok": True,
+        "path": str(path),
+        "mime_type": mime_type,
+        "filename": filename,
+        "media_type": str(row["media_type"] or "").strip(),
     }
 
 

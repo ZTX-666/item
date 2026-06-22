@@ -60,7 +60,7 @@ async function refreshHistory() {
 
 async function handlePatrol(cameraId?: string) {
   if (!hasCameras.value) {
-    note.value = '请先在系统设置中配置摄像头 RTMP 地址。'
+    note.value = '请先确认 CCTV 网关或 C-SMART 通道缓存已配置。'
     return
   }
   isPatrolling.value = true

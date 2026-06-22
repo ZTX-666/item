@@ -5,7 +5,7 @@ import ActivityBar from './components/layout/ActivityBar.vue'
 import ChatbotPanel from './components/layout/ChatbotPanel.vue'
 import PanelSidebar from './components/layout/PanelSidebar.vue'
 import TopBar from './components/layout/TopBar.vue'
-import { confirmationsRefreshKey, navigateKey, type AppPage } from './composables/useAppNavigation'
+import { confirmationsRefreshKey, navigateKey, openChatbotKey, type AppPage } from './composables/useAppNavigation'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,6 +15,7 @@ function deducePanel(path: string): string {
   if (path.startsWith('/docmate')) return 'docmate'
   if (path.startsWith('/lingxun')) return 'lingxun'
   if (path.startsWith('/center')) return 'center'
+  if (path.startsWith('/automation')) return 'center'
   if (path.startsWith('/yaoyao')) return 'yaoyao'
   return 'guardian'
 }
@@ -63,6 +64,9 @@ function handleLegacyNavigate(page: AppPage) {
 
 provide(navigateKey, handleLegacyNavigate)
 provide(confirmationsRefreshKey, confirmationsRefreshTick)
+provide(openChatbotKey, () => {
+  chatbotVisible.value = true
+})
 </script>
 
 <template>

@@ -23,9 +23,16 @@ const error = ref('')
 const lastMessage = ref('')
 const ragAnswer = ref<RagAskResponse | null>(null)
 const hasRawSearch = ref(false)
+let refreshSeq = 0
 
 const isFeedMode = computed(() => location.hash.includes('/feed'))
-const mode = computed(() => (isFeedMode.value ? '舆情规范知识库' : 'RAG 知识库'))
+const activeCollection = computed(() => (isFeedMode.value ? 'feed' : 'safety'))
+const mode = computed(() => (isFeedMode.value ? '舆情规范知识库' : '耀耀知识'))
+const modeDescription = computed(() =>
+  isFeedMode.value
+    ? '上传舆情规范、外部风险资料和白名单来源说明，使用本地 ChromaDB 做语义检索。'
+    : '内置安全管理规定已自动入库，也可继续上传项目制度、规范、报告，AI 会基于知识库回答。',
+)
 const answerReferences = computed(() => {
   const answer = ragAnswer.value
   if (!answer) return []
@@ -50,10 +57,14 @@ const answerReferences = computed(() => {
 })
 
 async function refresh() {
+  const seq = ++refreshSeq
   error.value = ''
   try {
-    const [docItems, statResult] = await Promise.all([listRagDocuments(), getRagStats()])
+    const docItems = await listRagDocuments(activeCollection.value)
+    if (seq !== refreshSeq) return
     documents.value = docItems
+    const statResult = await getRagStats(activeCollection.value)
+    if (seq !== refreshSeq) return
     stats.value = statResult
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -72,8 +83,16 @@ async function uploadFiles(files: FileList | File[]) {
   try {
     let totalChunks = 0
     for (const file of accepted) {
-      const result = await uploadRagDocument(file, isFeedMode.value ? 'feed' : 'default')
+      const result = await uploadRagDocument(file, activeCollection.value)
       totalChunks += result.chunk_count
+      upsertUploadedDocument({
+        doc_id: result.doc_id,
+        file_name: result.file_name,
+        file_type: result.file_type || file.name.split('.').pop() || 'file',
+        chunk_count: result.chunk_count,
+        collection: result.collection || activeCollection.value,
+        created_at: result.created_at || new Date().toISOString(),
+      })
     }
     lastMessage.value = `已上传 ${accepted.length} 个文件，新增 ${totalChunks} 个分块。`
     await refresh()
@@ -121,7 +140,7 @@ async function search() {
     results.value = await queryRag({
       query: value,
       topK: 5,
-      collection: isFeedMode.value ? 'feed' : undefined,
+      collection: activeCollection.value,
     })
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -142,7 +161,7 @@ async function answerQuestion() {
     const answer = await askRag({
       query: value,
       topK: 5,
-      collection: isFeedMode.value ? 'feed' : undefined,
+      collection: activeCollection.value,
     })
     ragAnswer.value = answer
   } catch (err) {
@@ -157,6 +176,16 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString()
 }
 
+function canDeleteDocument(doc: RagDocument) {
+  return !doc.doc_id.startsWith('builtin-')
+}
+
+function upsertUploadedDocument(doc: RagDocument) {
+  const index = documents.value.findIndex((item) => item.doc_id === doc.doc_id)
+  if (index >= 0) documents.value.splice(index, 1, doc)
+  else documents.value.unshift(doc)
+}
+
 onMounted(refresh)
 </script>
 
@@ -166,7 +195,7 @@ onMounted(refresh)
       <div>
         <p class="eyebrow">Yaoyao Knowledge</p>
         <h1>{{ mode }}</h1>
-        <p>上传制度、规范、报告或外部风险资料，使用本地 ChromaDB 做语义检索。</p>
+        <p>{{ modeDescription }}</p>
       </div>
       <button class="primary-soft-button" @click="refresh">刷新</button>
     </section>
@@ -224,8 +253,12 @@ onMounted(refresh)
               <strong>{{ doc.file_name }}</strong>
               <p>{{ doc.file_type }} · {{ doc.chunk_count }} 个分块 · {{ formatDate(doc.created_at) }}</p>
             </div>
-            <button class="mini-button" :disabled="deletingId === doc.doc_id" @click="removeDocument(doc.doc_id)">
-              {{ deletingId === doc.doc_id ? '删除中...' : '删除' }}
+            <button
+              class="mini-button"
+              :disabled="deletingId === doc.doc_id || !canDeleteDocument(doc)"
+              @click="removeDocument(doc.doc_id)"
+            >
+              {{ !canDeleteDocument(doc) ? '内置' : deletingId === doc.doc_id ? '删除中...' : '删除' }}
             </button>
           </article>
           <p v-if="!documents.length" class="smart-form-empty">暂无文档。上传制度文件后会显示在这里。</p>
@@ -235,15 +268,15 @@ onMounted(refresh)
       <section class="panel">
         <div class="panel__header">
           <div>
-            <h2>语义检索</h2>
-            <p>返回最相关的文本片段和来源文件。</p>
+            <h2>知识库问答</h2>
+            <p>基于内置安全管理规定和已上传资料回答，并展示引用片段。</p>
           </div>
         </div>
         <div class="knowledge-box">
           <textarea
             v-model="queryText"
             rows="4"
-            placeholder="例如：临边作业护栏高度和整改闭环要求是什么？"
+            placeholder="例如：临边作业、机械作业半径、PPE 和整改闭环要求是什么？"
             @keydown.ctrl.enter="answerQuestion"
           />
           <div class="knowledge-actions">

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import hashlib
+import io
 import math
+import os
 import re
 import uuid
 from datetime import datetime, timezone
@@ -17,6 +19,15 @@ from chitung_center.llm_gateway import llm_gateway
 
 
 SUPPORTED_SUFFIXES = {".pdf", ".docx", ".txt", ".md", ".markdown", ".html", ".htm"}
+BUILTIN_SAFETY_COLLECTION = "safety"
+BUILTIN_SAFETY_DOC_ID = "builtin-safety-management-rules"
+BUILTIN_SAFETY_RULES = [
+    "个人防护用品管理：进入施工现场人员必须正确佩戴安全帽，临边、高处、吊装、机械交叉作业区域应按风险佩戴反光衣、安全带等个人防护用品；发现未佩戴或佩戴不规范，应立即提醒整改并记录。",
+    "机械作业半径管理：挖掘机、吊机、车辆、升降设备等机械作业时，应设置警戒线、隔离围挡或专人指挥，非作业人员不得进入机械回转半径、吊臂覆盖范围和车辆盲区。",
+    "临边及高处作业管理：楼层边、洞口、斜坡、平台、脚手架等临边位置应设置稳固护栏、踢脚板、盖板或安全网；高处作业应有防坠落措施，严禁无防护站立或通行。",
+    "通道与围挡管理：施工通道、消防通道和人员出入口应保持畅通；材料堆放、临时管线、围挡缺失或警示不足导致人员绕行、跨越、靠近危险源时，应列为隐患。",
+    "隐患闭环管理：视觉巡检发现的风险应形成可复核描述，包含风险位置、风险对象、可能后果、整改建议和复查要求；高风险情况应先隔离危险区域，再安排责任单位整改。",
+]
 
 
 class RagServiceError(RuntimeError):
@@ -75,6 +86,7 @@ class RagService:
         else:
             collection_obj.add(ids=chunk_ids, documents=chunks, metadatas=metadatas, embeddings=embeddings)
 
+        created_at = datetime.now(timezone.utc).isoformat()
         meta = self._read_meta()
         meta[doc_id] = {
             "doc_id": doc_id,
@@ -83,14 +95,27 @@ class RagService:
             "chunk_count": len(chunks),
             "collection": collection or "default",
             "stored_path": str(target),
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": created_at,
         }
         self._write_meta(meta)
-        return {"ok": True, "doc_id": doc_id, "chunk_count": len(chunks), "file_name": filename}
+        return {
+            "ok": True,
+            "doc_id": doc_id,
+            "chunk_count": len(chunks),
+            "file_name": filename,
+            "file_type": suffix.lstrip("."),
+            "collection": collection or "default",
+            "created_at": created_at,
+        }
 
-    def list_documents(self) -> dict[str, Any]:
+    def list_documents(self, collection: str | None = None) -> dict[str, Any]:
+        if collection in (None, "", BUILTIN_SAFETY_COLLECTION):
+            self.ensure_builtin_safety_knowledge()
         meta = self._read_meta()
-        return {"ok": True, "items": sorted(meta.values(), key=lambda item: item.get("created_at", ""), reverse=True)}
+        items = list(meta.values())
+        if collection:
+            items = [item for item in items if item.get("collection", "default") == collection]
+        return {"ok": True, "items": sorted(items, key=lambda item: item.get("created_at", ""), reverse=True)}
 
     def delete_document(self, doc_id: str) -> dict[str, Any]:
         meta = self._read_meta()
@@ -105,6 +130,8 @@ class RagService:
         return {"ok": True, "doc_id": doc_id, "removed_chunks": removed.get("chunk_count", 0)}
 
     async def query(self, query: str, top_k: int = 5, collection: str | None = None) -> dict[str, Any]:
+        if collection in (None, "", BUILTIN_SAFETY_COLLECTION):
+            self.ensure_builtin_safety_knowledge()
         where = {"collection": collection} if collection else None
         query_embeddings = await self._embed_texts([query])
         if query_embeddings is None:
@@ -186,20 +213,59 @@ class RagService:
             "llm_error": llm_error or "LLM did not return a usable answer.",
         }
 
-    def stats(self) -> dict[str, Any]:
+    def stats(self, collection: str | None = None) -> dict[str, Any]:
+        if collection in (None, "", BUILTIN_SAFETY_COLLECTION):
+            self.ensure_builtin_safety_knowledge()
         meta = self._read_meta()
-        chunk_count = sum(int(item.get("chunk_count", 0)) for item in meta.values())
+        items = list(meta.values())
+        if collection:
+            items = [item for item in items if item.get("collection", "default") == collection]
+        chunk_count = sum(int(item.get("chunk_count", 0)) for item in items)
         try:
-            vector_count = self._collection().count()
+            if collection:
+                result = self._collection().get(where={"collection": collection}, include=[])
+                vector_count = len(result.get("ids", []))
+            else:
+                vector_count = self._collection().count()
         except Exception:
             vector_count = 0
         return {
             "ok": True,
-            "document_count": len(meta),
+            "document_count": len(items),
             "chunk_count": chunk_count,
             "vector_count": vector_count,
             "chroma_dir": str(self.chroma_dir),
         }
+
+    def ensure_builtin_safety_knowledge(self) -> None:
+        meta = self._read_meta()
+        if BUILTIN_SAFETY_DOC_ID in meta:
+            return
+        chunk_ids = [f"{BUILTIN_SAFETY_DOC_ID}:{idx}" for idx, _ in enumerate(BUILTIN_SAFETY_RULES)]
+        metadatas = [
+            {
+                "doc_id": BUILTIN_SAFETY_DOC_ID,
+                "file_name": "内置安全管理规定",
+                "file_type": "builtin",
+                "chunk_index": idx,
+                "collection": BUILTIN_SAFETY_COLLECTION,
+            }
+            for idx, _ in enumerate(BUILTIN_SAFETY_RULES)
+        ]
+        try:
+            self._collection().upsert(ids=chunk_ids, documents=BUILTIN_SAFETY_RULES, metadatas=metadatas)
+        except Exception:
+            return
+        meta[BUILTIN_SAFETY_DOC_ID] = {
+            "doc_id": BUILTIN_SAFETY_DOC_ID,
+            "file_name": "内置安全管理规定",
+            "file_type": "builtin",
+            "chunk_count": len(BUILTIN_SAFETY_RULES),
+            "collection": BUILTIN_SAFETY_COLLECTION,
+            "stored_path": "",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self._write_meta(meta)
 
     def _collection(self) -> Any:
         try:
@@ -213,14 +279,26 @@ class RagService:
     def _read_meta(self) -> dict[str, dict[str, Any]]:
         if not self.meta_path.exists():
             return {}
-        try:
-            data = json.loads(self.meta_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return {}
+        data: Any = {}
+        for attempt in range(3):
+            try:
+                data = json.loads(self.meta_path.read_text(encoding="utf-8"))
+                break
+            except json.JSONDecodeError:
+                if attempt == 2:
+                    return {}
+                import time
+
+                time.sleep(0.05)
+            except OSError:
+                return {}
         return data if isinstance(data, dict) else {}
 
     def _write_meta(self, meta: dict[str, dict[str, Any]]) -> None:
-        self.meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.meta_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = self.meta_path.with_name(f"{self.meta_path.name}.{uuid.uuid4().hex}.tmp")
+        temp_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(temp_path, self.meta_path)
 
     def _load_text(self, path: Path, original_name: str) -> str:
         suffix = path.suffix.lower()
@@ -238,14 +316,15 @@ class RagService:
         return text
 
     def _load_pdf(self, path: Path) -> str:
+        extracted_text = ""
         try:
             import fitz
 
             with fitz.open(str(path)) as doc:
-                text = "\n".join(page.get_text("text") for page in doc)
-            text = text.strip()
-            if text and not _is_mojibake_text(text):
-                return text
+                extracted_text = "\n".join(page.get_text("text") for page in doc)
+            extracted_text = extracted_text.strip()
+            if extracted_text and not _is_mojibake_text(extracted_text):
+                return extracted_text
         except Exception:
             pass
 
@@ -253,18 +332,48 @@ class RagService:
             from langchain_community.document_loaders import PyPDFLoader
 
             docs = PyPDFLoader(str(path)).load()
-            text = "\n".join(doc.page_content for doc in docs)
+            extracted_text = "\n".join(doc.page_content for doc in docs)
         except Exception:
             try:
                 from pypdf import PdfReader
             except ImportError as exc:
                 raise RagDependencyError("PDF parsing requires pypdf or langchain-community.") from exc
             reader = PdfReader(str(path))
-            text = "\n".join(page.extract_text() or "" for page in reader.pages)
-        text = text.strip()
-        if not text:
-            raise RagServiceError("No text extracted from PDF.")
-        return text
+            extracted_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        extracted_text = extracted_text.strip()
+        if extracted_text and not _is_mojibake_text(extracted_text):
+            return extracted_text
+
+        ocr_text = self._load_pdf_with_ocr(path)
+        if ocr_text:
+            return ocr_text
+        if extracted_text:
+            raise RagServiceError(
+                "PDF text extraction returned garbled text, and OCR did not return usable text. "
+                "Please install rapidocr-onnxruntime or pytesseract with a Chinese OCR language pack, then retry."
+            )
+        raise RagServiceError(
+            "No text extracted from PDF. The PDF appears to be scanned. "
+            "Please install rapidocr-onnxruntime or pytesseract with a Chinese OCR language pack, then retry."
+        )
+
+    def _load_pdf_with_ocr(self, path: Path) -> str:
+        try:
+            import fitz
+        except Exception:
+            return ""
+
+        page_texts: list[str] = []
+        with fitz.open(str(path)) as doc:
+            for page_index, page in enumerate(doc):
+                image = _render_pdf_page(page)
+                if image is None:
+                    continue
+                text = _ocr_image_text(image)
+                text = re.sub(r"\s+", " ", text).strip()
+                if text and not _is_mojibake_text(text):
+                    page_texts.append(f"第 {page_index + 1} 页 OCR：{text}")
+        return "\n".join(page_texts).strip()
 
     def _load_docx(self, path: Path) -> str:
         try:
@@ -341,6 +450,60 @@ def _default_embedding_url(base_url: str) -> str:
     if stripped.endswith("/v1"):
         return stripped + "/embeddings"
     return stripped + "/embeddings"
+
+
+def _render_pdf_page(page: Any) -> Any | None:
+    try:
+        import fitz
+        from PIL import Image
+
+        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+        return Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB")
+    except Exception:
+        return None
+
+
+def _ocr_image_text(image: Any) -> str:
+    text = _ocr_image_with_rapidocr(image)
+    if text.strip():
+        return text
+    return _ocr_image_with_tesseract(image)
+
+
+def _ocr_image_with_rapidocr(image: Any) -> str:
+    try:
+        import numpy as np
+        from rapidocr_onnxruntime import RapidOCR
+    except Exception:
+        return ""
+    try:
+        engine = RapidOCR()
+        result, _elapsed = engine(np.array(image))
+    except Exception:
+        return ""
+    lines: list[str] = []
+    for item in result or []:
+        if isinstance(item, (list, tuple)) and len(item) >= 2:
+            text = str(item[1] or "").strip()
+            if text:
+                lines.append(text)
+    return "\n".join(lines)
+
+
+def _ocr_image_with_tesseract(image: Any) -> str:
+    try:
+        import pytesseract
+    except Exception:
+        return ""
+    languages = ("chi_sim+chi_tra+eng", "chi_sim+eng", "eng")
+    for language in languages:
+        try:
+            text = pytesseract.image_to_string(image, lang=language)
+        except Exception:
+            continue
+        if text.strip():
+            return text
+    return ""
 
 
 def _simple_split_text(text: str, chunk_size: int, overlap: int) -> list[str]:

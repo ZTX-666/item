@@ -499,7 +499,7 @@ async function confirmNotificationDraft() {
               :disabled="isPromptRefining || isVideoDetecting || !enabledCameras.length"
               @click="handleRefineVideoPrompt"
             >
-              {{ isPromptRefining ? '润色中' : '润色提示词' }}
+              {{ isPromptRefining ? '润色中' : '公司制度润色' }}
             </button>
             <button
               class="primary-soft-button video-detection-run"
@@ -543,7 +543,7 @@ async function confirmNotificationDraft() {
                 v-model="refinedVideoPrompt"
                 class="video-prompt-editor"
                 rows="5"
-                placeholder="点击“润色提示词”生成，也可以在这里直接输入或修改给 YOLO + GLM 的检测提示词。"
+                placeholder="点击“公司制度润色”生成，也可以在这里直接输入或修改给 YOLO + GLM 的检测提示词。"
               />
               <small v-if="videoPromptPolicyContext.length" class="video-prompt-context">
                 制度依据：{{ videoPromptPolicyContext.slice(0, 2).join('；') }}
@@ -692,20 +692,6 @@ async function confirmNotificationDraft() {
         <ProgressChain :steps="workflowSteps" />
         <div class="ai-message-list">
           <p v-for="msg in aiMessages.slice(0, 3)" :key="msg">{{ msg }}</p>
-        </div>
-      </section>
-      <section class="panel">
-        <div class="panel__header">
-          <div>
-            <h2>快捷工作流</h2>
-            <p>竞赛演示优先闭环</p>
-          </div>
-        </div>
-        <div class="workflow-shortcuts">
-          <button @click="goTo('hazard-ledger')">隐患录入</button>
-          <button @click="goTo('visual-patrol')">视觉巡检</button>
-          <button @click="goTo('smart-form')">智能填表</button>
-          <button @click="goTo('external-risk')">每日简报</button>
         </div>
       </section>
       <section v-if="notificationDraft" class="panel notification-draft-panel">

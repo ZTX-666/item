@@ -134,6 +134,7 @@ from chitung_center.workflow_templates import workflow_for_intent
 from chitung_center.workflows import workflow_loader
 from chitung_center.whatsapp_local_service import (
     list_whatsapp_sql_tables,
+    resolve_whatsapp_media_file,
     run_whatsapp_command,
     run_whatsapp_sql_query,
     whatsapp_runtime_status,
@@ -769,8 +770,8 @@ async def rag_document_upload(
 
 
 @app.get("/api/rag/documents")
-async def rag_documents() -> dict[str, object]:
-    return rag_service.list_documents()
+async def rag_documents(collection: str | None = None) -> dict[str, object]:
+    return rag_service.list_documents(collection=collection)
 
 
 @app.delete("/api/rag/documents/{doc_id}")
@@ -812,9 +813,9 @@ async def rag_ask(request: RagAskRequest) -> dict[str, object]:
 
 
 @app.get("/api/rag/stats")
-async def rag_stats() -> dict[str, object]:
+async def rag_stats(collection: str | None = None) -> dict[str, object]:
     try:
-        return rag_service.stats()
+        return rag_service.stats(collection=collection)
     except RagDependencyError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -1030,7 +1031,7 @@ async def whatsapp_sql_tables_api(request: WhatsAppSqlTablesApiRequest) -> dict[
 @app.post("/api/whatsapp/sql/query")
 async def whatsapp_sql_query_api(request: WhatsAppSqlQueryApiRequest) -> dict[str, object]:
     try:
-        return run_whatsapp_sql_query(request.sql, request.limit, request.db_path)
+        return run_whatsapp_sql_query(request.sql, request.limit, request.db_path, request.offset)
     except ValueError as exc:
         return {
             "ok": False,
@@ -1038,6 +1039,18 @@ async def whatsapp_sql_query_api(request: WhatsAppSqlQueryApiRequest) -> dict[st
             "error": str(exc),
             "data": {"columns": [], "rows": []},
         }
+
+
+@app.get("/api/whatsapp/media/{msg_id}")
+async def whatsapp_media_file_api(msg_id: str) -> FileResponse:
+    result = resolve_whatsapp_media_file(msg_id)
+    if not result.get("ok"):
+        raise HTTPException(status_code=404, detail=result.get("error") or "media_not_found")
+    return FileResponse(
+        str(result["path"]),
+        media_type=str(result.get("mime_type") or "application/octet-stream"),
+        filename=str(result.get("filename") or "whatsapp-media"),
+    )
 
 
 @app.post("/api/whatsapp/command/run")

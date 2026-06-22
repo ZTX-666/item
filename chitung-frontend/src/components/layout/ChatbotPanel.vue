@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useAiAssistant } from '../../composables/useAiAssistant'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { askRag, getSkills, sendChatMessage } from '../../services/chitungApi'
 import { useDocmateSession } from '../../composables/useDocmateSession'
 import DocmateDiffReview from '../documents/DocmateDiffReview.vue'
+import assistantAvatar from '../../assets/logos/assistant-avatar.png'
+import type { SkillInfo } from '../../types/domain'
 
-const props = defineProps<{
+defineProps<{
   visible: boolean
 }>()
 
@@ -12,65 +14,11 @@ const emit = defineEmits<{
   toggle: []
 }>()
 
-const {
-  messages,
-  inputText,
-  isTyping,
-  messagesEl,
-  quickActions: assistantQuickActions,
-  loadLatestHistory,
-  sendMessage,
-  handleQuickAction,
-  handleKeydown,
-  toolName,
-  toolOk,
-  toolSummary,
-  cardTitle,
-  cardSummary,
-  cardActions,
-  cardActionLabel,
-  actionKey,
-  actionRunning,
-  handleCardAction,
-  appliedSkillName,
-  skillHighlights,
-  skillNextActions,
-  resultImages,
-  resultReports,
-} = useAiAssistant()
-
-const docmate = useDocmateSession()
+// ── resizable width (drag the left edge) ──
 const panelWidth = ref(380)
 let resizing = false
 let startX = 0
 let startWidth = 0
-
-const panelQuickActions = computed(() => [
-  {
-    label: '文档改稿',
-    prompt: docmate.isLoaded.value
-      ? `使用 DocMate 文档改稿 Skill，基于当前文档「${docmate.docName.value || '未命名文档'}」生成修改建议。`
-      : '使用 DocMate 文档改稿 Skill，指导我上传 DOCX 并进行差异审阅。',
-    context: {
-      skill_hint: 'docmate-edit',
-      docmate: {
-        doc_id: docmate.state.docId,
-        source_path: docmate.state.sourcePath,
-        file_name: docmate.docName.value,
-        loaded: docmate.isLoaded.value,
-      },
-    },
-  },
-  ...assistantQuickActions.map((action) => ({ ...action, context: {} })),
-])
-
-const showDocmateReview = computed(
-  () => docmate.hasWork.value || docmate.state.step === 'committing' || docmate.isDone.value,
-)
-
-function bindMessagesEl(el: unknown) {
-  messagesEl.value = el instanceof HTMLElement ? el : null
-}
 
 function startResize(event: MouseEvent) {
   resizing = true
@@ -84,12 +32,11 @@ function startResize(event: MouseEvent) {
 
 function onResize(event: MouseEvent) {
   if (!resizing) return
-  const delta = startX - event.clientX
-  panelWidth.value = Math.min(760, Math.max(340, startWidth + delta))
+  const delta = startX - event.clientX // drag left → wider
+  panelWidth.value = Math.min(760, Math.max(300, startWidth + delta))
 }
 
 function stopResize() {
-  if (!resizing) return
   resizing = false
   window.removeEventListener('mousemove', onResize)
   window.removeEventListener('mouseup', stopResize)
@@ -97,496 +44,689 @@ function stopResize() {
   document.body.style.cursor = ''
 }
 
-function handlePanelQuickAction(action: { prompt: string; context?: Record<string, unknown> }) {
-  handleQuickAction(action.prompt, action.context ?? {})
+const skillMenuOpen = ref(false)
+const skillMenuHeight = ref(148)
+let resizingSkillMenu = false
+let skillStartY = 0
+let skillStartHeight = 0
+
+function startSkillMenuResize(event: MouseEvent) {
+  resizingSkillMenu = true
+  skillStartY = event.clientY
+  skillStartHeight = skillMenuHeight.value
+  window.addEventListener('mousemove', onSkillMenuResize)
+  window.addEventListener('mouseup', stopSkillMenuResize)
+  document.body.style.userSelect = 'none'
+  document.body.style.cursor = 'row-resize'
 }
 
-function handleDocmateUnload() {
-  docmate.unload()
+function onSkillMenuResize(event: MouseEvent) {
+  if (!resizingSkillMenu) return
+  const delta = skillStartY - event.clientY
+  skillMenuHeight.value = Math.min(260, Math.max(92, skillStartHeight + delta))
 }
 
-onBeforeUnmount(stopResize)
+function stopSkillMenuResize() {
+  resizingSkillMenu = false
+  window.removeEventListener('mousemove', onSkillMenuResize)
+  window.removeEventListener('mouseup', stopSkillMenuResize)
+  document.body.style.userSelect = ''
+  document.body.style.cursor = ''
+}
 
-watch(
-  () => props.visible,
-  (visible) => {
-    if (visible) loadLatestHistory()
+onBeforeUnmount(() => {
+  stopResize()
+  stopSkillMenuResize()
+})
+
+interface Message {
+  id: number
+  role: 'user' | 'assistant'
+  content: string
+}
+
+const messages = ref<Message[]>([
+  {
+    id: 1,
+    role: 'assistant',
+    content:
+      '你好，我是赤瞳守护者内置的闪闪助手，专为安全生产场景设计。我可以帮你：\n🔍 隐患排查与处置 — 发现、记录、跟踪闭环\n📋 安全巡检 — 执行巡检任务、生成巡检报告\n📝 表单智能填报 — 自动识别字段，快速完成安全记录\n📖 制度法规查询 — 精准检索安全规章与合规要求\n⚙️ 工作流编排 — 串联多部门安全流程，自动化执行\n\n安全的事，交给我们来守护。',
   },
-  { immediate: true },
+])
+const inputText = ref('')
+const isTyping = ref(false)
+const messagesEl = ref<HTMLElement | null>(null)
+const backendSkills = ref<SkillInfo[]>([])
+const skillsLoading = ref(false)
+const skillsError = ref('')
+const selectedSkillLabel = ref('')
+let nextId = 2
+
+// ── DocMate 文档改稿能力（与文档工作台共享同一会话） ──
+const docmate = useDocmateSession()
+const mode = ref<'chat' | 'edit' | 'rag'>('chat')
+
+// 文档一旦加载，自动切到改稿模式
+watch(
+  () => docmate.isLoaded.value,
+  (loaded) => {
+    if (loaded) mode.value = 'edit'
+  },
 )
+
+const placeholder = computed(() =>
+  mode.value === 'edit'
+    ? '用自然语言改稿：如「把第二段改正式」「删掉最后一段」'
+    : mode.value === 'rag'
+      ? '询问内置安全管理规定，例如：机械作业半径怎么检查？'
+    : '输入消息，Enter 发送，Shift+Enter 换行',
+)
+
+const showDiffPanel = computed(
+  () => docmate.hasWork.value || docmate.state.step === 'committing' || docmate.isDone.value,
+)
+
+interface SkillAction {
+  label: string
+  prompt: string
+  skill?: string
+  summary?: string
+  enabled?: boolean
+}
+
+const fallbackActions: SkillAction[] = [
+  { label: '制度知识问答', prompt: '🔨 使用技能：制度知识问答\n', skill: 'rag', summary: '询问内置安全管理规定知识库', enabled: true },
+]
+
+const skillActions = computed<SkillAction[]>(() => {
+  const backend = backendSkills.value.map((skill) => ({
+    label: readableSkillName(skill),
+    prompt: `🔨 使用技能：${readableSkillName(skill)}\n`,
+    skill: skill.name,
+    summary: skill.summary || skill.category || skill.name,
+    enabled: skill.enabled !== false,
+  }))
+  return [...fallbackActions, ...backend]
+})
+
+onMounted(loadBackendSkills)
+
+async function loadBackendSkills() {
+  skillsLoading.value = true
+  skillsError.value = ''
+  try {
+    backendSkills.value = await getSkills()
+  } catch (error) {
+    skillsError.value = error instanceof Error ? error.message : String(error)
+    backendSkills.value = []
+  } finally {
+    skillsLoading.value = false
+  }
+}
+
+function readableSkillName(skill: SkillInfo): string {
+  return skill.name
+    .replace(/^skill[_-]?/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (messagesEl.value) messagesEl.value.scrollTop = messagesEl.value.scrollHeight
+  })
+}
+
+function pushAssistant(content: string) {
+  messages.value.push({ id: nextId++, role: 'assistant', content })
+  scrollToBottom()
+}
+
+async function sendMessage() {
+  const text = inputText.value.trim()
+  if (!text || isTyping.value) return
+
+  // 改稿模式：把输入作为修改指令交给 DocMate 流程
+  if (mode.value === 'edit' && docmate.isLoaded.value) {
+    messages.value.push({ id: nextId++, role: 'user', content: text })
+    inputText.value = ''
+    isTyping.value = true
+    scrollToBottom()
+    const result = await docmate.generateChanges(text)
+    isTyping.value = false
+    if (result.ok && result.count > 0) {
+      pushAssistant(`已生成 ${result.count} 项修改建议，请在下方审阅、勾选后采纳写入文档。`)
+    } else if (result.ok) {
+      pushAssistant('未能从这条指令解析出可执行的修改，请换一种更明确的说法，例如「把X改为Y」「删掉第三段」。')
+    } else {
+      pushAssistant(`生成修改方案失败：${result.error}`)
+    }
+    return
+  }
+
+  // 内置 RAG 知识库问答：固定查询安全管理规定集合。
+  if (mode.value === 'rag') {
+    messages.value.push({ id: nextId++, role: 'user', content: text })
+    inputText.value = ''
+    isTyping.value = true
+    scrollToBottom()
+    try {
+      const answer = await askRag({ query: text, topK: 5, collection: 'safety' })
+      const citations = (answer.citations ?? [])
+        .map((item) => `${item.source_file_name || '知识库'}#${item.chunk_index}`)
+        .slice(0, 3)
+        .join('、')
+      pushAssistant(citations ? `${answer.answer}\n\n引用：${citations}` : answer.answer)
+    } catch (error) {
+      pushAssistant(`知识库问答失败：${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      isTyping.value = false
+      scrollToBottom()
+    }
+    return
+  }
+
+  // 普通中台问答
+  messages.value.push({ id: nextId++, role: 'user', content: text })
+  inputText.value = ''
+  isTyping.value = true
+  scrollToBottom()
+  try {
+    const response = await sendChatMessage({ message: text, channel: 'local_chat' })
+    pushAssistant(response.message)
+  } catch (error) {
+    pushAssistant(`请求失败：${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    isTyping.value = false
+    scrollToBottom()
+  }
+}
+
+function handleQuickAction(action: SkillAction) {
+  if (action.enabled === false) return
+  selectedSkillLabel.value = action.label
+  if (action.skill === 'rag') {
+    mode.value = 'rag'
+    inputText.value = action.prompt
+    return
+  }
+  mode.value = 'chat'
+  inputText.value = action.prompt
+}
+
+function handleUnload() {
+  docmate.unload()
+  mode.value = 'chat'
+  pushAssistant('已退出文档改稿，恢复到助手问答模式。')
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    sendMessage()
+  }
+}
 </script>
 
 <template>
   <aside
     class="chatbot-panel"
     :class="{ 'chatbot-panel--hidden': !visible }"
-    :style="visible ? { width: `${panelWidth}px` } : undefined"
+    :style="visible ? { width: panelWidth + 'px' } : {}"
   >
     <div v-if="visible" class="chatbot-panel__resize" title="拖动调整宽度" @mousedown.prevent="startResize"></div>
     <div class="chatbot-panel__header">
-      <div>
-        <strong>赤瞳 AI</strong>
-        <span>中台编排助手</span>
+      <div class="chatbot-panel__title">
+        <img class="chatbot-panel__assistant-avatar" :src="assistantAvatar" alt="AI 助手头像" />
+        <strong>闪闪助手</strong>
       </div>
       <button class="chatbot-panel__close" title="关闭" @click="emit('toggle')">×</button>
     </div>
-    <div v-if="docmate.isLoaded.value" class="docmate-context">
-      <div class="docmate-context__main">
-        <span class="docmate-context__mark">DOCX</span>
-        <span class="docmate-context__name" :title="docmate.state.sourcePath">{{ docmate.docName.value }}</span>
-        <span class="docmate-context__stat">{{ docmate.docStats.value.paragraph_count }} 段</span>
+
+    <!-- 文档上下文条（仅在加载文档后出现） -->
+    <div v-if="docmate.isLoaded.value" class="doc-bar">
+      <div class="doc-bar__info">
+        <span class="doc-bar__icon">📄</span>
+        <span class="doc-bar__name" :title="docmate.state.sourcePath">{{ docmate.docName.value }}</span>
+        <span class="doc-bar__stat">{{ docmate.docStats.value.paragraph_count }} 段</span>
       </div>
-      <button class="docmate-context__clear" title="移除当前文档" @click="handleDocmateUnload">移除</button>
+      <div class="doc-bar__actions">
+        <div class="mode-switch">
+          <button :class="{ active: mode === 'edit' }" @click="mode = 'edit'">改稿</button>
+          <button :class="{ active: mode === 'chat' }" @click="mode = 'chat'">问答</button>
+        </div>
+        <button class="doc-bar__unload" title="移除文档" @click="handleUnload">移除</button>
+      </div>
     </div>
-    <div :ref="bindMessagesEl" class="chatbot-panel__messages">
-      <article
+
+    <div ref="messagesEl" class="chatbot-panel__messages">
+      <div
         v-for="message in messages"
         :key="message.id"
-        class="chatbot-message"
-        :class="`chatbot-message--${message.role}`"
+        class="chatbot-row"
+        :class="`chatbot-row--${message.role}`"
       >
-        <div class="chatbot-message__body">
-          <p>{{ message.content }}</p>
-          <div class="chatbot-message__meta">
-            <span v-if="message.status" class="chatbot-message__status">{{ message.status }}</span>
-            <span v-if="message.intent" class="chatbot-message__intent">意图 {{ message.intent }}</span>
-            <span v-if="appliedSkillName(message)" class="chatbot-message__skill">
-              Skill {{ appliedSkillName(message) }}
-            </span>
-            <span v-if="message.workflowName" class="chatbot-message__workflow">
-              Workflow {{ message.workflowName }}
-            </span>
-          </div>
-        </div>
-        <div
-          v-if="skillHighlights(message).length || skillNextActions(message).length"
-          class="chatbot-message__skill-detail"
-        >
-          <p v-if="skillHighlights(message).length">{{ skillHighlights(message).join('；') }}</p>
-          <div v-if="skillNextActions(message).length" class="chatbot-card__actions">
-            <span v-for="action in skillNextActions(message)" :key="action">{{ action }}</span>
-          </div>
-        </div>
-        <div v-if="message.toolResults?.length" class="chatbot-message__tools">
-          <article
-            v-for="(result, index) in message.toolResults"
-            :key="`${message.id}-tool-${index}`"
-            class="chatbot-tool-result"
-            :class="{ 'chatbot-tool-result--failed': !toolOk(result) }"
-          >
-            <strong>{{ toolName(result) }}</strong>
-            <span>{{ toolOk(result) ? '完成' : '失败' }}</span>
-            <p>{{ toolSummary(result) }}</p>
-          </article>
-        </div>
-        <div v-if="message.cards?.length" class="chatbot-message__cards">
-          <article v-for="(card, index) in message.cards" :key="`${message.id}-card-${index}`" class="chatbot-card">
-            <strong>{{ cardTitle(card) }}</strong>
-            <p>{{ cardSummary(card) }}</p>
-            <div v-if="cardActions(card).length" class="chatbot-card__actions">
-              <button
-                v-for="action in cardActions(card)"
-                :key="String(action.id || action.action_id || action.label)"
-                :disabled="actionRunning(actionKey(message, card, action))"
-                @click="handleCardAction(message, card, action)"
-              >
-                {{ actionRunning(actionKey(message, card, action)) ? '执行中' : cardActionLabel(action) }}
-              </button>
-            </div>
-          </article>
-        </div>
-        <div v-if="resultReports(message).length" class="chatbot-message__reports">
-          <article v-for="report in resultReports(message)" :key="`${report.title}-${report.reportId || report.text}`" class="chatbot-report">
-            <div class="chatbot-report__header">
-              <strong>{{ report.title }}</strong>
-              <span v-if="report.reportId">#{{ report.reportId }}</span>
-            </div>
-            <p v-if="report.text">{{ report.text }}</p>
-            <div v-if="report.links.length" class="chatbot-report__links">
-              <a v-for="link in report.links" :key="link.url" :href="link.url" target="_blank" rel="noreferrer">
-                {{ link.label }}
-              </a>
-            </div>
-          </article>
-        </div>
-        <div v-if="resultImages(message).length" class="chatbot-message__images">
-          <figure v-for="image in resultImages(message)" :key="image.url" class="chatbot-result-image">
-            <img :src="image.url" :alt="image.title" />
-            <figcaption>{{ image.caption || image.title }}</figcaption>
-          </figure>
-        </div>
-      </article>
+        <img v-if="message.role === 'assistant'" class="chatbot-avatar" :src="assistantAvatar" alt="闪闪助手" />
+        <span v-else class="chatbot-avatar chatbot-avatar--user">👷</span>
+        <article class="chatbot-message" :class="`chatbot-message--${message.role}`">
+          {{ message.content }}
+        </article>
+      </div>
+      <div v-if="isTyping" class="chatbot-row chatbot-row--assistant">
+        <img class="chatbot-avatar" :src="assistantAvatar" alt="闪闪助手" />
+        <article class="chatbot-message chatbot-message--assistant">正在处理中...</article>
+      </div>
     </div>
-    <div v-if="showDocmateReview" class="chatbot-panel__docmate-review">
+
+    <!-- 改稿 Diff 审阅（与文档工作台共享会话） -->
+    <div v-if="mode === 'edit' && showDiffPanel" class="chatbot-panel__diff">
       <DocmateDiffReview />
     </div>
-    <div class="chatbot-panel__quick">
-      <button v-for="action in panelQuickActions" :key="action.label" @click="handlePanelQuickAction(action)">
-        {{ action.label }}
+
+    <div v-if="mode !== 'edit'" class="skill-dock" :class="{ 'skill-dock--open': skillMenuOpen }">
+      <div
+        v-if="skillMenuOpen"
+        class="skill-menu"
+        :style="{ height: `${skillMenuHeight}px` }"
+      >
+        <div class="skill-menu__resize" title="上下拖动调整菜单高度" @mousedown.prevent="startSkillMenuResize"></div>
+        <div class="skill-menu__header">
+          <strong>技能</strong>
+          <span>{{ skillsLoading ? '正在同步后台技能...' : skillsError ? '后台技能暂不可用，显示内置技能' : `已同步 ${backendSkills.length} 个后台技能` }}</span>
+        </div>
+        <button
+          v-for="action in skillActions"
+          :key="action.label"
+          class="skill-menu__item"
+          :class="{
+            'skill-menu__item--disabled': action.enabled === false,
+            'skill-menu__item--active': selectedSkillLabel === action.label,
+          }"
+          @click="handleQuickAction(action)"
+        >
+          <span class="skill-menu__item-icon">🔨</span>
+          <span>
+            <strong>{{ action.label }}</strong>
+            <small>{{ action.enabled === false ? '已停用' : action.summary }}</small>
+          </span>
+        </button>
+      </div>
+      <button
+        class="skill-trigger"
+        :class="{ 'skill-trigger--active': skillMenuOpen }"
+        type="button"
+        title="技能"
+        @click="skillMenuOpen = !skillMenuOpen"
+      >
+        <span>🔨</span>
+        <strong>技能</strong>
       </button>
     </div>
+
     <div class="chatbot-panel__input-area">
       <textarea
         v-model="inputText"
-        placeholder="输入消息，Enter 发送，Shift+Enter 换行"
+        :placeholder="placeholder"
         rows="2"
         @keydown="handleKeydown"
       />
-      <button :disabled="!inputText.trim() || isTyping" @click="() => sendMessage()">发送</button>
+      <button :disabled="!inputText.trim() || isTyping" @click="sendMessage">发送</button>
     </div>
   </aside>
 </template>
 
 <style scoped>
 .chatbot-panel {
-  background: #1a1d23;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
-  color: #c9d1d9;
+  background: #f7f9fc;
+  border-left: 1px solid #e5e9f2;
+  color: #1f2329;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   height: 100%;
   overflow: hidden;
   position: relative;
-  transition: width 0.2s ease, opacity 0.2s ease;
+  transition: opacity 0.2s ease;
   width: 380px;
 }
 
 .chatbot-panel--hidden {
   border-left: 0;
   opacity: 0;
-  width: 0;
+  width: 0 !important;
 }
 
 .chatbot-panel__resize {
-  bottom: 0;
-  cursor: col-resize;
-  left: 0;
   position: absolute;
+  left: 0;
   top: 0;
+  bottom: 0;
   width: 6px;
+  cursor: col-resize;
   z-index: 5;
 }
 
 .chatbot-panel__resize:hover {
-  background: rgba(96, 165, 250, 0.28);
+  background: rgb(51 112 255 / 22%);
 }
 
 .chatbot-panel__header {
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid #e5e9f2;
   display: flex;
   justify-content: space-between;
-  min-width: 340px;
+  min-width: 0;
   padding: 12px 14px;
 }
 
-.chatbot-panel__header span {
-  color: #6b7280;
-  display: block;
-  font-size: 11px;
+.chatbot-panel__title {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.chatbot-panel__assistant-avatar {
+  border: 1px solid #d5dbe7;
+  border-radius: 50%;
+  height: 30px;
+  object-fit: cover;
+  width: 30px;
 }
 
 .chatbot-panel__close {
   background: transparent;
   border: 0;
-  color: #8b949e;
+  color: #667085;
   font-size: 22px;
+  cursor: pointer;
 }
 
-.docmate-context {
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-  min-width: 340px;
+/* 文档上下文条 */
+.doc-bar {
+  border-bottom: 1px solid #e5e9f2;
+  min-width: 0;
   padding: 8px 12px;
 }
 
-.docmate-context__main {
+.doc-bar__info {
   align-items: center;
   display: flex;
-  gap: 7px;
-  min-width: 0;
+  gap: 6px;
+  margin-bottom: 6px;
+  overflow: hidden;
 }
 
-.docmate-context__mark {
-  border: 1px solid rgba(96, 165, 250, 0.35);
-  border-radius: 5px;
-  color: #93c5fd;
+.doc-bar__icon {
   flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.4px;
-  padding: 2px 5px;
 }
 
-.docmate-context__name {
-  color: #e5e7eb;
+.doc-bar__name {
+  color: #1f2329;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.docmate-context__stat {
-  color: #6b7280;
+.doc-bar__stat {
+  color: #667085;
   flex-shrink: 0;
   font-size: 11px;
 }
 
-.docmate-context__clear {
+.doc-bar__actions {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.mode-switch {
+  background: #eef3fb;
+  border-radius: 8px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+}
+
+.mode-switch button {
   background: transparent;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border: 0;
   border-radius: 6px;
-  color: #8b949e;
-  flex-shrink: 0;
+  color: #667085;
+  cursor: pointer;
   font-size: 11px;
-  padding: 3px 8px;
+  padding: 4px 12px;
 }
 
-.docmate-context__clear:hover {
-  border-color: rgba(248, 113, 113, 0.35);
-  color: #fca5a5;
+.mode-switch button.active {
+  background: #3370ff;
+  color: #fff;
+}
+
+.doc-bar__unload {
+  background: #fff;
+  border: 1px solid #d5dbe7;
+  border-radius: 6px;
+  color: #667085;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
+.doc-bar__unload:hover {
+  color: #245bdb;
+  border-color: rgb(51 112 255 / 36%);
 }
 
 .chatbot-panel__messages {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 10px;
-  min-width: 340px;
+  gap: 12px;
+  min-width: 0;
   overflow-y: auto;
-  padding: 12px;
+  padding: 14px 12px;
+}
+
+.chatbot-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.chatbot-row--user {
+  flex-direction: row-reverse;
+}
+
+.chatbot-avatar {
+  background: #fff;
+  border: 1px solid #d5dbe7;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 8%);
+  flex-shrink: 0;
+  height: 30px;
+  object-fit: cover;
+  width: 30px;
+}
+
+.chatbot-avatar--user {
+  align-items: center;
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+  display: inline-flex;
+  font-size: 18px;
+  justify-content: center;
 }
 
 .chatbot-message {
-  border-radius: 10px;
+  border-radius: 14px;
   font-size: 13px;
   line-height: 1.55;
-  max-width: 88%;
-  padding: 9px 11px;
+  max-width: calc(100% - 48px);
+  padding: 10px 12px;
+  position: relative;
+  white-space: pre-wrap;
 }
 
 .chatbot-message--assistant {
-  background: rgba(255, 255, 255, 0.05);
+  background: #fff;
+  border: 1px solid #e5e9f2;
+  border-top-left-radius: 4px;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 5%);
 }
 
 .chatbot-message--user {
-  align-self: flex-end;
-  background: rgba(59, 130, 246, 0.16);
-  color: #93c5fd;
+  background: #95ec69;
+  border: 1px solid rgb(89 191 62 / 30%);
+  border-top-right-radius: 4px;
+  color: #1f2329;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 5%);
 }
 
-.chatbot-message__body {
-  display: grid;
-  gap: 6px;
-}
-
-.chatbot-message__body p {
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-.chatbot-message__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chatbot-message__status,
-.chatbot-message__intent,
-.chatbot-message__skill,
-.chatbot-message__workflow {
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 999px;
-  color: #9ca3af;
-  font-size: 11px;
-  justify-self: start;
-  padding: 2px 7px;
-}
-
-.chatbot-message__intent {
-  border-color: rgba(96, 165, 250, 0.28);
-  color: #93c5fd;
-}
-
-.chatbot-message__skill {
-  border: 1px solid rgba(248, 113, 113, 0.26);
-  color: #fca5a5;
-}
-
-.chatbot-message__workflow {
-  border-color: rgba(52, 211, 153, 0.24);
-  color: #6ee7b7;
-}
-
-.chatbot-message__skill-detail {
-  background: rgba(127, 29, 29, 0.18);
-  border: 1px solid rgba(248, 113, 113, 0.16);
-  border-radius: 8px;
-  display: grid;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 8px;
-}
-
-.chatbot-message__skill-detail p {
-  color: #fecaca;
-  margin: 0;
-}
-
-.chatbot-message__tools,
-.chatbot-message__cards,
-.chatbot-message__reports,
-.chatbot-message__images {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.chatbot-tool-result,
-.chatbot-card,
-.chatbot-report {
-  background: rgba(15, 23, 42, 0.42);
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 8px;
-  display: grid;
-  gap: 4px;
-  padding: 8px;
-}
-
-.chatbot-tool-result strong,
-.chatbot-card strong,
-.chatbot-report strong {
-  color: #e5e7eb;
-}
-
-.chatbot-tool-result span {
-  color: #34d399;
-  font-size: 11px;
-}
-
-.chatbot-tool-result--failed span {
-  color: #f87171;
-}
-
-.chatbot-tool-result p,
-.chatbot-card p,
-.chatbot-report p {
-  color: #9ca3af;
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-.chatbot-card__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chatbot-card__actions span,
-.chatbot-card__actions button,
-.chatbot-report__links a {
-  background: transparent;
-  border: 1px solid rgba(59, 130, 246, 0.28);
-  border-radius: 999px;
-  color: #93c5fd;
-  font-size: 11px;
-  padding: 2px 7px;
-  text-decoration: none;
-}
-
-.chatbot-card__actions button:disabled {
-  cursor: wait;
-  opacity: 0.55;
-}
-
-.chatbot-report__header {
-  align-items: center;
-  display: flex;
-  gap: 6px;
-  justify-content: space-between;
-}
-
-.chatbot-report__header span {
-  color: #64748b;
-  font-size: 11px;
-}
-
-.chatbot-report__links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chatbot-result-image {
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 8px;
-  margin: 0;
-  overflow: hidden;
-}
-
-.chatbot-result-image img {
-  aspect-ratio: 16 / 9;
-  background: #111827;
-  display: block;
-  object-fit: cover;
-  width: 100%;
-}
-
-.chatbot-result-image figcaption {
-  color: #9ca3af;
-  font-size: 11px;
-  padding: 6px 8px;
-}
-
-.chatbot-panel__docmate-review {
-  --review-border: rgba(255, 255, 255, 0.08);
-  --review-hover: rgba(255, 255, 255, 0.06);
-  --review-muted: #8b949e;
-  --review-panel: rgba(255, 255, 255, 0.03);
-  --review-text: #c9d1d9;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  max-height: 45%;
-  min-width: 340px;
+.chatbot-panel__diff {
+  border-top: 1px solid #e5e9f2;
+  max-height: 46%;
+  min-width: 0;
   overflow-y: auto;
   padding: 10px 12px;
 }
 
-.chatbot-panel__quick {
-  display: flex;
-  gap: 6px;
-  min-width: 340px;
-  overflow-x: auto;
-  padding: 8px 12px;
+.skill-dock {
+  border-top: 1px solid #e5e9f2;
+  padding: 8px 12px 0;
 }
 
-.chatbot-panel__quick button {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.skill-menu {
+  background: #fff;
+  border: 1px solid #d5dbe7;
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgb(16 24 40 / 12%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  min-height: 92px;
+  overflow-y: auto;
+  padding: 14px 10px 10px;
+  position: relative;
+}
+
+.skill-menu__resize {
+  background: #d5dbe7;
   border-radius: 999px;
-  color: #8b949e;
-  padding: 5px 10px;
+  cursor: row-resize;
+  height: 4px;
+  left: 50%;
+  position: absolute;
+  top: 5px;
+  transform: translateX(-50%);
+  width: 42px;
+}
+
+.skill-menu__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.skill-menu__header strong {
+  color: #1f2329;
+  font-size: 13px;
+}
+
+.skill-menu__header span {
+  color: #667085;
+  font-size: 11px;
+}
+
+.skill-menu__item {
+  align-items: center;
+  background: #f7f9fc;
+  border: 1px solid #e5e9f2;
+  border-radius: 10px;
+  color: #1f2329;
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.skill-menu__item > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.skill-menu__item strong {
+  font-size: 12px;
+}
+
+.skill-menu__item small {
+  color: #667085;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.skill-menu__item:hover {
+  background: #eef3fb;
+  border-color: rgb(51 112 255 / 28%);
+  color: #245bdb;
+}
+
+.skill-menu__item--active {
+  background: #eef3fb;
+  border-color: rgb(51 112 255 / 40%);
+  color: #245bdb;
+}
+
+.skill-menu__item--disabled {
+  opacity: 0.56;
+}
+
+.skill-menu__item-icon {
+  color: #3370ff;
+  font-weight: 900;
+}
+
+.skill-trigger {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #d5dbe7;
+  border-radius: 999px;
+  color: #667085;
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px 12px;
+}
+
+.skill-trigger--active,
+.skill-trigger:hover {
+  background: #e7f0ff;
+  border-color: rgb(51 112 255 / 34%);
+  color: #245bdb;
 }
 
 .chatbot-panel__input-area {
   align-items: flex-end;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid #e5e9f2;
   display: flex;
   gap: 8px;
-  min-width: 340px;
+  min-width: 0;
   padding: 10px 12px;
 }
 
 .chatbot-panel__input-area textarea {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #fff;
+  border: 1px solid #d5dbe7;
   border-radius: 10px;
-  color: #c9d1d9;
+  color: #1f2329;
   flex: 1;
   outline: none;
   padding: 8px 10px;
@@ -594,11 +734,12 @@ watch(
 }
 
 .chatbot-panel__input-area button {
-  background: #3b82f6;
+  background: #3370ff;
   border: 0;
   border-radius: 8px;
   color: white;
   padding: 8px 12px;
+  cursor: pointer;
 }
 
 .chatbot-panel__input-area button:disabled {

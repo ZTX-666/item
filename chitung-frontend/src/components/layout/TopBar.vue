@@ -1,32 +1,31 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
 import brandLogo from '../../assets/logos/brand.jpg'
+import companyMark from '../../assets/logos/company-mark.png'
+import { useLocale } from '../../composables/useLocale'
+import { useTheme } from '../../composables/useTheme'
 
-const runtimeLabel = ref('桌面控制台')
-
-onMounted(async () => {
-  if (!window.chitungDesktop) {
-    runtimeLabel.value = '本地开发模式'
-    return
-  }
-
-  const runtime = await window.chitungDesktop.getRuntime()
-  runtimeLabel.value = `桌面版 · ${runtime.platform}`
-})
+const { isTraditional, toggleLocale, display } = useLocale()
+const { isDark, toggleTheme } = useTheme()
 </script>
 
 <template>
   <header class="topbar">
     <img class="topbar__logo" :src="brandLogo" alt="赤瞳安全智能平台" />
     <div class="topbar__brand">
-      <strong>赤瞳安全智能平台</strong>
-      <span>CSCEC Safety Intelligence · Cursor Edition</span>
+      <strong>{{ display('赤瞳安全智能平台') }}</strong>
+      <span>CSCEC Safety Intelligence</span>
+    </div>
+    <div class="topbar__center-mark">
+      <img :src="companyMark" alt="公司标识" />
     </div>
     <div class="topbar__right">
-      <span class="desktop-pill">{{ runtimeLabel }}</span>
-      <button class="icon-button" title="通知">🔔</button>
-      <button class="icon-button" title="设置">⚙️</button>
-      <div class="avatar">陈</div>
+      <button class="topbar-action" type="button" @click="toggleLocale">
+        {{ isTraditional ? '简' : '繁' }}
+      </button>
+      <button class="topbar-action" type="button" @click="toggleTheme">
+        {{ isDark ? '☀' : '🌙' }}
+      </button>
+      <span class="desktop-pill">{{ display('开发者') }} Sean Xu</span>
     </div>
   </header>
 </template>

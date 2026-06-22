@@ -2,28 +2,24 @@
 import { onMounted, ref } from 'vue'
 import SystemSettingsPanel from '../components/system/SystemSettingsPanel.vue'
 import {
-  getAppConfig,
   getConnectorSettings,
   getHealth,
   getLlmSettings,
   getRuntimeStatus,
-  saveAppConfig,
   saveConnectorSettings,
   saveLlmSettings,
   testLlmSettings,
 } from '../services/chitungApi'
-import type { AppConfig, ConnectorSettingsStatus, LlmSettingsStatus, RuntimeStatus } from '../types/domain'
+import type { ConnectorSettingsStatus, LlmSettingsStatus, RuntimeStatus } from '../types/domain'
 
 const centerHealth = ref<Record<string, unknown> | null>(null)
 const llmSettings = ref<LlmSettingsStatus | null>(null)
 const connectorSettings = ref<ConnectorSettingsStatus | null>(null)
 const runtimeStatus = ref<RuntimeStatus | null>(null)
-const appConfig = ref<AppConfig | null>(null)
 const logDir = ref<string | null>(null)
 const isSaving = ref(false)
 const isTestingLlm = ref(false)
 const isSavingConnectors = ref(false)
-const isSavingConfig = ref(false)
 const isRestartingServices = ref(false)
 
 async function refreshSystemStatus() {
@@ -32,7 +28,6 @@ async function refreshSystemStatus() {
     llmSettings.value = await getLlmSettings()
     connectorSettings.value = await getConnectorSettings()
     runtimeStatus.value = await getRuntimeStatus()
-    appConfig.value = await getAppConfig()
     if (window.chitungDesktop) {
       const runtime = await window.chitungDesktop.getRuntime()
       logDir.value = runtime.logDir || null
@@ -81,16 +76,6 @@ async function handleSaveConnectors(payload: {
   }
 }
 
-async function handleSaveAppConfig(payload: AppConfig) {
-  isSavingConfig.value = true
-  try {
-    const result = await saveAppConfig(payload)
-    appConfig.value = result.config
-  } finally {
-    isSavingConfig.value = false
-  }
-}
-
 async function restartDesktopServices() {
   if (!window.chitungDesktop) return
   isRestartingServices.value = true
@@ -126,17 +111,14 @@ onMounted(refreshSystemStatus)
       :llm-settings="llmSettings"
       :connector-settings="connectorSettings"
       :runtime-status="runtimeStatus"
-      :app-config="appConfig"
       :log-dir="logDir"
       :is-saving="isSaving"
       :is-testing-llm="isTestingLlm"
       :is-saving-connectors="isSavingConnectors"
-      :is-saving-config="isSavingConfig"
       :is-restarting-services="isRestartingServices"
       @save-llm="handleSaveLlm"
       @test-llm="handleTestLlm"
       @save-connectors="handleSaveConnectors"
-      @save-config="handleSaveAppConfig"
       @open-log-dir="openLogDir"
       @restart-services="restartDesktopServices"
       @refresh="refreshSystemStatus"

@@ -1,18 +1,16 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
-import type { AppConfig, ConnectorSettingsStatus, LlmSettingsStatus, RuntimeStatus } from '../../types/domain'
+import type { ConnectorSettingsStatus, LlmSettingsStatus, RuntimeStatus } from '../../types/domain'
 
 const props = defineProps<{
   health: Record<string, unknown> | null
   llmSettings: LlmSettingsStatus | null
   connectorSettings: ConnectorSettingsStatus | null
   runtimeStatus: RuntimeStatus | null
-  appConfig: AppConfig | null
   logDir?: string | null
   isSaving?: boolean
   isTestingLlm?: boolean
   isSavingConnectors?: boolean
-  isSavingConfig?: boolean
   isRestartingServices?: boolean
 }>()
 
@@ -29,7 +27,6 @@ const emit = defineEmits<{
     feishuEncryptKey: string
     feishuApiBaseUrl: string
   }]
-  saveConfig: [payload: AppConfig]
   openLogDir: []
   restartServices: []
   refresh: []
@@ -39,20 +36,6 @@ const form = reactive({
   baseUrl: '',
   apiKey: '',
   model: '',
-})
-
-const configForm = reactive({
-  projectName: '',
-  defaultArea: '',
-  location: '',
-  cameraId: '',
-  cameraName: '',
-  cameraArea: '',
-  cameraRtmpUrl: '',
-  contractorId: '',
-  contractorName: '',
-  contractorContact: '',
-  contractorChannel: '',
 })
 
 const connectorForm = reactive({
@@ -77,27 +60,6 @@ watch(
 )
 
 watch(
-  () => props.appConfig,
-  (config) => {
-    if (!config) return
-    const camera = config.cameras[0]
-    const contractor = config.contractors[0]
-    configForm.projectName = config.project.name
-    configForm.defaultArea = config.project.default_area
-    configForm.location = config.project.location
-    configForm.cameraId = camera?.id || 'B2-Z1'
-    configForm.cameraName = camera?.name || 'B2 区 1 号摄像头'
-    configForm.cameraArea = camera?.area || config.project.default_area
-    configForm.cameraRtmpUrl = camera?.rtmp_url || ''
-    configForm.contractorId = contractor?.id || 'default'
-    configForm.contractorName = contractor?.name || '待确认分包商'
-    configForm.contractorContact = contractor?.contact || ''
-    configForm.contractorChannel = contractor?.channel || ''
-  },
-  { immediate: true },
-)
-
-watch(
   () => props.connectorSettings,
   (settings) => {
     if (!settings) return
@@ -114,34 +76,6 @@ function save() {
     baseUrl: form.baseUrl.trim(),
     apiKey: form.apiKey.trim(),
     model: form.model.trim(),
-  })
-}
-
-function saveConfig() {
-  emit('saveConfig', {
-    project: {
-      name: configForm.projectName.trim() || '赤瞳示范项目',
-      default_area: configForm.defaultArea.trim() || 'B2',
-      location: configForm.location.trim() || 'Hong Kong',
-    },
-    cameras: [
-      {
-        id: configForm.cameraId.trim() || 'B2-Z1',
-        name: configForm.cameraName.trim() || 'B2 区 1 号摄像头',
-        area: configForm.cameraArea.trim() || configForm.defaultArea.trim() || 'B2',
-        rtmp_url: configForm.cameraRtmpUrl.trim() || null,
-        enabled: true,
-      },
-    ],
-    contractors: [
-      {
-        id: configForm.contractorId.trim() || 'default',
-        name: configForm.contractorName.trim() || '待确认分包商',
-        contact: configForm.contractorContact.trim(),
-        channel: configForm.contractorChannel.trim(),
-        default_due_days: 3,
-      },
-    ],
   })
 }
 
@@ -228,7 +162,7 @@ function saveConnectors() {
     <div class="connector-hints">
       <div>
         <strong>WhatsApp</strong>
-        <p>{{ connectorSettings?.whatsapp.configured ? connectorSettings.whatsapp.archive_base_url : '需要启动 whatsapp-archive/app-server 或赤瞳灵讯本地服务。' }}</p>
+        <p>{{ connectorSettings?.whatsapp.configured ? connectorSettings.whatsapp.archive_base_url : '需要启动 whatsapp-archive/app-server 或赤瞳聆讯本地服务。' }}</p>
       </div>
       <div>
         <strong>飞书</strong>
@@ -292,36 +226,6 @@ function saveConnectors() {
       </button>
       <button class="mini-button" type="button" :disabled="isTestingLlm" @click="emit('testLlm')">
         {{ isTestingLlm ? '测试中' : '测试连接' }}
-      </button>
-    </form>
-
-    <form class="app-config-form" @submit.prevent="saveConfig">
-      <label>
-        <span>项目名称</span>
-        <input v-model="configForm.projectName" placeholder="赤瞳示范项目" />
-      </label>
-      <label>
-        <span>默认区域</span>
-        <input v-model="configForm.defaultArea" placeholder="B2" />
-      </label>
-      <label>
-        <span>摄像头名称</span>
-        <input v-model="configForm.cameraName" placeholder="B2 区 1 号摄像头" />
-      </label>
-      <label>
-        <span>RTMP 地址</span>
-        <input v-model="configForm.cameraRtmpUrl" placeholder="rtmp://..." />
-      </label>
-      <label>
-        <span>分包商</span>
-        <input v-model="configForm.contractorName" placeholder="分包商名称" />
-      </label>
-      <label>
-        <span>联系人/渠道</span>
-        <input v-model="configForm.contractorContact" placeholder="WhatsApp / 电话 / 飞书" />
-      </label>
-      <button class="primary-soft-button" type="submit" :disabled="isSavingConfig">
-        {{ isSavingConfig ? '保存中' : '保存项目配置' }}
       </button>
     </form>
   </section>

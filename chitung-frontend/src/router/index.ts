@@ -15,7 +15,6 @@ const routes: RouteRecordRaw[] = [
       { path: 'confirmations', name: 'guardian-confirmations', component: () => import('../pages/PendingConfirmationsPage.vue') },
       { path: 'hazards', name: 'guardian-hazards', component: () => import('../pages/HazardLedgerPage.vue') },
       { path: 'patrol', name: 'guardian-patrol', component: () => import('../pages/VisualPatrolPage.vue') },
-      { path: 'cctv', redirect: '/guardian/patrol' },
     ],
   },
   {
@@ -26,7 +25,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'documents', name: 'docmate-documents', component: () => import('../pages/ShanshanDocPage.vue') },
       { path: 'forms', name: 'docmate-forms', component: () => import('../pages/SmartFormPage.vue') },
       { path: 'table-mapping', name: 'docmate-table-mapping', component: () => import('../pages/TableMappingPage.vue') },
-      { path: 'reports', name: 'docmate-reports', component: () => import('../pages/ReportsPage.vue') },
+      { path: 'reports', name: 'docmate-reports', component: () => import('../pages/WorkbenchPage.vue') },
     ],
   },
   {
@@ -35,6 +34,9 @@ const routes: RouteRecordRaw[] = [
     component: RouteLayout,
     children: [
       { path: 'whatsapp', name: 'lingxun-whatsapp', component: () => import('../pages/WhatsAppOpsPage.vue') },
+      { path: 'browse', name: 'lingxun-browse', component: () => import('../pages/WhatsAppOpsPage.vue') },
+      { path: 'sql', name: 'lingxun-sql', component: () => import('../pages/WhatsAppOpsPage.vue') },
+      { path: 'commands', name: 'lingxun-commands', component: () => import('../pages/WhatsAppOpsPage.vue') },
     ],
   },
   {
@@ -42,8 +44,10 @@ const routes: RouteRecordRaw[] = [
     redirect: '/center/settings',
     component: RouteLayout,
     children: [
+      { path: 'dashboard', redirect: '/center/settings' },
       { path: 'settings', name: 'center-settings', component: () => import('../pages/SystemSettingsPage.vue') },
       { path: 'assistant', name: 'center-assistant', component: () => import('../pages/AIAssistantPage.vue') },
+      { path: 'automation', name: 'center-automation', component: () => import('../pages/AutomationPage.vue') },
       { path: 'skills', name: 'center-skills', component: () => import('../pages/SkillsCompatPage.vue') },
       { path: 'workflows', name: 'center-workflows', component: () => import('../pages/WorkflowsCompatPage.vue') },
     ],
@@ -56,6 +60,15 @@ const routes: RouteRecordRaw[] = [
       { path: 'structured', name: 'yaoyao-structured', component: () => import('../pages/YaoyaoStructuredInputPage.vue') },
       { path: 'rag', name: 'yaoyao-rag', component: () => import('../pages/YaoyaoKnowledgePage.vue') },
       { path: 'feed', name: 'yaoyao-feed', component: () => import('../pages/ExternalRiskMonitorPage.vue') },
+    ],
+  },
+  {
+    path: '/automation',
+    redirect: '/automation/inspection',
+    component: RouteLayout,
+    children: [
+      { path: 'inspection', name: 'automation-inspection', component: () => import('../pages/AutomationPage.vue') },
+      { path: 'workflows', name: 'automation-workflows', component: () => import('../pages/AutomationPage.vue') },
     ],
   },
   { path: '/', redirect: '/guardian/dashboard' },

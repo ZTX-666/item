@@ -912,6 +912,54 @@ async def call_vlm_api(base64_image: str, prompt: str) -> dict[str, str]:
     raise RuntimeError("VLM API call failed")
 
 
+async def vlm_analyze_full_frame(
+    image_path: str,
+    *,
+    context: str = "",
+    inspection_prompt: str = "",
+) -> list[Detection]:
+    """Use the VLM on the whole frame when local YOLO is unavailable."""
+    img = Image.open(image_path).convert("RGB")
+    width, height = img.size
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=88)
+    base64_image = base64.b64encode(buf.getvalue()).decode("utf-8")
+    context_text = f"摄像头位置: {context}。" if context else ""
+    focus = inspection_prompt or "请检查画面中的工地安全风险、人员PPE、机械作业半径和隔离围挡。"
+    prompt = (
+        f"你是工地安全视觉巡检专家。{context_text}\n"
+        f"本次检测方向：{focus}\n"
+        "请直接分析整张画面，不依赖YOLO候选框，判断是否存在人员PPE不合规、"
+        "机械作业半径不足、围挡/警戒线缺失、临边高处作业等风险。\n"
+        "请严格按JSON格式返回，不要有多余文字："
+        '{"description": "画面内容和安全风险摘要(中文)", '
+        '"severity": "low|medium|high|critical", '
+        '"suggested_action": "处置建议(中文)"}'
+    )
+    vlm_result = await call_vlm_api(base64_image, prompt)
+    audit = dict(vlm_result.get("_audit") or {})
+    audit.setdefault("prompt", prompt)
+    audit.setdefault("messages", [])
+    audit.setdefault("raw_response", "")
+    audit["full_frame_image"] = {
+        "format": "jpeg",
+        "base64": base64_image,
+        "data_url": f"data:image/jpeg;base64,{base64_image}",
+    }
+    return [
+        Detection(
+            bbox=[0.0, 0.0, float(width), float(height)],
+            label="整帧VLM巡检",
+            confidence=1.0,
+            source="hybrid",
+            description=vlm_result.get("description", "整帧VLM巡检完成"),
+            severity=vlm_result.get("severity", "medium"),
+            suggested_action=vlm_result.get("suggested_action", "建议人工复核"),
+            vlm_audit=audit,
+        )
+    ]
+
+
 async def vlm_enhance_batch(
     image_path: str,
     detections: list[Detection],
@@ -1200,12 +1248,29 @@ async def patrol_camera(
     except Exception as e:
         result.error = f"YOLO检测失败: {e}"
         log.warning(f"  ✗ {result.error}")
-        return result
-    result.yolo_time_ms = int((time.perf_counter() - t0) * 1000)
-    log.info(f"  ✓ YOLO检测: {len(detections)}个目标 ({result.yolo_time_ms}ms)")
+        if not vlm_enabled:
+            return result
+        t_vlm = time.perf_counter()
+        try:
+            detections = await vlm_analyze_full_frame(
+                str(snapshot_path),
+                context=cam_name,
+                inspection_prompt=inspection_prompt,
+            )
+            result.source_mix = "vlm"
+            result.vlm_time_ms = int((time.perf_counter() - t_vlm) * 1000)
+            log.info(f"  ✓ YOLO不可用，已使用整帧VLM降级 ({result.vlm_time_ms}ms)")
+        except Exception as vlm_exc:
+            result.error = f"YOLO检测失败，整帧VLM降级也失败: {vlm_exc}"
+            log.warning(f"  ✗ {result.error}")
+            return result
+        result.yolo_time_ms = int((time.perf_counter() - t0) * 1000)
+    else:
+        result.yolo_time_ms = int((time.perf_counter() - t0) * 1000)
+        log.info(f"  ✓ YOLO检测: {len(detections)}个目标 ({result.yolo_time_ms}ms)")
 
     # 3. VLM 增强（如果开启且有检测到目标）
-    if vlm_enabled and detections:
+    if vlm_enabled and detections and result.source_mix != "vlm":
         t0 = time.perf_counter()
         try:
             detections = await vlm_enhance_batch(
