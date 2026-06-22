@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
-import { sendChatMessage } from '../../services/chitungApi'
+import { watch } from 'vue'
+import { useAiAssistant } from '../../composables/useAiAssistant'
 
-defineProps<{
+const props = defineProps<{
   visible: boolean
 }>()
 
@@ -10,164 +10,44 @@ const emit = defineEmits<{
   toggle: []
 }>()
 
-interface Message {
-  id: number
-  role: 'user' | 'assistant'
-  content: string
-  status?: '执行中' | '完成' | '失败'
-  cards?: Array<Record<string, unknown>>
-  toolResults?: Array<Record<string, unknown>>
-  intent?: string
+const {
+  messages,
+  inputText,
+  isTyping,
+  messagesEl,
+  quickActions,
+  loadLatestHistory,
+  sendMessage,
+  handleQuickAction,
+  handleKeydown,
+  toolName,
+  toolOk,
+  toolSummary,
+  cardTitle,
+  cardSummary,
+  cardActions,
+  cardActionLabel,
+  actionKey,
+  actionRunning,
+  handleCardAction,
+  appliedSkillName,
+  skillHighlights,
+  skillNextActions,
+  resultImages,
+  resultReports,
+} = useAiAssistant()
+
+function bindMessagesEl(el: unknown) {
+  messagesEl.value = el instanceof HTMLElement ? el : null
 }
 
-const messages = ref<Message[]>([
-  {
-    id: 1,
-    role: 'assistant',
-    content: '你好，我是赤瞳 AI 助手。可以帮你处理隐患、巡检、填表、制度查询和工作流编排。',
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) loadLatestHistory()
   },
-])
-const inputText = ref('')
-const isTyping = ref(false)
-const messagesEl = ref<HTMLElement | null>(null)
-let nextId = 2
-
-const quickActions = [
-  { label: '隐患排查', prompt: '帮我分析最近的安全隐患' },
-  { label: '生成通知', prompt: '生成一份高处作业安全隐患整改通知' },
-  { label: '每日简报', prompt: '生成今日外部风险简报' },
-  { label: '制度查询', prompt: '查询临边作业安全管理要求' },
-]
-
-function scrollToBottom() {
-  nextTick(() => {
-    if (messagesEl.value) messagesEl.value.scrollTop = messagesEl.value.scrollHeight
-  })
-}
-
-async function sendMessage() {
-  const text = inputText.value.trim()
-  if (!text || isTyping.value) return
-  messages.value.push({ id: nextId++, role: 'user', content: text })
-  const assistantId = nextId++
-  messages.value.push({
-    id: assistantId,
-    role: 'assistant',
-    content: '执行中：正在识别意图并调用中台工具...',
-    status: '执行中',
-    cards: [],
-    toolResults: [],
-  })
-  inputText.value = ''
-  isTyping.value = true
-  scrollToBottom()
-  try {
-    const response = await sendChatMessage({ message: text, channel: 'local_chat' })
-    updateAssistantMessage(assistantId, {
-      content: response.message,
-      status: '完成',
-      cards: (response.payload?.cards as Array<Record<string, unknown>> | undefined) ?? [],
-      toolResults: (response.payload?.toolResults as Array<Record<string, unknown>> | undefined) ?? [],
-      intent: String((response.payload?.intent as Record<string, unknown> | undefined)?.intent || ''),
-    })
-  } catch (error) {
-    updateAssistantMessage(assistantId, {
-      content: `请求失败：${error instanceof Error ? error.message : String(error)}`,
-      status: '失败',
-    })
-  } finally {
-    isTyping.value = false
-    scrollToBottom()
-  }
-}
-
-function updateAssistantMessage(id: number, patch: Partial<Message>) {
-  const index = messages.value.findIndex((message) => message.id === id)
-  if (index >= 0) {
-    messages.value[index] = { ...messages.value[index], ...patch }
-  }
-}
-
-function handleQuickAction(prompt: string) {
-  inputText.value = prompt
-  sendMessage()
-}
-
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    sendMessage()
-  }
-}
-
-function toolName(result: Record<string, unknown>) {
-  return String(result.tool || result.tool_name || result.source || 'tool')
-}
-
-function toolOk(result: Record<string, unknown>) {
-  return result.ok !== false
-}
-
-function toolSummary(result: Record<string, unknown>) {
-  const summary = result.summary
-  if (typeof summary === 'string') return summary
-  if (summary && typeof summary === 'object') {
-    const value = summary as Record<string, unknown>
-    if (typeof value.total_items === 'number') return `汇总 ${value.total_items} 条`
-    if (typeof value.matched_item_count === 'number') return `匹配 ${value.matched_item_count} 条`
-    if (typeof value.item_count === 'number') return `入库 ${value.item_count} 条`
-    if (typeof value.detection_count === 'number') return `检测 ${value.detection_count} 个目标`
-    if (typeof value.text === 'string') return value.text
-  }
-  if (typeof result.error === 'string') return result.error
-  if (typeof result.message === 'string') return result.message
-  return toolOk(result) ? '已完成' : '执行失败'
-}
-
-function cardTitle(card: Record<string, unknown>) {
-  return String(card.title || card.card_type || '结果卡片')
-}
-
-function cardSummary(card: Record<string, unknown>) {
-  return String(card.summary || '')
-}
-
-function cardActions(card: Record<string, unknown>) {
-  return Array.isArray(card.actions) ? (card.actions as Array<Record<string, unknown>>) : []
-}
-
-function resultImages(message: Message) {
-  const images: Array<{ title: string; url: string; caption?: string }> = []
-  for (const card of message.cards ?? []) {
-    collectImagesFromValue(card, images)
-  }
-  for (const result of message.toolResults ?? []) {
-    collectImagesFromValue(result, images)
-  }
-  const seen = new Set<string>()
-  return images.filter((image) => {
-    if (seen.has(image.url)) return false
-    seen.add(image.url)
-    return true
-  }).slice(0, 4)
-}
-
-function collectImagesFromValue(value: unknown, images: Array<{ title: string; url: string; caption?: string }>) {
-  if (!value || typeof value !== 'object') return
-  const record = value as Record<string, unknown>
-  for (const key of ['annotated_url', 'snapshot_url', 'image_url', 'thumbnail_url']) {
-    const url = record[key]
-    if (typeof url === 'string' && url) {
-      images.push({ title: String(record.title || key), url, caption: String(record.camera_name || record.source_name || '') })
-    }
-  }
-  for (const key of ['report', 'data', 'briefing']) collectImagesFromValue(record[key], images)
-  for (const key of ['report_images', 'images', 'items', 'cameras']) {
-    const list = record[key]
-    if (!Array.isArray(list)) continue
-    for (const item of list) collectImagesFromValue(item, images)
-  }
-}
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -179,7 +59,7 @@ function collectImagesFromValue(value: unknown, images: Array<{ title: string; u
       </div>
       <button class="chatbot-panel__close" title="关闭" @click="emit('toggle')">×</button>
     </div>
-    <div ref="messagesEl" class="chatbot-panel__messages">
+    <div :ref="bindMessagesEl" class="chatbot-panel__messages">
       <article
         v-for="message in messages"
         :key="message.id"
@@ -188,7 +68,25 @@ function collectImagesFromValue(value: unknown, images: Array<{ title: string; u
       >
         <div class="chatbot-message__body">
           <p>{{ message.content }}</p>
-          <span v-if="message.status" class="chatbot-message__status">{{ message.status }}</span>
+          <div class="chatbot-message__meta">
+            <span v-if="message.status" class="chatbot-message__status">{{ message.status }}</span>
+            <span v-if="message.intent" class="chatbot-message__intent">意图 {{ message.intent }}</span>
+            <span v-if="appliedSkillName(message)" class="chatbot-message__skill">
+              Skill {{ appliedSkillName(message) }}
+            </span>
+            <span v-if="message.workflowName" class="chatbot-message__workflow">
+              Workflow {{ message.workflowName }}
+            </span>
+          </div>
+        </div>
+        <div
+          v-if="skillHighlights(message).length || skillNextActions(message).length"
+          class="chatbot-message__skill-detail"
+        >
+          <p v-if="skillHighlights(message).length">{{ skillHighlights(message).join('；') }}</p>
+          <div v-if="skillNextActions(message).length" class="chatbot-card__actions">
+            <span v-for="action in skillNextActions(message)" :key="action">{{ action }}</span>
+          </div>
         </div>
         <div v-if="message.toolResults?.length" class="chatbot-message__tools">
           <article
@@ -207,9 +105,28 @@ function collectImagesFromValue(value: unknown, images: Array<{ title: string; u
             <strong>{{ cardTitle(card) }}</strong>
             <p>{{ cardSummary(card) }}</p>
             <div v-if="cardActions(card).length" class="chatbot-card__actions">
-              <span v-for="action in cardActions(card)" :key="String(action.id || action.label)">
-                {{ action.label || action.id }}
-              </span>
+              <button
+                v-for="action in cardActions(card)"
+                :key="String(action.id || action.action_id || action.label)"
+                :disabled="actionRunning(actionKey(message, card, action))"
+                @click="handleCardAction(message, card, action)"
+              >
+                {{ actionRunning(actionKey(message, card, action)) ? '执行中' : cardActionLabel(action) }}
+              </button>
+            </div>
+          </article>
+        </div>
+        <div v-if="resultReports(message).length" class="chatbot-message__reports">
+          <article v-for="report in resultReports(message)" :key="`${report.title}-${report.reportId || report.text}`" class="chatbot-report">
+            <div class="chatbot-report__header">
+              <strong>{{ report.title }}</strong>
+              <span v-if="report.reportId">#{{ report.reportId }}</span>
+            </div>
+            <p v-if="report.text">{{ report.text }}</p>
+            <div v-if="report.links.length" class="chatbot-report__links">
+              <a v-for="link in report.links" :key="link.url" :href="link.url" target="_blank" rel="noreferrer">
+                {{ link.label }}
+              </a>
             </div>
           </article>
         </div>
@@ -233,7 +150,7 @@ function collectImagesFromValue(value: unknown, images: Array<{ title: string; u
         rows="2"
         @keydown="handleKeydown"
       />
-      <button :disabled="!inputText.trim() || isTyping" @click="sendMessage">发送</button>
+      <button :disabled="!inputText.trim() || isTyping" @click="() => sendMessage()">发送</button>
     </div>
   </aside>
 </template>
@@ -318,7 +235,16 @@ function collectImagesFromValue(value: unknown, images: Array<{ title: string; u
   white-space: pre-wrap;
 }
 
-.chatbot-message__status {
+.chatbot-message__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chatbot-message__status,
+.chatbot-message__intent,
+.chatbot-message__skill,
+.chatbot-message__workflow {
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 999px;
   color: #9ca3af;
@@ -327,8 +253,39 @@ function collectImagesFromValue(value: unknown, images: Array<{ title: string; u
   padding: 2px 7px;
 }
 
+.chatbot-message__intent {
+  border-color: rgba(96, 165, 250, 0.28);
+  color: #93c5fd;
+}
+
+.chatbot-message__skill {
+  border: 1px solid rgba(248, 113, 113, 0.26);
+  color: #fca5a5;
+}
+
+.chatbot-message__workflow {
+  border-color: rgba(52, 211, 153, 0.24);
+  color: #6ee7b7;
+}
+
+.chatbot-message__skill-detail {
+  background: rgba(127, 29, 29, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.16);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px;
+}
+
+.chatbot-message__skill-detail p {
+  color: #fecaca;
+  margin: 0;
+}
+
 .chatbot-message__tools,
 .chatbot-message__cards,
+.chatbot-message__reports,
 .chatbot-message__images {
   display: grid;
   gap: 8px;
@@ -336,7 +293,8 @@ function collectImagesFromValue(value: unknown, images: Array<{ title: string; u
 }
 
 .chatbot-tool-result,
-.chatbot-card {
+.chatbot-card,
+.chatbot-report {
   background: rgba(15, 23, 42, 0.42);
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 8px;
@@ -346,7 +304,8 @@ function collectImagesFromValue(value: unknown, images: Array<{ title: string; u
 }
 
 .chatbot-tool-result strong,
-.chatbot-card strong {
+.chatbot-card strong,
+.chatbot-report strong {
   color: #e5e7eb;
 }
 
@@ -360,9 +319,11 @@ function collectImagesFromValue(value: unknown, images: Array<{ title: string; u
 }
 
 .chatbot-tool-result p,
-.chatbot-card p {
+.chatbot-card p,
+.chatbot-report p {
   color: #9ca3af;
   margin: 0;
+  white-space: pre-wrap;
 }
 
 .chatbot-card__actions {
@@ -371,12 +332,39 @@ function collectImagesFromValue(value: unknown, images: Array<{ title: string; u
   gap: 6px;
 }
 
-.chatbot-card__actions span {
+.chatbot-card__actions span,
+.chatbot-card__actions button,
+.chatbot-report__links a {
+  background: transparent;
   border: 1px solid rgba(59, 130, 246, 0.28);
   border-radius: 999px;
   color: #93c5fd;
   font-size: 11px;
   padding: 2px 7px;
+  text-decoration: none;
+}
+
+.chatbot-card__actions button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.chatbot-report__header {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.chatbot-report__header span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.chatbot-report__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .chatbot-result-image {

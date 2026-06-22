@@ -1,6 +1,7 @@
 import type {
   AppConfig,
   CenterChatResponse,
+  ChatHistoryResponse,
   ChatResponse,
   ConnectorSettingsStatus,
   DocmateApplyResult,
@@ -60,6 +61,7 @@ async function ensureOk(response: Response, message: string) {
 
 export interface SendMessageRequest {
   message: string
+  sessionId?: string
   channel?: 'local_chat' | 'feishu'
   context?: Record<string, unknown>
 }
@@ -71,6 +73,7 @@ export async function sendChatMessage(request: SendMessageRequest): Promise<Chat
     body: JSON.stringify({
       channel: request.channel ?? 'local_chat',
       message: request.message,
+      session_id: request.sessionId || undefined,
       metadata: request.context ?? {},
     }),
   })
@@ -81,13 +84,27 @@ export async function sendChatMessage(request: SendMessageRequest): Promise<Chat
   return {
     type: data.cards?.length ? 'review_card' : 'reply',
     message: data.reply,
+    sessionId: data.session_id,
+    workflowId: data.workflow_run_id,
     payload: {
       intent: data.intent,
       cards: data.cards ?? [],
       toolResults: data.tool_results ?? [],
+      appliedSkill: data.applied_skill ?? null,
+      skill: data.skill ?? null,
       auditId: data.audit_id,
+      sessionId: data.session_id,
+      workflowName: data.workflow_name,
+      workflowRunId: data.workflow_run_id,
     },
   }
+}
+
+export async function getChatHistory(sessionId?: string): Promise<ChatHistoryResponse> {
+  const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''
+  const response = await fetch(`${CENTER_BASE_URL}/api/chat/history${query}`)
+  await ensureOk(response, 'Chat history failed')
+  return response.json() as Promise<ChatHistoryResponse>
 }
 
 export async function getSkills(): Promise<SkillInfo[]> {
@@ -918,6 +935,117 @@ export async function ingestWhatsAppSearch(request: {
   })
   await ensureOk(response, 'WhatsApp ingest failed')
   return response.json() as Promise<Record<string, unknown>>
+}
+
+export interface WhatsAppToolResult<T = unknown> {
+  ok: boolean
+  data?: T
+  summary?: string
+  error?: string
+  unavailable?: boolean
+}
+
+export interface WhatsAppSqlTablesData {
+  tables: string[]
+}
+
+export interface WhatsAppSqlSelectData {
+  columns: string[]
+  rows: Array<Record<string, unknown>>
+}
+
+export interface WhatsAppCommandResultData {
+  command?: string[]
+  code?: number
+  exit_code?: number
+  stdout?: string
+  stderr?: string
+  output?: string
+}
+
+function normalizeWhatsAppToolResult<T>(payload: unknown): WhatsAppToolResult<T> {
+  if (!payload || typeof payload !== 'object') {
+    return { ok: true, data: payload as T }
+  }
+
+  const record = payload as Record<string, unknown>
+  if ('ok' in record || 'data' in record || 'error' in record || 'summary' in record) {
+    return {
+      ok: record.ok !== false,
+      data: record.data as T,
+      summary: typeof record.summary === 'string' ? record.summary : undefined,
+      error: typeof record.error === 'string' ? record.error : undefined,
+      unavailable: record.unavailable === true,
+    }
+  }
+
+  return { ok: true, data: payload as T }
+}
+
+async function postWhatsAppTool<T>(
+  path: string,
+  body: Record<string, unknown> = {},
+  unavailableMessage = 'WhatsApp 本地服务暂不可用',
+): Promise<WhatsAppToolResult<T>> {
+  try {
+    const response = await fetch(`${CENTER_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const contentType = response.headers.get('content-type') || ''
+    const payload = contentType.includes('application/json')
+      ? await response.json().catch(() => undefined)
+      : await response.text().catch(() => '')
+
+    if (!response.ok) {
+      const detail =
+        payload && typeof payload === 'object'
+          ? String(
+              (payload as Record<string, unknown>).message ||
+                (payload as Record<string, unknown>).detail ||
+                (payload as Record<string, unknown>).error ||
+                '',
+            )
+          : String(payload || '')
+      return {
+        ok: false,
+        unavailable: response.status === 404 || response.status === 501 || response.status === 503,
+        error: detail || `${unavailableMessage}（HTTP ${response.status}）`,
+      }
+    }
+
+    return normalizeWhatsAppToolResult<T>(payload)
+  } catch (error) {
+    return {
+      ok: false,
+      unavailable: true,
+      error: `${unavailableMessage}：${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+}
+
+export async function listWhatsAppSqlTables(): Promise<WhatsAppToolResult<WhatsAppSqlTablesData>> {
+  return postWhatsAppTool<WhatsAppSqlTablesData>('/api/whatsapp/sql/tables')
+}
+
+export async function runWhatsAppSqlSelect(request: {
+  sql: string
+  limit?: number
+}): Promise<WhatsAppToolResult<WhatsAppSqlSelectData>> {
+  return postWhatsAppTool<WhatsAppSqlSelectData>('/api/whatsapp/sql/query', {
+    sql: request.sql,
+    limit: request.limit ?? 100,
+  })
+}
+
+export async function runWhatsAppCommand(request: {
+  args: string[]
+}): Promise<WhatsAppToolResult<WhatsAppCommandResultData>> {
+  return postWhatsAppTool<WhatsAppCommandResultData>('/api/whatsapp/command/run', {
+    args: request.args.join(' '),
+    read_only: true,
+  })
 }
 
 export async function createHybridPlan(request: {

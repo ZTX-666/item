@@ -9,9 +9,20 @@ from chitung_center.models import IntentResult
 
 
 RULES: list[tuple[str, list[str], list[str]]] = [
+    (
+        "whatsapp_sql_query",
+        ["whatsapp", "wa", "wacli.db", "sqlite", "sql", "数据库", "本地库", "数据表", "表名"],
+        ["whatsapp_sql_tables", "whatsapp_sql_query"],
+    ),
+    (
+        "whatsapp_wacli_ops",
+        ["whatsapp", "wa", "wacli", "登录状态", "认证状态", "消息搜索", "搜消息", "发", "发消息", "发送", "回复", "转发", "删除", "退出登录", "send", "聊天列表", "群组", "联系人", "星标", "通话", "存储统计"],
+        ["whatsapp_command_run"],
+    ),
     ("hazard_intake", ["隐患", "整改", "事故", "工伤", "危险", "护栏", "吊运", "临边"], ["ingest_chat_hazards", "connect_hazard_actions"]),
     ("visual_detection", ["摄像头", "cctv", "rtmp", "vlm", "照片", "视频", "识别"], ["ingest_vlm_hazards"]),
     ("document_form", ["表格", "填表", "模板", "word", "docx", "闪闪文档", "报告", "检查表", "檢查表", "表单", "表單", "改文档", "替换", "潤色", "变更", "changeset", "docmate", "docx修改"], ["ai_archive_classifier"]),
+    ("weather_query", ["天气", "天文台", "weather"], ["fetch_hko_weather"]),
     (
         "weather_news_risk",
         ["天气", "天文台", "暴雨", "酷热", "台风", "新闻", "舆情", "工伤意外", "外部风险", "外部", "外面", "预警", "简报"],
@@ -25,6 +36,14 @@ ALLOWED_INTENTS = set(INTENT_TOOL_DEFAULTS)
 
 
 def route_intent(message: str) -> IntentResult:
+    if _is_plain_weather_question(message):
+        return IntentResult(
+            intent="weather_query",
+            confidence=0.78,
+            reason="Plain weather query matched weather terms without briefing or risk intent.",
+            suggested_tools=INTENT_TOOL_DEFAULTS["weather_query"],
+        )
+
     lowered = message.lower()
     best_name = "general_chat"
     best_hits: list[str] = []
@@ -57,6 +76,8 @@ def route_intent(message: str) -> IntentResult:
 
 async def route_intent_with_llm(message: str) -> IntentResult:
     fallback = route_intent(message)
+    if fallback.intent == "weather_query":
+        return fallback
     if not settings.llm_configured:
         return fallback
 
@@ -91,8 +112,11 @@ def _router_system_prompt() -> str:
             "hazard_intake": "隐患、事故、整改、现场安全问题入库和闭环",
             "visual_detection": "摄像头、CCTV、图片、视频、视觉巡检、VLM/YOLO 识别",
             "document_form": "表格、报告、DOCX、模板、智能填表和文档处理",
-            "weather_news_risk": "香港天气、外部风险、新闻舆情、监管安全更新、每日简报",
+            "weather_query": "只查询香港当前天气或天文台提示，不生成外部风险简报",
+            "weather_news_risk": "外部风险、新闻舆情、监管安全更新、天气风险汇总和每日简报",
             "knowledge_query": "制度、规程、条款、管理要求、RAG 问答",
+            "whatsapp_sql_query": "WhatsApp 本地 SQLite/wacli.db 数据库、表名和只读 SQL 查询",
+            "whatsapp_wacli_ops": "WhatsApp wacli 只读命令、登录状态、消息搜索、聊天/群组/联系人诊断",
             "general_chat": "闲聊、无法归类、需要澄清的问题",
         },
         "output_schema": {
@@ -127,3 +151,10 @@ def _validated_tools(intent_name: str, value: Any) -> list[str]:
         return defaults
     allowed = set(defaults)
     return [str(item) for item in value if str(item) in allowed] or defaults
+
+
+def _is_plain_weather_question(message: str) -> bool:
+    normalized = message.lower().replace(" ", "")
+    if not any(token in normalized for token in ["天气", "天文台", "weather"]):
+        return False
+    return not any(token in normalized for token in ["简报", "舆情", "新闻", "风险", "监管", "工伤", "报告", "生成", "预警", "外部", "外面"])

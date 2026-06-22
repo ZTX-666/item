@@ -50,7 +50,7 @@ class ChitungOrchestrator:
                     applied_skill = await enhance_with_skill(intent.intent, request.message, run)
                 except Exception:  # noqa: BLE001 — skill layer must never block workflow output
                     applied_skill = None
-                if applied_skill and applied_skill.get("reply"):
+                if applied_skill and applied_skill.get("reply") and not _should_preserve_workflow_reply(cards):
                     reply = applied_skill["reply"]
                 return ChatMessageResponse(
                     reply=reply,
@@ -132,6 +132,10 @@ def _is_capability_question(message: str) -> bool:
     )
 
 
+def _should_preserve_workflow_reply(cards: list[ActionCard]) -> bool:
+    return any(card.card_type in {"whatsapp_send_confirmation"} for card in cards)
+
+
 def _is_identity_question(message: str) -> bool:
     normalized = message.lower().replace(" ", "")
     return any(
@@ -156,5 +160,6 @@ def _capability_reply() -> str:
         "2. CCTV/视觉巡检：打开监控巡检入口，辅助识别现场风险。\n"
         "3. 表格和文档：按模板起草检查表、整改通知和报告草稿。\n"
         "4. 天气和外部风险：拉取香港天气、新闻和工伤风险，生成每日简报。\n"
-        "5. 安全制度问答：围绕项目安全制度、规程和管理要求做查询。"
+        "5. 安全制度问答：围绕项目安全制度、规程和管理要求做查询。\n"
+        "6. WhatsApp 灵讯：查询本地 wacli.db，执行只读 wacli 诊断和消息检索。"
     )

@@ -77,21 +77,97 @@ export interface PendingConfirmation {
 export interface ChatResponse {
   type: 'reply' | 'review_card' | 'workflow'
   message: string
+  sessionId?: string
   workflowId?: string
-  payload?: Record<string, unknown>
+  payload?: {
+    intent?: ChatIntentResult
+    cards: Array<Record<string, unknown>>
+    toolResults: Array<Record<string, unknown>>
+    auditId?: string
+    sessionId?: string
+    workflowName?: string
+    workflowRunId?: string
+    skill?: ChatSkillReference | null
+    appliedSkill?: ChatAppliedSkill | null
+  }
+}
+
+export interface ChatIntentResult {
+  intent: string
+  confidence: number
+  reason: string
+  suggested_tools?: string[]
+}
+
+export interface ChatSkillReference {
+  name: string
+  path?: string
+  summary?: string
+  enabled?: boolean
+  category?: string
+  status?: string
+  phase?: string
+  tools?: string[]
+  workflow?: string
+}
+
+export interface ChatAppliedSkill {
+  skill?: string
+  skill_path?: string
+  reply?: string
+  highlights?: string[]
+  next_actions?: string[]
 }
 
 export interface CenterChatResponse {
   reply: string
-  intent?: {
-    intent: string
-    confidence: number
-    reason: string
-    suggested_tools?: string[]
-  }
+  session_id?: string
+  intent?: ChatIntentResult
   cards?: Array<Record<string, unknown>>
   tool_results?: Array<Record<string, unknown>>
+  applied_skill?: ChatAppliedSkill | null
+  skill?: ChatSkillReference | null
+  workflow_name?: string
+  workflow_run_id?: string
   audit_id?: string
+}
+
+export interface ChatSessionRecord {
+  session_id: string
+  title: string
+  channel: string
+  user_id: string
+  route?: string
+  module?: string
+  metadata?: Record<string, unknown>
+  created_at: string
+  updated_at: string
+  message_count: number
+}
+
+export interface ChatMessageRecord {
+  message_id: string
+  session_id: string
+  role: 'user' | 'assistant'
+  content: string
+  status?: string
+  intent?: ChatIntentResult | Record<string, unknown>
+  tool_results?: Array<Record<string, unknown>>
+  cards?: Array<Record<string, unknown>>
+  metadata?: {
+    applied_skill?: ChatAppliedSkill
+    skill?: ChatSkillReference
+    workflow_name?: string
+    [key: string]: unknown
+  }
+  audit_id?: string
+  workflow_run_id?: string
+  created_at: string
+}
+
+export interface ChatHistoryResponse {
+  session: ChatSessionRecord | null
+  messages: ChatMessageRecord[]
 }
 
 export type DocumentDiffLineType = 'context' | 'added' | 'removed'

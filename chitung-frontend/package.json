@@ -13,6 +13,8 @@
     "desktop:build": "npm run build && electron-builder --dir",
     "desktop:dist": "npm run build && electron-builder",
     "test:dashboard": "node scripts/verify-dashboard-contract.mjs",
+    "test:assistant": "node scripts/verify-ai-assistant-contract.mjs",
+    "test:whatsapp-ops": "node scripts/verify-whatsapp-ops-contract.mjs",
     "test:yaoyao-feed": "node scripts/verify-yaoyao-feed-contract.mjs",
     "smoke:backend": "node scripts/smoke-backend.mjs",
     "smoke:workflow": "node scripts/smoke-workflows.mjs",

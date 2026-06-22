@@ -47,6 +47,15 @@ WORKFLOW_TEMPLATES: dict[str, WorkflowTemplate] = {
             WorkflowStepTemplate("draft_briefing", "赤瞳守护者", "draft_daily_risk_briefing"),
         ],
     ),
+    "workflow_weather_query": WorkflowTemplate(
+        workflow_name="workflow_weather_query",
+        title="香港天气查询",
+        description="只查询香港天文台天气和现场安全提示，不生成外部风险简报。",
+        intent="weather_query",
+        steps=[
+            WorkflowStepTemplate("fetch_weather", "赤瞳守护者", "fetch_hko_weather"),
+        ],
+    ),
     "workflow_form_filling": WorkflowTemplate(
         workflow_name="workflow_form_filling",
         title="智能表格填报",
@@ -65,6 +74,24 @@ WORKFLOW_TEMPLATES: dict[str, WorkflowTemplate] = {
             WorkflowStepTemplate("search_policy", "耀耀慧读", "search_policy_clauses"),
         ],
     ),
+    "workflow_whatsapp_sql_query": WorkflowTemplate(
+        workflow_name="workflow_whatsapp_sql_query",
+        title="WhatsApp SQLite 查询",
+        description="读取本地 wacli.db 表结构和只读 SELECT 查询结果。",
+        intent="whatsapp_sql_query",
+        steps=[
+            WorkflowStepTemplate("whatsapp_sql_read", "赤瞳灵讯", "whatsapp_sql_query"),
+        ],
+    ),
+    "workflow_whatsapp_wacli_ops": WorkflowTemplate(
+        workflow_name="workflow_whatsapp_wacli_ops",
+        title="WhatsApp wacli 运维",
+        description="执行安全只读 wacli 命令，用于登录状态、搜索、聊天、群组和存储诊断。",
+        intent="whatsapp_wacli_ops",
+        steps=[
+            WorkflowStepTemplate("whatsapp_wacli_readonly", "赤瞳灵讯", "whatsapp_command_run"),
+        ],
+    ),
     "workflow_visual_patrol": WorkflowTemplate(
         workflow_name="workflow_visual_patrol",
         title="视觉巡检",
@@ -79,9 +106,12 @@ WORKFLOW_TEMPLATES: dict[str, WorkflowTemplate] = {
 
 INTENT_TO_WORKFLOW: dict[str, str] = {
     "hazard_intake": "workflow_hazard_intake",
+    "weather_query": "workflow_weather_query",
     "weather_news_risk": "workflow_daily_risk_briefing",
     "document_form": "workflow_form_filling",
     "knowledge_query": "workflow_knowledge_query",
+    "whatsapp_sql_query": "workflow_whatsapp_sql_query",
+    "whatsapp_wacli_ops": "workflow_whatsapp_wacli_ops",
     "visual_detection": "workflow_visual_patrol",
 }
 

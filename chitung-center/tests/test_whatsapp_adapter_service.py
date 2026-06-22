@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 from fastapi.testclient import TestClient
 
 from chitung_center.app import app
+from chitung_center.confirmation_service import execute_approved_confirmation
 from chitung_center.whatsapp_adapter_service import handle_whatsapp_event
 
 
@@ -115,3 +116,69 @@ def test_whatsapp_send_api_routes_to_confirmed_tool(monkeypatch):
         "dry_run": True,
         "confirmed_by": "desktop_user",
     }
+
+
+def test_approved_whatsapp_send_confirmation_executes_confirmed_tool(monkeypatch):
+    calls: list[tuple[str, dict]] = []
+
+    async def fake_call_tool(tool_name, arguments):
+        calls.append((tool_name, arguments))
+        return {"ok": True, "tool": tool_name, "summary": "WhatsApp 消息已发送。", "data": arguments}
+
+    monkeypatch.setattr("chitung_center.confirmation_service.toolbox_client.call_tool", fake_call_tool)
+    monkeypatch.setattr("chitung_center.confirmation_service.resolve_confirmation", AsyncMock(return_value={"ok": True}))
+
+    result = asyncio.run(
+        execute_approved_confirmation(
+            {
+                "confirmation_id": "pcf-wa-send-1",
+                "action_type": "send_whatsapp_message",
+                "payload": {
+                    "chat": "120363425802490084@g.us",
+                    "chat_name": "安全信息测试群",
+                    "text": "test1",
+                    "dry_run": False,
+                },
+            },
+            decided_by="desktop_user",
+        )
+    )
+
+    assert result["ok"] is True
+    assert result["action_type"] == "send_whatsapp_message"
+    assert calls == [
+        (
+            "whatsapp_send_text_confirmed",
+            {
+                "chat": "120363425802490084@g.us",
+                "text": "test1",
+                "confirmed": True,
+                "dry_run": False,
+                "confirmed_by": "desktop_user",
+            },
+        )
+    ]
+
+
+def test_whatsapp_groups_api_routes_to_wacli_runtime_tool(monkeypatch):
+    calls: list[tuple[str, dict]] = []
+
+    async def fake_call_tool(tool_name, arguments):
+        calls.append((tool_name, arguments))
+        return {"ok": True, "tool": tool_name, "data": {"items": []}}
+
+    monkeypatch.setattr("chitung_center.app.toolbox_client.call_tool", fake_call_tool)
+
+    client = TestClient(app)
+    response = client.post("/api/whatsapp/groups", json={"include_archived": True})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["tool"] == "whatsapp_groups_wacli"
+    assert calls == [
+        (
+            "whatsapp_groups_wacli",
+            {"include_archived": True, "limit": 200},
+        )
+    ]

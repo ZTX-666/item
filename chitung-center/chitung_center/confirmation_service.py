@@ -113,6 +113,17 @@ async def execute_approved_confirmation(confirmation: dict[str, Any], *, decided
 
     if action_type in {"send_feishu_message", "send_feishu_card"}:
         tool_result = await _execute_feishu_send(action_type, payload)
+    elif action_type == "send_whatsapp_message":
+        tool_result = await toolbox_client.call_tool(
+            "whatsapp_send_text_confirmed",
+            {
+                "chat": payload.get("chat"),
+                "text": payload.get("text") or payload.get("body") or "",
+                "confirmed": True,
+                "dry_run": bool(payload.get("dry_run", False)),
+                "confirmed_by": decided_by,
+            },
+        )
     elif action_type == "generate_rectification_notice":
         tool_result = await toolbox_client.call_tool(
             "generate_rectification_notice",
@@ -222,7 +233,13 @@ async def handle_card_action(
         {"action_id": action_id, "channel": channel, "user_id": user_id, "card_data_keys": sorted(card_data.keys())},
     )
 
-    confirmation_id = card_data.get("confirmation_id") or card_data.get("pending_confirmation_id")
+    nested_data = card_data.get("data") if isinstance(card_data.get("data"), dict) else {}
+    confirmation_id = (
+        card_data.get("confirmation_id")
+        or card_data.get("pending_confirmation_id")
+        or nested_data.get("confirmation_id")
+        or nested_data.get("pending_confirmation_id")
+    )
     if confirmation_id:
         normalized = str(action_id).lower()
         if normalized in APPROVE_ACTIONS:

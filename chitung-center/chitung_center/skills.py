@@ -202,8 +202,12 @@ class SkillLoader:
 # Maps router intents to the SKILL.md directory that governs that flow.
 INTENT_TO_SKILL: dict[str, str] = {
     "hazard_intake": "hazard-intake",
+    "visual_detection": "visual-patrol",
     "weather_news_risk": "daily-risk-briefing",
     "document_form": "shanshan-doc",
+    "knowledge_query": "knowledge-query",
+    "whatsapp_sql_query": "whatsapp-sql-query",
+    "whatsapp_wacli_ops": "whatsapp-wacli-ops",
 }
 
 

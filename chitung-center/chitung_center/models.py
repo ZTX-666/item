@@ -9,8 +9,11 @@ IntentName = Literal[
     "hazard_intake",
     "visual_detection",
     "document_form",
+    "weather_query",
     "weather_news_risk",
     "knowledge_query",
+    "whatsapp_sql_query",
+    "whatsapp_wacli_ops",
     "general_chat",
 ]
 
@@ -20,6 +23,7 @@ class ChatMessageRequest(BaseModel):
     channel: str = "local_web"
     user_id: str = "local_user"
     project_id: str | None = None
+    session_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -321,6 +325,22 @@ class WhatsAppIngestApiRequest(BaseModel):
     chat: str | None = None
     limit: int = Field(default=20, ge=1, le=200)
     auto_route: bool = True
+
+
+class WhatsAppSqlTablesApiRequest(BaseModel):
+    db_path: str | None = None
+
+
+class WhatsAppSqlQueryApiRequest(BaseModel):
+    sql: str = Field(min_length=1)
+    limit: int = Field(default=100, ge=1, le=500)
+    db_path: str | None = None
+
+
+class WhatsAppCommandRunApiRequest(BaseModel):
+    args: str = Field(min_length=1)
+    timeout_seconds: int = Field(default=60, ge=5, le=120)
+    read_only: bool = True
 
 
 PlanStatus = Literal[

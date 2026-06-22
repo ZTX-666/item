@@ -20,6 +20,7 @@ from chitung_center.confirmation_service import (
 from chitung_center.feishu_adapter_service import handle_feishu_event
 from chitung_center.whatsapp_adapter_service import handle_whatsapp_event
 from chitung_center.config import settings
+from chitung_center.chat_store import chat_store
 from chitung_center.document_service import build_document_revision_preview
 from chitung_center.docmate_service import (
     apply_changeset,
@@ -65,10 +66,13 @@ from chitung_center.models import (
     WhatsAppAuthStartApiRequest,
     WhatsAppAuthStatusApiRequest,
     WhatsAppAuthStopApiRequest,
+    WhatsAppCommandRunApiRequest,
     WhatsAppGroupsApiRequest,
     WhatsAppIngestApiRequest,
     WhatsAppSendApiRequest,
     WhatsAppSearchApiRequest,
+    WhatsAppSqlQueryApiRequest,
+    WhatsAppSqlTablesApiRequest,
     WhatsAppSyncStartApiRequest,
     WhatsAppSyncStatusApiRequest,
     WhatsAppSyncStopApiRequest,
@@ -120,7 +124,14 @@ from chitung_center.workbench_video_detection_service import (
     run_workbench_video_detection,
 )
 from chitung_center.workflow_engine import workflow_engine
+from chitung_center.workflow_templates import workflow_for_intent
 from chitung_center.workflows import workflow_loader
+from chitung_center.whatsapp_local_service import (
+    list_whatsapp_sql_tables,
+    run_whatsapp_command,
+    run_whatsapp_sql_query,
+    whatsapp_runtime_status,
+)
 from chitung_center.yaoyao_structured_service import (
     build_yaoyao_structured_draft,
     confirm_yaoyao_structured_draft,
@@ -141,6 +152,8 @@ app.add_middleware(
     allow_origins=[
         "http://127.0.0.1:5173",
         "http://localhost:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:5174",
         "http://127.0.0.1:5176",
         "http://localhost:5176",
         "http://127.0.0.1:5178",
@@ -486,8 +499,59 @@ async def report_generate(request: ReportGenerateRequest) -> dict[str, object]:
 
 @app.post("/api/chat/message")
 async def chat_message(request: ChatMessageRequest) -> dict[str, object]:
+    session = chat_store.ensure_session(
+        session_id=request.session_id,
+        channel=request.channel,
+        user_id=request.user_id,
+        metadata=request.metadata,
+        title_source=request.message,
+    )
+    session_id = str(session["session_id"])
+    chat_store.append_message(
+        session_id,
+        role="user",
+        content=request.message,
+        metadata={"channel": request.channel, "user_id": request.user_id, **request.metadata},
+    )
+    request.session_id = session_id
     response = await orchestrator.handle_message(request)
-    return response.model_dump()
+    payload = response.model_dump()
+    workflow_template = workflow_for_intent(response.intent.intent)
+    workflow_name = workflow_template.workflow_name if workflow_template else None
+    workflow_run_id = _extract_workflow_run_id(payload)
+    skill = skill_loader.skill_for_intent(response.intent.intent)
+    skill_payload = skill.to_dict() if skill else None
+    payload["workflow_name"] = workflow_name
+    payload["workflow_run_id"] = workflow_run_id
+    payload["skill"] = skill_payload
+    chat_store.append_message(
+        session_id,
+        role="assistant",
+        content=response.reply,
+        status="完成",
+        intent=response.intent.model_dump(),
+        tool_results=response.tool_results,
+        cards=[card.model_dump() for card in response.cards],
+        metadata={
+            "applied_skill": response.applied_skill or {},
+            "skill": skill_payload or {},
+            "workflow_name": workflow_name or "",
+        },
+        audit_id=response.audit_id,
+        workflow_run_id=workflow_run_id,
+    )
+    payload["session_id"] = session_id
+    return payload
+
+
+@app.get("/api/chat/history")
+async def chat_history(session_id: str | None = None, limit: int = 100) -> dict[str, object]:
+    return chat_store.get_history(session_id, limit=limit)
+
+
+@app.get("/api/chat/sessions")
+async def chat_sessions(limit: int = 20) -> dict[str, object]:
+    return chat_store.list_sessions(limit=limit)
 
 
 @app.post("/api/chat/card-action")
@@ -498,6 +562,18 @@ async def card_action(request: CardActionRequest) -> dict[str, object]:
         user_id=request.user_id,
         channel=request.channel,
     )
+
+
+def _extract_workflow_run_id(payload: dict[str, object]) -> str | None:
+    cards = payload.get("cards")
+    if isinstance(cards, list):
+        for card in cards:
+            if not isinstance(card, dict):
+                continue
+            data = card.get("data")
+            if isinstance(data, dict) and data.get("workflow_run_id"):
+                return str(data["workflow_run_id"])
+    return None
 
 
 @app.get("/api/external-risk/briefing-reports")
@@ -754,8 +830,8 @@ async def whatsapp_search_api(request: WhatsAppSearchApiRequest) -> dict[str, ob
 @app.post("/api/whatsapp/groups")
 async def whatsapp_groups_api(request: WhatsAppGroupsApiRequest) -> dict[str, object]:
     result = await toolbox_client.call_tool(
-        "list_whatsapp_groups",
-        {"include_archived": request.include_archived},
+        "whatsapp_groups_wacli",
+        {"include_archived": request.include_archived, "limit": 200},
     )
     return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
 
@@ -880,6 +956,34 @@ async def whatsapp_ingest_search_api(request: WhatsAppIngestApiRequest) -> dict[
         "routed_count": len(routed),
         "routed": routed,
     }
+
+
+@app.get("/api/whatsapp/runtime/status")
+async def whatsapp_runtime_status_api() -> dict[str, object]:
+    return whatsapp_runtime_status()
+
+
+@app.post("/api/whatsapp/sql/tables")
+async def whatsapp_sql_tables_api(request: WhatsAppSqlTablesApiRequest) -> dict[str, object]:
+    return list_whatsapp_sql_tables(request.db_path)
+
+
+@app.post("/api/whatsapp/sql/query")
+async def whatsapp_sql_query_api(request: WhatsAppSqlQueryApiRequest) -> dict[str, object]:
+    try:
+        return run_whatsapp_sql_query(request.sql, request.limit, request.db_path)
+    except ValueError as exc:
+        return {
+            "ok": False,
+            "summary": "SQLite 查询被拒绝。",
+            "error": str(exc),
+            "data": {"columns": [], "rows": []},
+        }
+
+
+@app.post("/api/whatsapp/command/run")
+async def whatsapp_command_run_api(request: WhatsAppCommandRunApiRequest) -> dict[str, object]:
+    return run_whatsapp_command(request.args, request.timeout_seconds, request.read_only)
 
 
 # ── Yaoyao structured input endpoints ───────────────────────────

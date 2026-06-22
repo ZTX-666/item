@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
+import platform
 import re
 import shutil
 import subprocess
@@ -112,17 +114,94 @@ def _base_url() -> str:
     return settings.whatsapp_archive_base_url.rstrip("/")
 
 
+def _is_windows_platform() -> bool:
+    return os.name == "nt"
+
+
+def _platform_wacli_name() -> str:
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+    if system == "darwin":
+        arch = "arm64" if machine in {"arm64", "aarch64"} else "amd64"
+        return f"wacli-darwin-{arch}"
+    if system == "linux":
+        arch = "arm64" if machine in {"arm64", "aarch64"} else "amd64"
+        return f"wacli-linux-{arch}"
+    if _is_windows_platform():
+        return "wacli.exe"
+    return ""
+
+
+def _packaged_wacli_candidates() -> list[Path]:
+    root = Path(getattr(settings, "root", Path.cwd()))
+    platform_name = _platform_wacli_name()
+    candidates = [
+        # Repo layout: item/agent-toolbox -> item/publish3.0/runtime/bin/wacli.exe
+        root.parent / "publish3.0" / "runtime" / "bin" / "wacli.exe",
+        # Publish layout: publish3.0/agent-services/agent-toolbox -> publish3.0/runtime/bin/wacli.exe
+        root.parent.parent / "runtime" / "bin" / "wacli.exe",
+    ]
+    if platform_name:
+        candidates = [
+            root.parent / "publish3.0" / "runtime" / "bin" / platform_name,
+            root.parent.parent / "runtime" / "bin" / platform_name,
+            *candidates,
+        ]
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        key = str(candidate)
+        if key not in seen:
+            seen.add(key)
+            unique.append(candidate)
+    return unique
+
+
+def _detected_packaged_windows_wacli() -> Path | None:
+    for candidate in _packaged_wacli_candidates():
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def _wacli_bin() -> str | None:
     configured = settings.wacli_bin
     if os.path.isabs(configured) and os.path.exists(configured):
+        if configured.lower().endswith(".exe") and not _is_windows_platform():
+            return None
         return configured
-    return shutil.which(configured)
+    resolved = shutil.which(configured)
+    if resolved:
+        return resolved
+    if configured == "wacli":
+        for packaged in _packaged_wacli_candidates():
+            if not packaged.exists():
+                continue
+            if packaged.suffix.lower() == ".exe" and not _is_windows_platform():
+                continue
+            return str(packaged)
+    return None
+
+
+def _wacli_unavailable_details(default_summary: str) -> tuple[str, str, dict[str, Any]]:
+    data: dict[str, Any] = {"wacli_bin": settings.wacli_bin}
+    packaged = _detected_packaged_windows_wacli()
+    if packaged:
+        data["detected_windows_wacli"] = str(packaged)
+    if packaged and not _is_windows_platform():
+        return (
+            "检测到发布包里的 Windows wacli.exe，但当前系统不能运行 Windows 程序。请在 Windows 发布包环境运行，或配置 macOS 版 WACLI_BIN。",
+            "packaged_wacli_is_windows_only",
+            data,
+        )
+    return default_summary, f"wacli not found: {settings.wacli_bin}", data
 
 
 def _run_wacli(args: list[str], timeout: int = 60) -> tuple[bool, int, str, str, list[str]]:
     binary = _wacli_bin()
     if not binary:
-        return False, 127, "", f"wacli not found: {settings.wacli_bin}", [settings.wacli_bin, *args]
+        _summary, error, _data = _wacli_unavailable_details("未找到 wacli。")
+        return False, 127, "", error, [settings.wacli_bin, *args]
     settings.wacli_workdir.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
     env.setdefault("WACLI_STORE_DIR", str(settings.wacli_store_dir))
@@ -238,6 +317,18 @@ def _set_auth_state(**values: Any) -> None:
         _auth_state["updated_at"] = time.time()
 
 
+def _set_auth_error(message: str) -> None:
+    status = "qr_timed_out" if "qr code timed out" in message.lower() else "failed"
+    values: dict[str, Any] = {
+        "running": False,
+        "status": status,
+        "last_error": message,
+    }
+    if status == "qr_timed_out" or "qr" in message.lower():
+        values["qr_payload"] = ""
+    _set_auth_state(**values)
+
+
 def _append_auth_log(line: str) -> None:
     with _auth_lock:
         logs = list(_auth_state.get("logs") or [])
@@ -324,6 +415,14 @@ def _extract_auth_signal(line: str) -> None:
             payload = json.loads(text)
         except json.JSONDecodeError:
             return
+        status = payload.get("status") or payload.get("event")
+        data = payload.get("data")
+        if isinstance(status, str) and status.lower() == "error":
+            message = ""
+            if isinstance(data, dict):
+                message = str(data.get("message") or data.get("error") or "")
+            _set_auth_error(message or "wacli auth error")
+            return
         for key in ("pairingCode", "pair_code", "code"):
             value = payload.get(key)
             if isinstance(value, str) and _PAIR_RE.match(value.strip()):
@@ -331,15 +430,13 @@ def _extract_auth_signal(line: str) -> None:
         qr = payload.get("qr")
         if isinstance(qr, str) and qr:
             _set_auth_state(qr_payload=qr, status="waiting_scan")
-        data = payload.get("data")
         if isinstance(data, dict):
             code = data.get("code")
-            event = str(payload.get("event") or "")
+            event = str(status or "")
             if isinstance(code, str) and code and ("qr" in event.lower() or code.startswith("https://wa.me/")):
                 _set_auth_state(qr_payload=code, status="waiting_scan")
             if isinstance(code, str) and _PAIR_RE.match(code.strip()):
                 _set_auth_state(pairing_code=code.strip().upper(), status="waiting_phone_confirm")
-        status = payload.get("status") or payload.get("event")
         if isinstance(status, str) and (
             "auth" in status.lower()
             or status.lower() in {"connected", "logged_in", "login_success", "history_sync"}
@@ -374,9 +471,12 @@ def _read_auth_stream(proc: subprocess.Popen[str]) -> None:
     with _auth_lock:
         if _auth_process is proc:
             _auth_state["running"] = False
-            if _auth_state.get("status") not in {"authenticated", "waiting_phone_confirm"}:
+            status = str(_auth_state.get("status") or "")
+            if status not in {"authenticated", "waiting_phone_confirm", "qr_timed_out"}:
                 _auth_state["status"] = "ended" if code == 0 else "failed"
-            _auth_state["last_error"] = "" if code == 0 else f"wacli auth exited with code {code}"
+            if code != 0 and status != "waiting_phone_confirm":
+                _auth_state["qr_payload"] = ""
+            _auth_state["last_error"] = "" if code == 0 else (_auth_state.get("last_error") or f"wacli auth exited with code {code}")
             _auth_state["updated_at"] = time.time()
 
 
@@ -406,15 +506,35 @@ def _read_sync_stream(proc: subprocess.Popen[str]) -> None:
             _sync_state["updated_at"] = time.time()
 
 
+def _terminate_auth_process(proc: subprocess.Popen[str] | None) -> None:
+    if not proc or proc.poll() is not None:
+        return
+    try:
+        proc.terminate()
+        proc.wait(timeout=5)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+
 def start_auth(req: WhatsAppAuthStartRequest) -> ToolResult:
     global _auth_process
 
     task_id = new_task_id("wa_auth")
-    already_running = False
+    phone = _normalize_hk_phone(req.phone)
+    requested_phone = phone if req.mode == "phone" or phone else ""
+    requested_mode = "phone" if requested_phone else "qr"
+    running_proc: subprocess.Popen[str] | None = None
+    should_restart = False
     with _auth_lock:
         if _auth_process and _auth_process.poll() is None:
-            already_running = True
-    if already_running:
+            running_proc = _auth_process
+            current_phone = str(_auth_state.get("phone") or "")
+            current_mode = "phone" if current_phone else "qr"
+            should_restart = current_mode != requested_mode or (requested_phone and current_phone != requested_phone)
+    if running_proc and not should_restart:
         return ToolResult(
             ok=True,
             tool="whatsapp_auth_start",
@@ -422,16 +542,22 @@ def start_auth(req: WhatsAppAuthStartRequest) -> ToolResult:
             summary="WhatsApp 登录流程已在运行。",
             data=_snapshot_auth_state(),
         )
+    if running_proc and should_restart:
+        _terminate_auth_process(running_proc)
+        with _auth_lock:
+            if _auth_process is running_proc:
+                _auth_process = None
 
     binary = _wacli_bin()
     if not binary:
+        summary, error, data = _wacli_unavailable_details("未找到 wacli，无法启动 WhatsApp 登录。")
         return ToolResult(
             ok=False,
             tool="whatsapp_auth_start",
             task_id=task_id,
-            summary="未找到 wacli，无法启动 WhatsApp 登录。",
-            error=f"wacli not found: {settings.wacli_bin}",
-            data={"wacli_bin": settings.wacli_bin},
+            summary=summary,
+            error=error,
+            data=data,
         )
 
     authenticated, auth_output = _is_wacli_authenticated()
@@ -445,7 +571,6 @@ def start_auth(req: WhatsAppAuthStartRequest) -> ToolResult:
             data=_snapshot_auth_state() | {"auth_status": auth_output},
         )
 
-    phone = _normalize_hk_phone(req.phone)
     args = ["--events", "auth", "--qr-format", "text", "--follow"]
     if req.mode == "phone" or phone:
         if not phone:
@@ -499,16 +624,15 @@ def stop_auth(req: WhatsAppAuthStopRequest) -> ToolResult:
     with _auth_lock:
         proc = _auth_process
         _auth_process = None
-    if proc and proc.poll() is None:
-        try:
-            proc.terminate()
-            proc.wait(timeout=5)
-        except Exception:
-            try:
-                proc.kill()
-            except Exception:
-                pass
-    _set_auth_state(running=False, status="stopped", last_error=req.reason)
+    _terminate_auth_process(proc)
+    _set_auth_state(
+        running=False,
+        status="stopped",
+        qr_payload="",
+        pairing_code="",
+        phone="",
+        last_error=req.reason,
+    )
     return ToolResult(ok=True, tool="whatsapp_auth_stop", summary="WhatsApp 登录流程已停止。", data=_snapshot_auth_state())
 
 
@@ -556,7 +680,8 @@ def start_sync(req: WhatsAppSyncStartRequest) -> ToolResult:
 
     binary = _wacli_bin()
     if not binary:
-        return ToolResult(ok=False, tool="whatsapp_sync_start", task_id=task_id, summary="未找到 wacli。", error=f"wacli not found: {settings.wacli_bin}")
+        summary, error, data = _wacli_unavailable_details("未找到 wacli。")
+        return ToolResult(ok=False, tool="whatsapp_sync_start", task_id=task_id, summary=summary, error=error, data=data)
 
     args = ["--events", "sync", "--follow", "--webhook", req.webhook_url, "--webhook-allow-private"]
     if req.webhook_secret:
@@ -677,6 +802,19 @@ def list_groups_wacli(req: WhatsAppWacliGroupsRequest) -> ToolResult:
             summary="wacli 群组列表失败，请确认赤瞳灵讯/wacli 已安装并登录。",
             error=stderr or stdout or f"exit_code={code}",
             data={"command": command, "exit_code": code},
+        )
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        payload = None
+    if isinstance(payload, dict) and "data" in payload and payload.get("data") is None:
+        return ToolResult(
+            ok=False,
+            tool="whatsapp_groups_wacli",
+            task_id=task_id,
+            summary="wacli 未返回群组数据，请先完成 WhatsApp 登录并启动同步/刷新群组。",
+            error="wacli_group_data_unavailable",
+            data={"items": [], "raw": stdout[:4000], "command": command, "exit_code": code},
         )
     items = _json_items(stdout)
     return ToolResult(
