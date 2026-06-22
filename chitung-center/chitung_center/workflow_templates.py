@@ -65,6 +65,17 @@ WORKFLOW_TEMPLATES: dict[str, WorkflowTemplate] = {
             WorkflowStepTemplate("search_templates", "闪闪文档", "search_form_templates"),
         ],
     ),
+    "workflow_docmate_edit": WorkflowTemplate(
+        workflow_name="workflow_docmate_edit",
+        title="DocMate 文档编辑",
+        description="DocMate 作为独立 AI 助手处理 DOCX 上传、LLM 修改方案、预览、提交和重试。",
+        intent="docmate_edit",
+        steps=[
+            WorkflowStepTemplate("docmate_read", "DocMate", "docmate_read_docx"),
+            WorkflowStepTemplate("docmate_generate", "DocMate", "docmate_generate_changeset"),
+            WorkflowStepTemplate("docmate_preview", "DocMate", "docmate_preview_changeset"),
+        ],
+    ),
     "workflow_knowledge_query": WorkflowTemplate(
         workflow_name="workflow_knowledge_query",
         title="制度条款检索",
@@ -109,6 +120,7 @@ INTENT_TO_WORKFLOW: dict[str, str] = {
     "weather_query": "workflow_weather_query",
     "weather_news_risk": "workflow_daily_risk_briefing",
     "document_form": "workflow_form_filling",
+    "docmate_edit": "workflow_docmate_edit",
     "knowledge_query": "workflow_knowledge_query",
     "whatsapp_sql_query": "workflow_whatsapp_sql_query",
     "whatsapp_wacli_ops": "workflow_whatsapp_wacli_ops",

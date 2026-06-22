@@ -11,6 +11,7 @@ from chitung_center.models import ChatMessageRequest, IntentResult
 from chitung_center.orchestrator import ChitungOrchestrator
 from chitung_center.intent_router import route_intent, route_intent_with_llm
 from chitung_center.workflow_engine import WorkflowEngine, _extract_briefing_text, _whatsapp_command_reply
+from chitung_center.workflow_templates import workflow_for_intent
 
 
 def test_capability_question_returns_concrete_function_list():
@@ -65,6 +66,61 @@ def test_whatsapp_wacli_question_routes_to_whatsapp_wacli_skill():
 
     assert intent.intent == "whatsapp_wacli_ops"
     assert "whatsapp_command_run" in intent.suggested_tools
+
+
+def test_docmate_edit_question_routes_to_docmate_skill_not_form_or_whatsapp():
+    intent = route_intent("用 DocMate 帮我把这份 docx 里的安全计划润色一下")
+
+    assert intent.intent == "docmate_edit"
+    assert "docmate_generate_changeset" in intent.suggested_tools
+    assert "whatsapp_command_run" not in intent.suggested_tools
+
+
+def test_form_question_still_routes_to_document_form():
+    intent = route_intent("帮我填一份安全检查表模板")
+
+    assert intent.intent == "document_form"
+    assert "search_form_templates" in intent.suggested_tools
+
+
+def test_docmate_edit_workflow_and_skill_are_exposed():
+    from fastapi.testclient import TestClient
+
+    from chitung_center.app import app
+
+    template = workflow_for_intent("docmate_edit")
+    assert template is not None
+    assert template.workflow_name == "workflow_docmate_edit"
+    assert [step.tool_name for step in template.steps] == [
+        "docmate_read_docx",
+        "docmate_generate_changeset",
+        "docmate_preview_changeset",
+    ]
+
+    response = TestClient(app).get("/api/skills")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["intent_bindings"]["docmate_edit"] == "docmate-edit"
+    assert any(item["name"] == "docmate-edit" for item in payload["items"])
+
+
+def test_docmate_edit_chat_returns_upload_card_without_whatsapp_behavior():
+    with patch(
+        "chitung_center.workflow_engine._safe_tool",
+        new=AsyncMock(return_value={"ok": False, "tool": "search_form_templates", "error": "should_not_use_form_workflow"}),
+    ):
+        response = asyncio.run(
+            ChitungOrchestrator().handle_message(
+                ChatMessageRequest(message="帮我用 DocMate 润色这份 DOCX，先生成修改预览")
+            )
+        )
+
+    assert response.intent.intent == "docmate_edit"
+    assert response.cards[0].card_type == "docmate_edit"
+    assert response.cards[0].actions[0]["id"] == "upload_docmate_file"
+    assert response.applied_skill["skill"] == "docmate-edit"
+    assert "WhatsApp" not in response.reply
 
 
 def test_whatsapp_sql_chat_lists_tables_through_skill_workflow():

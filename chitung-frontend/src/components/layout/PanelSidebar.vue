@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import guardianLogo from '../../assets/logos/guardian.png'
+import docmateLogo from '../../assets/logos/docmate.png'
+import lingxunLogo from '../../assets/logos/lingxun.png'
+import centerLogo from '../../assets/logos/center.png'
+import yaoyaoLogo from '../../assets/logos/yaoyao.png'
 
 const props = defineProps<{
   activePanel: string
@@ -24,20 +29,21 @@ interface PanelDef {
 const panels: Record<string, PanelDef> = {
   guardian: {
     id: 'guardian',
-    icon: '🛡️',
-    label: '望风险',
-    tagline: '赤瞳守护者',
+    icon: guardianLogo,
+    label: '赤瞳守护者',
+    tagline: '望风险',
     items: [
       { icon: '📊', label: '工作台总览', path: '/guardian/dashboard' },
+      { icon: '✅', label: '待确认事项', path: '/guardian/confirmations' },
       { icon: '📋', label: '隐患台账', path: '/guardian/hazards' },
       { icon: '📷', label: '视觉巡检', path: '/guardian/patrol' },
     ],
   },
   docmate: {
     id: 'docmate',
-    icon: '📄',
-    label: '书文稿',
-    tagline: '闪闪文档',
+    icon: docmateLogo,
+    label: '闪闪文档',
+    tagline: '书文稿',
     items: [
       { icon: '✨', label: '文档审阅', path: '/docmate/documents', note: 'DOCX' },
       { icon: '📝', label: '智能填表', path: '/docmate/forms' },
@@ -47,18 +53,18 @@ const panels: Record<string, PanelDef> = {
   },
   lingxun: {
     id: 'lingxun',
-    icon: '💬',
-    label: '闻动态',
-    tagline: '赤瞳灵讯',
+    icon: lingxunLogo,
+    label: '赤瞳灵讯',
+    tagline: '闻动态',
     items: [
       { icon: '📱', label: 'WhatsApp 运维', path: '/lingxun/whatsapp' },
     ],
   },
   center: {
     id: 'center',
-    icon: '🧩',
-    label: '统全局',
-    tagline: '赤瞳中台',
+    icon: centerLogo,
+    label: '赤瞳中台',
+    tagline: '统全局',
     items: [
       { icon: '⚙️', label: '系统设置', path: '/center/settings' },
       { icon: '🤖', label: 'AI 助手', path: '/center/assistant' },
@@ -68,9 +74,9 @@ const panels: Record<string, PanelDef> = {
   },
   yaoyao: {
     id: 'yaoyao',
-    icon: '📚',
-    label: '问制度',
-    tagline: '耀耀慧读',
+    icon: yaoyaoLogo,
+    label: '耀耀慧读',
+    tagline: '问制度',
     items: [
       { icon: '📸', label: 'OCR 结构化', path: '/yaoyao/structured' },
       { icon: '🔎', label: 'RAG 检索', path: '/yaoyao/rag', note: '预留' },
@@ -91,7 +97,7 @@ function isActive(path: string): boolean {
 <template>
   <aside class="panel-sidebar">
     <div class="panel-sidebar__header">
-      <span class="panel-sidebar__header-icon">{{ currentPanel.icon }}</span>
+      <img class="panel-sidebar__header-icon" :src="currentPanel.icon" :alt="currentPanel.label" />
       <div class="panel-sidebar__header-text">
         <span class="panel-sidebar__header-label">{{ currentPanel.label }}</span>
         <span class="panel-sidebar__header-tagline">{{ currentPanel.tagline }}</span>
@@ -120,35 +126,35 @@ function isActive(path: string): boolean {
 
 <style scoped>
 .panel-sidebar {
-  background: #1e2128;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  color: #c9d1d9;
+  background: var(--rail-bg, #181b21);
+  border-right: 1px solid var(--rail-border, rgba(255, 255, 255, 0.07));
+  color: var(--rail-text, #cdd3dc);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   height: 100%;
   overflow-y: auto;
   user-select: none;
-  width: 230px;
+  width: 232px;
 }
 
 .panel-sidebar__header {
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--rail-border, rgba(255, 255, 255, 0.07));
   display: flex;
-  gap: 10px;
-  padding: 16px 14px 12px;
+  gap: 11px;
+  padding: 18px 16px 14px;
 }
 
 .panel-sidebar__header-icon {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  display: flex;
-  font-size: 20px;
-  height: 36px;
-  justify-content: center;
-  width: 36px;
+  background: linear-gradient(135deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 4%));
+  border: 1px solid var(--rail-border, rgba(255, 255, 255, 0.07));
+  border-radius: var(--radius-lg, 10px);
+  flex-shrink: 0;
+  height: 40px;
+  object-fit: contain;
+  padding: 4px;
+  width: 40px;
 }
 
 .panel-sidebar__header-text {
@@ -158,14 +164,14 @@ function isActive(path: string): boolean {
 }
 
 .panel-sidebar__header-label {
-  color: #e2e8f0;
+  color: #eef1f6;
   font-size: 15px;
   font-weight: 700;
 }
 
 .panel-sidebar__header-tagline,
 .panel-sidebar__footer {
-  color: #6b7280;
+  color: var(--rail-text-muted, #828a96);
   font-size: 12px;
 }
 
@@ -173,36 +179,50 @@ function isActive(path: string): boolean {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
-  padding: 8px;
+  gap: 3px;
+  padding: 10px 8px;
 }
 
 .panel-sidebar__item {
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 6px;
-  color: #8b949e;
+  border-radius: var(--radius-md, 8px);
+  color: var(--rail-text-muted, #828a96);
   display: flex;
-  gap: 10px;
+  gap: 11px;
   padding: 9px 12px;
+  position: relative;
   text-align: left;
   transition: all 0.12s;
   width: 100%;
 }
 
 .panel-sidebar__item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #c9d1d9;
+  background: var(--rail-hover, rgba(255, 255, 255, 0.06));
+  color: var(--rail-text, #cdd3dc);
 }
 
 .panel-sidebar__item--active {
-  background: rgba(59, 130, 246, 0.12);
-  color: #60a5fa;
+  background: var(--rail-active-bg, rgba(231, 0, 18, 0.16));
+  color: var(--rail-active-text, #ff707c);
   font-weight: 600;
 }
 
+.panel-sidebar__item--active::before {
+  background: var(--rail-accent, #ff5a67);
+  border-radius: 0 3px 3px 0;
+  bottom: 8px;
+  content: '';
+  left: -8px;
+  position: absolute;
+  top: 8px;
+  width: 3px;
+}
+
 .panel-sidebar__item-icon {
+  font-size: 15px;
+  text-align: center;
   width: 18px;
 }
 
@@ -211,15 +231,22 @@ function isActive(path: string): boolean {
 }
 
 .panel-sidebar__badge {
-  border: 1px solid rgba(96, 165, 250, 0.35);
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid var(--rail-border, rgba(255, 255, 255, 0.07));
   border-radius: 999px;
-  color: #93c5fd;
+  color: var(--rail-text-muted, #828a96);
   font-size: 10px;
+  font-weight: 600;
   padding: 1px 6px;
 }
 
+.panel-sidebar__item--active .panel-sidebar__badge {
+  border-color: rgb(255 112 124 / 40%);
+  color: var(--rail-active-text, #ff707c);
+}
+
 .panel-sidebar__footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 12px 14px;
+  border-top: 1px solid var(--rail-border, rgba(255, 255, 255, 0.07));
+  padding: 12px 16px;
 }
 </style>

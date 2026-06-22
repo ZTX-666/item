@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import brandLogo from '../../assets/logos/brand.jpg'
 
 const runtimeLabel = ref('桌面控制台')
 
@@ -16,7 +17,7 @@ onMounted(async () => {
 
 <template>
   <header class="topbar">
-    <div class="topbar__logo">瞳</div>
+    <img class="topbar__logo" :src="brandLogo" alt="赤瞳安全智能平台" />
     <div class="topbar__brand">
       <strong>赤瞳安全智能平台</strong>
       <span>CSCEC Safety Intelligence · Cursor Edition</span>

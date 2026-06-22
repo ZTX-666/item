@@ -586,6 +586,16 @@ export interface DocmateReadResult {
   error?: string
 }
 
+export interface DocmateUploadResult {
+  ok: boolean
+  file_id: string
+  file_name?: string
+  file_path: string
+  download_url?: string
+  error?: string
+  summary?: string
+}
+
 export interface DocmateGenerateResult {
   ok: boolean
   tool?: string
@@ -628,6 +638,8 @@ export interface DocmateApplyResult {
     output_path: string
     backup_path: string
     source_path?: string
+    file_id?: string
+    download_url?: string
   }
   error?: string
 }

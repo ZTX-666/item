@@ -24,10 +24,14 @@ from chitung_center.chat_store import chat_store
 from chitung_center.document_service import build_document_revision_preview
 from chitung_center.docmate_service import (
     apply_changeset,
+    commit_changeset,
     generate_changeset,
     pipeline_edit,
     preview_changeset,
     read_docx,
+    resolve_download_file,
+    retry_changeset,
+    upload_docx,
 )
 from chitung_center.external_briefing_store import get_external_briefing_report, list_external_briefing_reports
 from chitung_center.integrations import list_integrations
@@ -40,11 +44,13 @@ from chitung_center.models import (
     ChatMessageRequest,
     ConfirmationResolveApiRequest,
     FeishuEventWebhookRequest,
+    DocmateCommitRequest,
     DocmateApplyRequest,
     DocmateGenerateRequest,
     DocmatePipelineRequest,
     DocmatePreviewRequest,
     DocmateReadRequest,
+    DocmateRetryRequest,
     DocumentRevisionRequest,
     HazardStatusUpdateRequest,
     HybridConfirmRequest,
@@ -187,9 +193,10 @@ async def integrations() -> dict[str, object]:
 async def skills() -> dict[str, object]:
     from chitung_center.skills import INTENT_TO_SKILL
 
+    intent_bindings = {**INTENT_TO_SKILL, "docmate_edit": "docmate-edit"}
     return {
         "items": [skill.to_dict() for skill in skill_loader.list_skills()],
-        "intent_bindings": INTENT_TO_SKILL,
+        "intent_bindings": intent_bindings,
     }
 
 
@@ -316,6 +323,26 @@ async def document_revision_preview(request: DocumentRevisionRequest) -> dict[st
 
 # ── DocMate (闪闪文档) 路由 ─────────────────────────────────
 
+@app.post("/api/docmate/upload")
+async def docmate_upload(file: UploadFile = File(...)) -> dict[str, object]:
+    result = await upload_docx(file)
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("summary") or result.get("error") or "DocMate upload failed.")
+    return result
+
+
+@app.get("/api/docmate/download/{file_id}")
+async def docmate_download(file_id: str) -> FileResponse:
+    file_path = resolve_download_file(file_id)
+    if not file_path:
+        raise HTTPException(status_code=404, detail="DocMate file not found.")
+    return FileResponse(
+        file_path,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=file_path.name,
+    )
+
+
 @app.post("/api/docmate/read")
 async def docmate_read(request: DocmateReadRequest) -> dict[str, object]:
     return await read_docx(request.file_path)
@@ -334,6 +361,26 @@ async def docmate_preview(request: DocmatePreviewRequest) -> dict[str, object]:
 @app.post("/api/docmate/apply")
 async def docmate_apply(request: DocmateApplyRequest) -> dict[str, object]:
     return await apply_changeset(request.changeset_id, request.accepted_change_ids, request.save_as)
+
+
+@app.post("/api/docmate/commit")
+async def docmate_commit(request: DocmateCommitRequest) -> dict[str, object]:
+    return await commit_changeset(
+        request.changeset_id,
+        request.accepted_change_ids,
+        request.save_as,
+        request.confirmed_by,
+    )
+
+
+@app.post("/api/docmate/retry")
+async def docmate_retry(request: DocmateRetryRequest) -> dict[str, object]:
+    return await retry_changeset(
+        request.changeset_id,
+        instruction=request.instruction,
+        context=request.context,
+        feedback=request.feedback,
+    )
 
 
 @app.post("/api/docmate/pipeline")
@@ -520,6 +567,8 @@ async def chat_message(request: ChatMessageRequest) -> dict[str, object]:
     workflow_name = workflow_template.workflow_name if workflow_template else None
     workflow_run_id = _extract_workflow_run_id(payload)
     skill = skill_loader.skill_for_intent(response.intent.intent)
+    if skill is None and response.intent.intent == "docmate_edit":
+        skill = skill_loader.get_info("docmate-edit")
     skill_payload = skill.to_dict() if skill else None
     payload["workflow_name"] = workflow_name
     payload["workflow_run_id"] = workflow_run_id
@@ -655,6 +704,16 @@ async def workflow_run(request: WorkflowRunRequest) -> dict[str, object]:
         user_id=request.user_id,
         metadata=request.metadata,
     )
+    if request.workflow_name == "workflow_docmate_edit":
+        response = await orchestrator.handle_message(chat_request)
+        return {
+            "ok": True,
+            "workflow_name": "workflow_docmate_edit",
+            "reply": response.reply,
+            "cards": [card.model_dump() for card in response.cards],
+            "tool_results": response.tool_results,
+            "audit_id": response.audit_id,
+        }
     return await workflow_engine.run_template(request.workflow_name, chat_request)
 
 

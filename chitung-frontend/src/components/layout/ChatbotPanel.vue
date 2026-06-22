@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useAiAssistant } from '../../composables/useAiAssistant'
+import { useDocmateSession } from '../../composables/useDocmateSession'
+import DocmateDiffReview from '../documents/DocmateDiffReview.vue'
 
 const props = defineProps<{
   visible: boolean
@@ -15,7 +17,7 @@ const {
   inputText,
   isTyping,
   messagesEl,
-  quickActions,
+  quickActions: assistantQuickActions,
   loadLatestHistory,
   sendMessage,
   handleQuickAction,
@@ -37,9 +39,73 @@ const {
   resultReports,
 } = useAiAssistant()
 
+const docmate = useDocmateSession()
+const panelWidth = ref(380)
+let resizing = false
+let startX = 0
+let startWidth = 0
+
+const panelQuickActions = computed(() => [
+  {
+    label: '文档改稿',
+    prompt: docmate.isLoaded.value
+      ? `使用 DocMate 文档改稿 Skill，基于当前文档「${docmate.docName.value || '未命名文档'}」生成修改建议。`
+      : '使用 DocMate 文档改稿 Skill，指导我上传 DOCX 并进行差异审阅。',
+    context: {
+      skill_hint: 'docmate-edit',
+      docmate: {
+        doc_id: docmate.state.docId,
+        source_path: docmate.state.sourcePath,
+        file_name: docmate.docName.value,
+        loaded: docmate.isLoaded.value,
+      },
+    },
+  },
+  ...assistantQuickActions.map((action) => ({ ...action, context: {} })),
+])
+
+const showDocmateReview = computed(
+  () => docmate.hasWork.value || docmate.state.step === 'committing' || docmate.isDone.value,
+)
+
 function bindMessagesEl(el: unknown) {
   messagesEl.value = el instanceof HTMLElement ? el : null
 }
+
+function startResize(event: MouseEvent) {
+  resizing = true
+  startX = event.clientX
+  startWidth = panelWidth.value
+  window.addEventListener('mousemove', onResize)
+  window.addEventListener('mouseup', stopResize)
+  document.body.style.userSelect = 'none'
+  document.body.style.cursor = 'col-resize'
+}
+
+function onResize(event: MouseEvent) {
+  if (!resizing) return
+  const delta = startX - event.clientX
+  panelWidth.value = Math.min(760, Math.max(340, startWidth + delta))
+}
+
+function stopResize() {
+  if (!resizing) return
+  resizing = false
+  window.removeEventListener('mousemove', onResize)
+  window.removeEventListener('mouseup', stopResize)
+  document.body.style.userSelect = ''
+  document.body.style.cursor = ''
+}
+
+function handlePanelQuickAction(action: { prompt: string; context?: Record<string, unknown> }) {
+  handleQuickAction(action.prompt, action.context ?? {})
+}
+
+function handleDocmateUnload() {
+  docmate.unload()
+}
+
+onBeforeUnmount(stopResize)
 
 watch(
   () => props.visible,
@@ -51,13 +117,26 @@ watch(
 </script>
 
 <template>
-  <aside class="chatbot-panel" :class="{ 'chatbot-panel--hidden': !visible }">
+  <aside
+    class="chatbot-panel"
+    :class="{ 'chatbot-panel--hidden': !visible }"
+    :style="visible ? { width: `${panelWidth}px` } : undefined"
+  >
+    <div v-if="visible" class="chatbot-panel__resize" title="拖动调整宽度" @mousedown.prevent="startResize"></div>
     <div class="chatbot-panel__header">
       <div>
         <strong>赤瞳 AI</strong>
         <span>中台编排助手</span>
       </div>
       <button class="chatbot-panel__close" title="关闭" @click="emit('toggle')">×</button>
+    </div>
+    <div v-if="docmate.isLoaded.value" class="docmate-context">
+      <div class="docmate-context__main">
+        <span class="docmate-context__mark">DOCX</span>
+        <span class="docmate-context__name" :title="docmate.state.sourcePath">{{ docmate.docName.value }}</span>
+        <span class="docmate-context__stat">{{ docmate.docStats.value.paragraph_count }} 段</span>
+      </div>
+      <button class="docmate-context__clear" title="移除当前文档" @click="handleDocmateUnload">移除</button>
     </div>
     <div :ref="bindMessagesEl" class="chatbot-panel__messages">
       <article
@@ -138,8 +217,11 @@ watch(
         </div>
       </article>
     </div>
+    <div v-if="showDocmateReview" class="chatbot-panel__docmate-review">
+      <DocmateDiffReview />
+    </div>
     <div class="chatbot-panel__quick">
-      <button v-for="action in quickActions" :key="action.label" @click="handleQuickAction(action.prompt)">
+      <button v-for="action in panelQuickActions" :key="action.label" @click="handlePanelQuickAction(action)">
         {{ action.label }}
       </button>
     </div>
@@ -165,8 +247,9 @@ watch(
   flex-shrink: 0;
   height: 100%;
   overflow: hidden;
+  position: relative;
   transition: width 0.2s ease, opacity 0.2s ease;
-  width: 360px;
+  width: 380px;
 }
 
 .chatbot-panel--hidden {
@@ -175,12 +258,26 @@ watch(
   width: 0;
 }
 
+.chatbot-panel__resize {
+  bottom: 0;
+  cursor: col-resize;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 6px;
+  z-index: 5;
+}
+
+.chatbot-panel__resize:hover {
+  background: rgba(96, 165, 250, 0.28);
+}
+
 .chatbot-panel__header {
   align-items: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   justify-content: space-between;
-  min-width: 360px;
+  min-width: 340px;
   padding: 12px 14px;
 }
 
@@ -197,12 +294,70 @@ watch(
   font-size: 22px;
 }
 
+.docmate-context {
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 340px;
+  padding: 8px 12px;
+}
+
+.docmate-context__main {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+  min-width: 0;
+}
+
+.docmate-context__mark {
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 5px;
+  color: #93c5fd;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  padding: 2px 5px;
+}
+
+.docmate-context__name {
+  color: #e5e7eb;
+  font-size: 12px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docmate-context__stat {
+  color: #6b7280;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.docmate-context__clear {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 6px;
+  color: #8b949e;
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+.docmate-context__clear:hover {
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #fca5a5;
+}
+
 .chatbot-panel__messages {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 10px;
-  min-width: 360px;
+  min-width: 340px;
   overflow-y: auto;
   padding: 12px;
 }
@@ -388,10 +543,23 @@ watch(
   padding: 6px 8px;
 }
 
+.chatbot-panel__docmate-review {
+  --review-border: rgba(255, 255, 255, 0.08);
+  --review-hover: rgba(255, 255, 255, 0.06);
+  --review-muted: #8b949e;
+  --review-panel: rgba(255, 255, 255, 0.03);
+  --review-text: #c9d1d9;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  max-height: 45%;
+  min-width: 340px;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
 .chatbot-panel__quick {
   display: flex;
   gap: 6px;
-  min-width: 360px;
+  min-width: 340px;
   overflow-x: auto;
   padding: 8px 12px;
 }
@@ -410,7 +578,7 @@ watch(
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   gap: 8px;
-  min-width: 360px;
+  min-width: 340px;
   padding: 10px 12px;
 }
 

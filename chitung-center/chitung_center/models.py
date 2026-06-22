@@ -12,6 +12,7 @@ IntentName = Literal[
     "weather_query",
     "weather_news_risk",
     "knowledge_query",
+    "docmate_edit",
     "whatsapp_sql_query",
     "whatsapp_wacli_ops",
     "general_chat",
@@ -449,7 +450,7 @@ class DocmateReadRequest(BaseModel):
 class DocmateGenerateRequest(BaseModel):
     doc_id: str = Field(..., description="文档 ID")
     instruction: str = Field(..., description="用户编辑指令")
-    context: Optional[str] = Field(default=None, description="额外上下文（文本）")
+    context: Any | None = Field(default=None, description="额外上下文（文本或结构化参数）")
 
 
 class DocmatePreviewRequest(BaseModel):
@@ -462,11 +463,25 @@ class DocmateApplyRequest(BaseModel):
     save_as: Optional[str] = Field(default=None, description="输出文件路径（可选，默认 source_modified.docx）")
 
 
+class DocmateCommitRequest(BaseModel):
+    changeset_id: str = Field(..., description="ChangeSet ID")
+    accepted_change_ids: list[str] = Field(default_factory=list, description="确认提交的变更 ID")
+    save_as: Optional[str] = Field(default=None, description="输出文件路径（可选）")
+    confirmed_by: str = "local_user"
+
+
+class DocmateRetryRequest(BaseModel):
+    changeset_id: str = Field(..., description="需要重试生成的 ChangeSet ID")
+    instruction: Optional[str] = Field(default=None, description="覆盖原始编辑指令")
+    context: Any | None = Field(default=None, description="额外上下文")
+    feedback: Optional[str] = Field(default=None, description="本次重试反馈")
+
+
 class DocmatePipelineRequest(BaseModel):
     file_path: str = Field(..., description=".docx 文件路径")
     instruction: str = Field(..., description="用户编辑指令")
     save_as: Optional[str] = Field(default=None, description="输出文件路径（可选）")
-    context: Optional[str] = Field(default=None, description="额外上下文（文本）")
+    context: Any | None = Field(default=None, description="额外上下文（文本或结构化参数）")
 
 
 class TableMappingExtractRequest(BaseModel):

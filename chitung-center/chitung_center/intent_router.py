@@ -19,9 +19,14 @@ RULES: list[tuple[str, list[str], list[str]]] = [
         ["whatsapp", "wa", "wacli", "登录状态", "认证状态", "消息搜索", "搜消息", "发", "发消息", "发送", "回复", "转发", "删除", "退出登录", "send", "聊天列表", "群组", "联系人", "星标", "通话", "存储统计"],
         ["whatsapp_command_run"],
     ),
+    (
+        "docmate_edit",
+        ["docmate", "闪闪文档", "docx", "word", "改文档", "修改文档", "改报告", "润色", "潤色", "替换", "变更", "changeset", "docx修改", "修改预览"],
+        ["docmate_read_docx", "docmate_generate_changeset", "docmate_preview_changeset"],
+    ),
     ("hazard_intake", ["隐患", "整改", "事故", "工伤", "危险", "护栏", "吊运", "临边"], ["ingest_chat_hazards", "connect_hazard_actions"]),
     ("visual_detection", ["摄像头", "cctv", "rtmp", "vlm", "照片", "视频", "识别"], ["ingest_vlm_hazards"]),
-    ("document_form", ["表格", "填表", "模板", "word", "docx", "闪闪文档", "报告", "检查表", "檢查表", "表单", "表單", "改文档", "替换", "潤色", "变更", "changeset", "docmate", "docx修改"], ["ai_archive_classifier"]),
+    ("document_form", ["表格", "填表", "模板", "报告", "检查表", "檢查表", "表单", "表單"], ["search_form_templates"]),
     ("weather_query", ["天气", "天文台", "weather"], ["fetch_hko_weather"]),
     (
         "weather_news_risk",
@@ -115,6 +120,7 @@ def _router_system_prompt() -> str:
             "weather_query": "只查询香港当前天气或天文台提示，不生成外部风险简报",
             "weather_news_risk": "外部风险、新闻舆情、监管安全更新、天气风险汇总和每日简报",
             "knowledge_query": "制度、规程、条款、管理要求、RAG 问答",
+            "docmate_edit": "DocMate/闪闪文档作为 AI 助手处理 DOCX 上传、修改方案、预览、提交和重试",
             "whatsapp_sql_query": "WhatsApp 本地 SQLite/wacli.db 数据库、表名和只读 SQL 查询",
             "whatsapp_wacli_ops": "WhatsApp wacli 只读命令、登录状态、消息搜索、聊天/群组/联系人诊断",
             "general_chat": "闲聊、无法归类、需要澄清的问题",

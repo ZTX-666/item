@@ -8,6 +8,7 @@ import type {
   DocmateGenerateResult,
   DocmatePreviewResult,
   DocmateReadResult,
+  DocmateUploadResult,
   DocumentRevisionPreview,
   GeneratedReport,
   HybridPlan,
@@ -1146,6 +1147,63 @@ export async function docmateRead(filePath: string): Promise<DocmateReadResult> 
   })
   await ensureOk(response, 'Docmate read failed')
   return response.json() as Promise<DocmateReadResult>
+}
+
+export async function docmateUpload(file: File): Promise<DocmateUploadResult> {
+  const form = new FormData()
+  form.append('file', file)
+  const response = await fetch(`${CENTER_BASE_URL}/api/docmate/upload`, {
+    method: 'POST',
+    body: form,
+  })
+  await ensureOk(response, 'Docmate upload failed')
+  return response.json() as Promise<DocmateUploadResult>
+}
+
+export function docmateDownloadUrl(fileIdOrUrl: string): string {
+  if (!fileIdOrUrl) return ''
+  if (/^https?:\/\//i.test(fileIdOrUrl)) return fileIdOrUrl
+  if (fileIdOrUrl.startsWith('/')) return `${CENTER_BASE_URL}${fileIdOrUrl}`
+  return `${CENTER_BASE_URL}/api/docmate/download/${encodeURIComponent(fileIdOrUrl)}`
+}
+
+export async function docmateCommit(payload: {
+  docId: string
+  edits: Array<{ type: string; target?: string; replacement?: string }>
+  saveAs?: string
+}): Promise<DocmateApplyResult> {
+  const body: Record<string, unknown> = {
+    doc_id: payload.docId,
+    edits: payload.edits,
+  }
+  if (payload.saveAs?.trim()) {
+    body.save_as = payload.saveAs.trim()
+  }
+  const response = await fetch(`${CENTER_BASE_URL}/api/docmate/commit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  await ensureOk(response, 'Docmate commit failed')
+  return response.json() as Promise<DocmateApplyResult>
+}
+
+export async function docmateRetry(payload: {
+  docId: string
+  instruction: string
+  items: Array<{ type: string; target?: string; replacement?: string }>
+}): Promise<DocmateGenerateResult> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/docmate/retry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      doc_id: payload.docId,
+      instruction: payload.instruction,
+      items: payload.items,
+    }),
+  })
+  await ensureOk(response, 'Docmate retry failed')
+  return response.json() as Promise<DocmateGenerateResult>
 }
 
 export async function docmateGenerate(payload: {

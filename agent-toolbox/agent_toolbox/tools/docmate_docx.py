@@ -577,6 +577,47 @@ def docmate_preview_changeset(req: DocmatePreviewChangesetRequest) -> ToolResult
 # Apply changes
 # ---------------------------------------------------------------------------
 
+def _replace_in_paragraph(para, target: str, replacement: str) -> bool:
+    """Replace the first target occurrence, including text split across runs."""
+    if not target or target not in para.text:
+        return False
+
+    for run in para.runs:
+        if target in run.text:
+            run.text = run.text.replace(target, replacement, 1)
+            return True
+
+    runs = para.runs
+    if not runs:
+        return False
+
+    full_text = "".join(run.text for run in runs)
+    start = full_text.find(target)
+    if start < 0:
+        return False
+    end = start + len(target)
+
+    pos = 0
+    wrote_replacement = False
+    for run in runs:
+        run_start = pos
+        run_end = pos + len(run.text)
+        pos = run_end
+
+        if run_end <= start or run_start >= end:
+            continue
+
+        prefix = run.text[: max(0, start - run_start)] if run_start < start else ""
+        suffix = run.text[end - run_start :] if run_end > end else ""
+        if not wrote_replacement:
+            run.text = prefix + replacement + suffix
+            wrote_replacement = True
+        else:
+            run.text = prefix + suffix
+
+    return wrote_replacement
+
+
 def docmate_apply_changeset(req: DocmateApplyChangesetRequest) -> ToolResult:
     """Apply accepted changes from a changeset to a new copy of the document."""
     task_id = new_task_id("docmate")
@@ -650,16 +691,11 @@ def docmate_apply_changeset(req: DocmateApplyChangesetRequest) -> ToolResult:
 
             elif ctype in ("text_replace", "text_delete"):
                 applied = False
-                # Search and replace in paragraphs
+                # Search and replace in paragraphs.
                 for para in doc.paragraphs:
-                    if target and target in para.text:
-                        for run in para.runs:
-                            if target in run.text:
-                                run.text = run.text.replace(target, replacement, 1)
-                                applied = True
-                                break
-                        if applied:
-                            break
+                    if _replace_in_paragraph(para, target, replacement):
+                        applied = True
+                        break
 
                 # Also search tables
                 if not applied and target:
@@ -667,15 +703,8 @@ def docmate_apply_changeset(req: DocmateApplyChangesetRequest) -> ToolResult:
                         for row in table.rows:
                             for cell in row.cells:
                                 for para in cell.paragraphs:
-                                    if target in para.text:
-                                        for run in para.runs:
-                                            if target in run.text:
-                                                run.text = run.text.replace(target, replacement, 1)
-                                                applied = True
-                                                break
-                                        if applied:
-                                            break
-                                    if applied:
+                                    if _replace_in_paragraph(para, target, replacement):
+                                        applied = True
                                         break
                                 if applied:
                                     break
@@ -727,6 +756,127 @@ def docmate_apply_changeset(req: DocmateApplyChangesetRequest) -> ToolResult:
 
 
 # ---------------------------------------------------------------------------
+# Document retrieval + explicit changeset registration
+# ---------------------------------------------------------------------------
+
+def docmate_get_document(doc_id: str) -> ToolResult:
+    """Return stored paragraphs and stats for a loaded document."""
+    task_id = new_task_id("docmate")
+    doc = _doc_store.get(doc_id)
+    if not doc:
+        return ToolResult(
+            ok=False, tool="docmate_get_document", task_id=task_id,
+            summary=f"文档不存在: {doc_id}。请先调用 docmate_read_docx。",
+            error="doc_not_found",
+        )
+
+    paragraphs = [
+        {"index": p["index"], "text": p["text"], "style": p.get("style", "Normal")}
+        for p in doc["structure"]["paragraphs"]
+        if p.get("type") != "table_ref"
+    ]
+
+    return ToolResult(
+        ok=True, tool="docmate_get_document", task_id=task_id,
+        summary=f"文档 {doc_id} 共 {len(paragraphs)} 段。",
+        data={
+            "doc_id": doc_id,
+            "source_path": doc.get("source_path"),
+            "paragraphs": paragraphs,
+            "stats": doc.get("stats", {}),
+        },
+    )
+
+
+def _normalize_edit_type(raw: str | None) -> str:
+    value = (raw or "replace").strip().lower()
+    if value in ("delete", "remove", "text_delete", "del"):
+        return "delete"
+    if value in ("append", "add", "text_append", "insert_end"):
+        return "append"
+    return "replace"
+
+
+def docmate_register_changeset(
+    doc_id: str,
+    instruction: str,
+    changes: list[dict[str, Any]],
+) -> ToolResult:
+    """Build and store a changeset from explicit LLM-produced edits."""
+    task_id = new_task_id("docmate")
+    doc = _doc_store.get(doc_id)
+    if not doc:
+        return ToolResult(
+            ok=False, tool="docmate_register_changeset", task_id=task_id,
+            summary=f"文档不存在: {doc_id}。请先调用 docmate_read_docx。",
+            error="doc_not_found",
+        )
+
+    paragraphs = [
+        p for p in doc["structure"]["paragraphs"]
+        if p.get("type") != "table_ref"
+    ]
+
+    proposals: list[dict[str, Any]] = []
+    for edit in changes or []:
+        if not isinstance(edit, dict):
+            continue
+        edit_type = _normalize_edit_type(edit.get("type"))
+        target = str(edit.get("target") or "").strip()
+        replacement = str(edit.get("replacement") or "").strip()
+
+        if edit_type == "append":
+            if replacement:
+                proposals.append({"type": "append", "target": "", "replacement": replacement})
+        elif edit_type == "delete":
+            if target:
+                proposals.append({"type": "delete", "target": target, "replacement": ""})
+        elif target:
+            proposals.append({"type": "replace", "target": target, "replacement": replacement})
+
+    if not proposals:
+        return ToolResult(
+            ok=False, tool="docmate_register_changeset", task_id=task_id,
+            summary="没有可用的修改项（LLM 未给出有效 edits）。",
+            error="no_valid_changes",
+        )
+
+    changeset_data = _make_changeset(proposals, paragraphs, instruction)
+    changeset_id = str(uuid.uuid4())[:12]
+    changeset = {
+        "changeset_id": changeset_id,
+        "doc_id": doc_id,
+        "instruction": instruction,
+        "context": "",
+        "changes": changeset_data["changes"],
+        "preview_cards": changeset_data["preview_cards"],
+        "generated_at": _now(),
+        "source": "llm",
+    }
+    _changeset_store[changeset_id] = changeset
+
+    record_task_event(task_id, {
+        "tool": "docmate_register_changeset",
+        "doc_id": doc_id,
+        "changes": len(changeset_data["changes"]),
+        "status": "ok",
+    })
+
+    return ToolResult(
+        ok=True, tool="docmate_register_changeset", task_id=task_id,
+        summary=f"已根据 AI 修改建议生成 {len(changeset_data['preview_cards'])} 项修改方案。",
+        data={
+            "changeset_id": changeset_id,
+            "doc_id": doc_id,
+            "instruction": instruction,
+            "changes": changeset_data["changes"],
+            "preview_cards": changeset_data["preview_cards"],
+            "total_changes": len(changeset_data["preview_cards"]),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # Public interface expected by app.py / registry.py
 #
 # The application layer (app.py HTTP endpoints and registry.py tool listing)
@@ -753,6 +903,19 @@ class ApplyChangesetRequest(BaseModel):
     changeset_id: str = Field(..., description="ChangeSet ID")
     accepted_change_ids: list[str] = Field(default_factory=list, description="接受的变更 ID 列表")
     save_as: str = Field(default="", description="输出文件路径；留空则在源文件旁生成 *_modified.docx")
+
+
+class GetDocumentRequest(BaseModel):
+    doc_id: str = Field(..., description="文档 ID（来自 docmate_read_docx）")
+
+
+class RegisterChangesetRequest(BaseModel):
+    doc_id: str = Field(..., description="文档 ID（来自 docmate_read_docx）")
+    instruction: str = Field(default="", description="用户自然语言编辑指令")
+    changes: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="LLM 生成的编辑项：[{type: replace|delete|append, target, replacement}]",
+    )
 
 
 def _context_to_str(context: Any) -> str:
@@ -794,6 +957,14 @@ async def tool_docmate_apply_changeset(request: ApplyChangesetRequest) -> ToolRe
             save_as=request.save_as,
         )
     )
+
+
+async def tool_docmate_get_document(request: GetDocumentRequest) -> ToolResult:
+    return docmate_get_document(request.doc_id)
+
+
+async def tool_docmate_register_changeset(request: RegisterChangesetRequest) -> ToolResult:
+    return docmate_register_changeset(request.doc_id, request.instruction, request.changes)
 
 
 ALL_DOCMATE_SPECS = [
@@ -843,6 +1014,40 @@ ALL_DOCMATE_SPECS = [
                 "save_as": {"type": "string"},
             },
             "required": ["changeset_id"],
+        },
+    ),
+    ToolSpec(
+        name="docmate_get_document",
+        description="按 doc_id 返回已加载文档的段落与统计，供编排层构建 LLM 改稿提示。",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "doc_id": {"type": "string"},
+            },
+            "required": ["doc_id"],
+        },
+    ),
+    ToolSpec(
+        name="docmate_register_changeset",
+        description="将 LLM 生成的编辑项注册为可预览、可应用的 changeset。",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "doc_id": {"type": "string"},
+                "instruction": {"type": "string"},
+                "changes": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {"type": "string", "enum": ["replace", "delete", "append"]},
+                            "target": {"type": "string"},
+                            "replacement": {"type": "string"},
+                        },
+                    },
+                },
+            },
+            "required": ["doc_id", "changes"],
         },
     ),
 ]
