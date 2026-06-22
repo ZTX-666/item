@@ -188,13 +188,23 @@ class WorkflowEngine:
         workflow_run_id: str,
     ) -> tuple[str, list[dict[str, Any]], list[ActionCard]]:
         results: list[dict[str, Any]] = []
+        sources = request.metadata.get("sources")
+        keywords = request.metadata.get("keywords")
+        area = str(request.metadata.get("area") or "")
+        lookback_hours = max(1, int(request.metadata.get("lookback_hours") or 24))
+        source_ids = _source_ids_for_external_monitor(sources)
+        update_payload: dict[str, Any] = {"limit_per_source": 5, "lookback_hours": lookback_hours}
+        if source_ids:
+            update_payload["sources"] = source_ids
+        if isinstance(keywords, list) and keywords:
+            update_payload["keywords"] = [str(item) for item in keywords if str(item).strip()]
         weather_step = await _start_step(workflow_run_id, "fetch_weather", "赤瞳守护者", "fetch_hko_weather")
         weather = await _safe_tool("fetch_hko_weather", {"lang": "tc"})
         await _finish_step(weather_step, weather)
         results.append(weather)
 
         updates_step = await _start_step(workflow_run_id, "fetch_updates", "赤瞳守护者", "fetch_hk_safety_updates")
-        updates = await _safe_tool("fetch_hk_safety_updates", {"limit_per_source": 5})
+        updates = await _safe_tool("fetch_hk_safety_updates", update_payload)
         await _finish_step(updates_step, updates)
         results.append(updates)
 
@@ -209,7 +219,7 @@ class WorkflowEngine:
         briefing_step = await _start_step(workflow_run_id, "draft_briefing", "赤瞳守护者", "draft_daily_risk_briefing")
         briefing = await _safe_tool(
             "draft_daily_risk_briefing",
-            {"weather_result": weather, "safety_updates_result": updates},
+            {"weather_result": weather, "safety_updates_result": updates, "project_name": area},
         )
         await _finish_step(briefing_step, briefing)
         results.append(briefing)
@@ -219,8 +229,8 @@ class WorkflowEngine:
         report_links = _extract_report_links(updates)
         briefing_report = persist_external_briefing_report(
             {
-                "title": "今日外部风险简报",
-                "summary": "已生成今日外部风险图文简报草稿。",
+                "title": f"最近 {lookback_hours} 小时外部讯息简报",
+                "summary": f"已生成最近 {lookback_hours} 小时外部讯息图文简报草稿。",
                 "briefing_text": briefing_text,
                 "workflow_run_id": workflow_run_id,
                 "report_images": report_images,
@@ -236,7 +246,7 @@ class WorkflowEngine:
         cards = [
             ActionCard(
                 card_type="external_risk_briefing",
-                title="晴晴外部风险监测",
+                title="外部讯息监测",
                 summary="已抓取香港天文台天气、官方来源和白名单媒体的施工安全相关更新，并生成图文简报草稿。",
                 actions=[{"id": "generate_daily_briefing", "label": "提交发送确认"}],
                 data={
@@ -256,7 +266,7 @@ class WorkflowEngine:
         ]
         if _is_plain_weather_question(request.message):
             return _weather_reply(weather), results, cards
-        return "已生成今日外部风险图文简报草稿，包含香港天气、官方安全更新和建议动作。", results, cards
+        return "已生成今日外部讯息图文简报草稿，包含香港天气、官方安全更新和建议动作。", results, cards
 
     async def _run_form_filling(
         self,
@@ -511,6 +521,40 @@ class WorkflowEngine:
 
 
 workflow_engine = WorkflowEngine()
+
+
+def _source_ids_for_external_monitor(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    group_map = {
+        "weather": [],
+        "official": [
+            "gov_press_rss",
+            "labour_department",
+            "housing_authority",
+            "development_bureau",
+            "buildings_department",
+            "oshc",
+            "cic",
+        ],
+        "media": [
+            "hk01",
+            "sing_tao",
+            "ming_pao",
+            "oriental_daily",
+            "hkcd",
+            "rthk",
+            "am730",
+            "bastille_post",
+            "dotdot_news",
+            "wenweipo",
+        ],
+    }
+    selected: list[str] = []
+    for item in value:
+        key = str(item)
+        selected.extend(group_map.get(key, [key]))
+    return list(dict.fromkeys(selected))
 
 
 async def _safe_tool(tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:

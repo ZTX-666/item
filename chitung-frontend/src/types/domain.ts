@@ -109,6 +109,7 @@ export interface ChatSkillReference {
   phase?: string
   tools?: string[]
   workflow?: string
+  config?: Record<string, unknown>
 }
 
 export interface ChatAppliedSkill {
@@ -435,6 +436,51 @@ export interface RuntimeStatus {
     optional: RuntimeComponentStatus[]
   }
   ready: boolean
+}
+
+export interface JobRun {
+  job_id: string
+  job_type: string
+  title: string
+  status: 'queued' | 'running' | 'success' | 'failed' | string
+  progress: number
+  source_module?: string
+  request?: Record<string, unknown>
+  result?: Record<string, unknown>
+  error?: string | null
+  created_at: string
+  started_at?: string | null
+  finished_at?: string | null
+  updated_at: string
+}
+
+export interface TaskEvent {
+  event_id: string
+  job_id: string
+  event_type: string
+  message?: string
+  progress?: number | null
+  payload?: Record<string, unknown>
+  created_at: string
+}
+
+export interface SystemDiagnostics {
+  ok: boolean
+  center: Record<string, unknown>
+  agent_toolbox: Record<string, unknown>
+  external_monitor: ExternalMonitorStatus
+  jobs: {
+    ok: boolean
+    recent_count: number
+    recent: JobRun[]
+  }
+  assets: {
+    ok: boolean
+    recent_count: number
+    recent: Array<Record<string, unknown>>
+  }
+  rag: Record<string, unknown>
+  dependencies: Record<string, unknown>
 }
 
 export interface CameraConfig {
@@ -777,6 +823,7 @@ export interface SkillInfo {
   phase?: string
   tools?: string[]
   workflow?: string
+  config?: Record<string, unknown>
 }
 
 export interface SkillDetail {
@@ -870,4 +917,117 @@ export interface ExternalRiskBriefingReport {
   payload: Record<string, unknown>
   created_at: string
   updated_at: string
+}
+
+export type SourceCategory = 'weather' | 'official' | 'media'
+export type PriorityLevel = 'P0' | 'P1' | 'P2'
+
+export interface RiskCard {
+  card_id: string
+  report_id: string | null
+  source_category: SourceCategory
+  source_name: string
+  source_url: string | null
+  title: string
+  summary: string | null
+  priority: PriorityLevel
+  risk_level: string | null
+  emoji_tag: string
+  keywords: string[]
+  location: string | null
+  event_date: string | null
+  recommended_action: string | null
+  is_confirmed: boolean
+  payload: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface RiskCardListResponse {
+  cards: RiskCard[]
+  total: number
+}
+
+export interface RiskCardStats {
+  P0: number
+  P1: number
+  P2: number
+  total: number
+  by_category: {
+    weather: number
+    official: number
+    media: number
+  }
+}
+
+export interface ExternalMonitorSettings {
+  enabled: boolean
+  interval_minutes: number
+  lookback_hours: number
+  sources: string[]
+  keywords: string[]
+  area: string
+  delivery_mode: 'draft' | 'feishu'
+  recipient: string
+  alert_p0: boolean
+  alert_p1: boolean
+  updated_at?: string
+}
+
+export interface ExternalMonitorRun {
+  run_id: string
+  status: string
+  started_at: string
+  finished_at?: string | null
+  duration_ms?: number
+  workflow_run_id?: string | null
+  card_count: number
+  new_raw_count: number
+  new_event_count: number
+  duplicate_count: number
+  alert_count: number
+  source_count: number
+  error?: string | null
+  summary?: Record<string, unknown>
+}
+
+export interface ExternalSourceState {
+  source_key: string
+  source_name?: string | null
+  source_type?: string | null
+  last_seen_at?: string | null
+  last_success_at?: string | null
+  last_error_at?: string | null
+  last_error?: string | null
+  failure_count: number
+  cooldown_until?: string | null
+  last_item_count: number
+  updated_at: string
+}
+
+export interface ExternalMonitorStatus {
+  ok: boolean
+  running: boolean
+  scheduler_active: boolean
+  settings: ExternalMonitorSettings
+  last_run?: ExternalMonitorRun | null
+  last_success_run?: ExternalMonitorRun | null
+  next_run_at?: string | null
+  last_error?: string | null
+  sources: ExternalSourceState[]
+}
+
+export interface ExternalInfoEvent {
+  event_id: string
+  title: string
+  priority: PriorityLevel
+  risk_score: number
+  relevance_score: number
+  confidence: number
+  source_count: number
+  recommended_action?: string | null
+  reason_codes: string[]
+  requires_human_review: boolean
+  first_seen_at: string
+  last_seen_at: string
 }

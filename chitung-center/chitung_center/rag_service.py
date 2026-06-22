@@ -14,6 +14,7 @@ from typing import Any
 import httpx
 from fastapi import UploadFile
 
+from chitung_center.asset_service import register_asset, register_document
 from chitung_center.config import settings
 from chitung_center.llm_gateway import llm_gateway
 
@@ -98,6 +99,24 @@ class RagService:
             "created_at": created_at,
         }
         self._write_meta(meta)
+        try:
+            asset = register_asset(
+                stored_path=target,
+                source_module="rag",
+                original_name=filename,
+                source_id=doc_id,
+                metadata={"collection": collection or "default", "chunk_count": len(chunks)},
+            )
+            register_document(
+                title=filename,
+                source_module="rag",
+                asset_id=str(asset.get("asset_id") or ""),
+                document_type=suffix.lstrip("."),
+                collection=collection or "default",
+                metadata={"doc_id": doc_id, "chunk_count": len(chunks)},
+            )
+        except Exception:
+            pass
         return {
             "ok": True,
             "doc_id": doc_id,

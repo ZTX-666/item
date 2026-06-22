@@ -12,6 +12,7 @@ IntentName = Literal[
     "weather_query",
     "weather_news_risk",
     "knowledge_query",
+    "external_info_monitor",
     "docmate_edit",
     "whatsapp_sql_query",
     "whatsapp_wacli_ops",
@@ -83,6 +84,19 @@ class WorkflowRunRequest(BaseModel):
     channel: str = "local_web"
     user_id: str = "local_user"
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExternalMonitorSettingsRequest(BaseModel):
+    enabled: bool | None = None
+    interval_minutes: int | None = Field(default=None, ge=5, le=1440)
+    lookback_hours: int | None = Field(default=None, ge=1, le=24 * 30)
+    sources: list[str] | None = None
+    keywords: list[str] | None = None
+    area: str | None = None
+    delivery_mode: Literal["draft", "feishu"] | None = None
+    recipient: str | None = None
+    alert_p0: bool | None = None
+    alert_p1: bool | None = None
 
 
 class HazardStatusUpdateRequest(BaseModel):

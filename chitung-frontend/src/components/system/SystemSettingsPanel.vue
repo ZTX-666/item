@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
-import type { ConnectorSettingsStatus, LlmSettingsStatus, RuntimeStatus } from '../../types/domain'
+import type { ConnectorSettingsStatus, LlmSettingsStatus, RuntimeStatus, SystemDiagnostics } from '../../types/domain'
 
 const props = defineProps<{
   health: Record<string, unknown> | null
   llmSettings: LlmSettingsStatus | null
   connectorSettings: ConnectorSettingsStatus | null
   runtimeStatus: RuntimeStatus | null
+  diagnostics?: SystemDiagnostics | null
   logDir?: string | null
   isSaving?: boolean
   isTestingLlm?: boolean
@@ -91,6 +92,18 @@ function saveConnectors() {
     feishuApiBaseUrl: connectorForm.feishuApiBaseUrl.trim() || 'https://open.feishu.cn',
   })
 }
+
+function diagnosticDatabaseValue(field: string): string {
+  const database = props.diagnostics?.center?.database
+  if (!database || typeof database !== 'object') return ''
+  const value = (database as Record<string, unknown>)[field]
+  return value == null ? '' : String(value)
+}
+
+function diagnosticRagCount(): number {
+  const value = props.diagnostics?.rag?.document_count
+  return typeof value === 'number' ? value : 0
+}
 </script>
 
 <template>
@@ -129,6 +142,40 @@ function saveConnectors() {
       <div class="system-status-card">
         <span>当前模型</span>
         <strong>{{ llmSettings?.model || '待填写' }}</strong>
+      </div>
+    </div>
+
+    <div v-if="diagnostics" class="diagnostics-panel">
+      <div class="diagnostics-panel__header">
+        <div>
+          <h3>平台诊断</h3>
+          <p>统一任务、存储、资产与关键依赖状态。</p>
+        </div>
+        <strong :class="diagnostics.ok ? 'system-ok' : 'system-warn'">
+          {{ diagnostics.ok ? '核心正常' : '需要检查' }}
+        </strong>
+      </div>
+      <div class="diagnostics-grid">
+        <div class="diagnostics-card">
+          <span>统一数据库</span>
+          <strong>{{ diagnosticDatabaseValue('journal_mode') || '待检查' }}</strong>
+          <small>{{ diagnosticDatabaseValue('path') }}</small>
+        </div>
+        <div class="diagnostics-card">
+          <span>后台任务</span>
+          <strong>{{ diagnostics.jobs.recent_count }} 个近期任务</strong>
+          <small>{{ diagnostics.jobs.recent[0]?.title || '暂无任务' }}</small>
+        </div>
+        <div class="diagnostics-card">
+          <span>文件资产</span>
+          <strong>{{ diagnostics.assets.recent_count }} 个近期资产</strong>
+          <small>{{ diagnostics.assets.recent[0]?.original_name || '暂无资产' }}</small>
+        </div>
+        <div class="diagnostics-card">
+          <span>RAG / OCR</span>
+          <strong>{{ diagnosticRagCount() }} 个文档</strong>
+          <small>OCR/视觉依赖见 diagnostics 接口详情</small>
+        </div>
       </div>
     </div>
 

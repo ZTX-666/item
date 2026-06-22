@@ -39,7 +39,7 @@ export const aiAssistantQuickActions: AiAssistantQuickAction[] = [
   { label: '隐患排查', prompt: '帮我分析最近的安全隐患' },
   { label: '视频巡检', prompt: '检查当前摄像头里的现场安全风险' },
   { label: '舆情简报', prompt: '生成今天香港工地安全舆情简报' },
-  { label: '每日简报', prompt: '生成今日外部风险简报' },
+  { label: '每日简报', prompt: '生成今日外部讯息简报' },
   { label: '制度查询', prompt: '查询临边作业安全管理要求' },
   { label: '文档表格', prompt: '帮我查找高处作业相关检查表模板' },
   { label: 'WhatsApp', prompt: '帮我看 WhatsApp 登录状态' },

@@ -165,6 +165,11 @@ async function loadBackendSkills() {
 }
 
 function readableSkillName(skill: SkillInfo): string {
+  const config = skill.config as Record<string, unknown> | undefined
+  if (typeof config?.display_name === 'string' && config.display_name.trim()) {
+    return config.display_name.trim()
+  }
+  if (skill.name === 'external-info-monitor') return '外部讯息监听'
   return skill.name
     .replace(/^skill[_-]?/i, '')
     .replace(/[_-]+/g, ' ')

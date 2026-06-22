@@ -460,7 +460,7 @@ async function confirmNotificationDraft() {
       <div>
         <p class="eyebrow">Chitung Workbench</p>
         <h1>赤瞳安全智能平台</h1>
-        <p>用一个工作台连接隐患、视频、聊天、表格、外部风险和 AI 确认闭环。</p>
+        <p>用一个工作台连接隐患、视频、聊天、表格、外部讯息和 AI 确认闭环。</p>
       </div>
       <div class="hero-panel__status">
         <span

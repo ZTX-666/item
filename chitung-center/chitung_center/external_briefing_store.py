@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from chitung_center.config import ROOT
+from chitung_center import storage
 
 
 TABLE_NAME = "external_risk_briefing_reports"
@@ -17,7 +17,7 @@ def default_db_path() -> Path:
     value = os.getenv("SAFETY_DATABASE_PATH")
     if value:
         return Path(value)
-    return ROOT.parent / "agent-toolbox" / "workspace" / "safety_platform.db"
+    return storage.database_path()
 
 
 def persist_external_briefing_report(
@@ -144,6 +144,9 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
 def _connect(path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 

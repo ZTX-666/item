@@ -51,7 +51,7 @@ const modelForm = reactive({
 
 const orchestrationForm = reactive({
   sessionId: `session_${Math.random().toString(16).slice(2, 10)}`,
-  userInput: '请生成今天的外部风险简报并给出建议动作',
+  userInput: '请生成今天的外部讯息简报并给出建议动作',
   preferCodex: true,
   dryRun: true,
 })

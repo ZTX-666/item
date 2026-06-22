@@ -4,6 +4,7 @@ from typing import Any
 
 from chitung_center.audit import audit_logger
 from chitung_center.docmate_service import generate_changeset, preview_changeset, read_docx
+from chitung_center.external_monitor_skill_service import apply_external_monitor_skill
 from chitung_center.intent_router import route_intent_with_llm
 from chitung_center.models import ActionCard, ChatMessageRequest, ChatMessageResponse, IntentResult
 from chitung_center.skill_service import enhance_with_skill
@@ -13,6 +14,9 @@ from chitung_center.workflow_templates import WorkflowTemplate, workflow_for_int
 
 class ChitungOrchestrator:
     async def handle_message(self, request: ChatMessageRequest) -> ChatMessageResponse:
+        if _is_external_monitor_skill_request(request.message):
+            return await self._handle_external_monitor_skill(request)
+
         if _is_identity_question(request.message) or _is_capability_question(request.message):
             audit_id = audit_logger.write(
                 "chat_message_handled",
@@ -220,8 +224,59 @@ class ChitungOrchestrator:
             applied_skill=_docmate_skill_payload(reply),
         )
 
+    async def _handle_external_monitor_skill(self, request: ChatMessageRequest) -> ChatMessageResponse:
+        result = await apply_external_monitor_skill(request.message)
+        reply = str(result.get("summary") or "外部讯息监听设置已处理。")
+        audit_id = audit_logger.write(
+            "chat_message_handled",
+            {
+                "channel": request.channel,
+                "user_id": request.user_id,
+                "intent": "external_info_monitor",
+                "tool_count": 1,
+                "workflow": False,
+                "handler": "external_info_monitor_skill",
+            },
+        )
+        return ChatMessageResponse(
+            reply=reply,
+            intent=IntentResult(
+                intent="external_info_monitor",
+                confidence=0.98,
+                reason="Matched external-info-monitor skill marker or monitor command.",
+                suggested_tools=["external_info_monitor"],
+            ),
+            cards=[
+                ActionCard(
+                    card_type="external_info_monitor_skill",
+                    title="外部讯息监听",
+                    summary=reply,
+                    actions=[{"id": "open_external_info_monitor", "label": "打开外部讯息"}],
+                    data=result,
+                )
+            ],
+            tool_results=[{"tool": "external_info_monitor_skill", **result}],
+            audit_id=audit_id,
+            applied_skill={
+                "name": "external-info-monitor",
+                "reply": reply,
+                "result": result,
+            },
+        )
+
 
 orchestrator = ChitungOrchestrator()
+
+
+def _is_external_monitor_skill_request(message: str) -> bool:
+    normalized = message.replace(" ", "").lower()
+    return (
+        "external-info-monitor" in normalized
+        or "外部讯息监听" in normalized
+        or "外部信息监听" in normalized
+        or ("使用技能" in normalized and ("外部讯息" in normalized or "外部信息" in normalized))
+        or ("监听" in normalized and ("外部讯息" in normalized or "外部信息" in normalized))
+    )
 
 
 def _is_capability_question(message: str) -> bool:

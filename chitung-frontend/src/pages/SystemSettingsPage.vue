@@ -6,16 +6,18 @@ import {
   getHealth,
   getLlmSettings,
   getRuntimeStatus,
+  getSystemDiagnostics,
   saveConnectorSettings,
   saveLlmSettings,
   testLlmSettings,
 } from '../services/chitungApi'
-import type { ConnectorSettingsStatus, LlmSettingsStatus, RuntimeStatus } from '../types/domain'
+import type { ConnectorSettingsStatus, LlmSettingsStatus, RuntimeStatus, SystemDiagnostics } from '../types/domain'
 
 const centerHealth = ref<Record<string, unknown> | null>(null)
 const llmSettings = ref<LlmSettingsStatus | null>(null)
 const connectorSettings = ref<ConnectorSettingsStatus | null>(null)
 const runtimeStatus = ref<RuntimeStatus | null>(null)
+const diagnostics = ref<SystemDiagnostics | null>(null)
 const logDir = ref<string | null>(null)
 const isSaving = ref(false)
 const isTestingLlm = ref(false)
@@ -28,6 +30,7 @@ async function refreshSystemStatus() {
     llmSettings.value = await getLlmSettings()
     connectorSettings.value = await getConnectorSettings()
     runtimeStatus.value = await getRuntimeStatus()
+    diagnostics.value = await getSystemDiagnostics()
     if (window.chitungDesktop) {
       const runtime = await window.chitungDesktop.getRuntime()
       logDir.value = runtime.logDir || null
@@ -111,6 +114,7 @@ onMounted(refreshSystemStatus)
       :llm-settings="llmSettings"
       :connector-settings="connectorSettings"
       :runtime-status="runtimeStatus"
+      :diagnostics="diagnostics"
       :log-dir="logDir"
       :is-saving="isSaving"
       :is-testing-llm="isTestingLlm"

@@ -30,7 +30,7 @@ const activeCollection = computed(() => (isFeedMode.value ? 'feed' : 'safety'))
 const mode = computed(() => (isFeedMode.value ? '舆情规范知识库' : '耀耀知识'))
 const modeDescription = computed(() =>
   isFeedMode.value
-    ? '上传舆情规范、外部风险资料和白名单来源说明，使用本地 ChromaDB 做语义检索。'
+    ? '上传舆情规范、外部讯息资料和白名单来源说明，使用本地 ChromaDB 做语义检索。'
     : '内置安全管理规定已自动入库，也可继续上传项目制度、规范、报告，AI 会基于知识库回答。',
 )
 const answerReferences = computed(() => {

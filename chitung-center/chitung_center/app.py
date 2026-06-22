@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +36,15 @@ from chitung_center.docmate_service import (
     upload_docx,
 )
 from chitung_center.external_briefing_store import get_external_briefing_report, list_external_briefing_reports
+from chitung_center.external_monitor_scheduler import external_monitor_scheduler
+from chitung_center.diagnostics_service import build_system_diagnostics
+from chitung_center.job_service import (
+    get_job,
+    list_events as list_job_events,
+    list_jobs,
+    start_background_job,
+    update_progress,
+)
 from chitung_center.integrations import list_integrations
 from chitung_center.hybrid_orchestration import hybrid_orchestration_service
 from chitung_center.models import (
@@ -52,6 +63,7 @@ from chitung_center.models import (
     DocmateReadRequest,
     DocmateRetryRequest,
     DocumentRevisionRequest,
+    ExternalMonitorSettingsRequest,
     HazardStatusUpdateRequest,
     HybridConfirmRequest,
     HybridExecuteRequest,
@@ -174,6 +186,30 @@ app.add_middleware(
 )
 
 
+class _StoredUpload:
+    def __init__(self, *, filename: str, path: Path) -> None:
+        self.filename = filename
+        self.path = path
+
+    async def read(self) -> bytes:
+        return self.path.read_bytes()
+
+
+@app.on_event("startup")
+async def startup_external_monitor() -> None:
+    from chitung_center.asset_service import ensure_schema as ensure_asset_schema
+    from chitung_center.job_service import ensure_schema as ensure_job_schema
+
+    ensure_job_schema()
+    ensure_asset_schema()
+    external_monitor_scheduler.start()
+
+
+@app.on_event("shutdown")
+async def shutdown_external_monitor() -> None:
+    await external_monitor_scheduler.stop()
+
+
 @app.get("/health")
 async def health() -> dict[str, object]:
     toolbox = await toolbox_client.health()
@@ -183,6 +219,31 @@ async def health() -> dict[str, object]:
         "llm_configured": settings.llm_configured,
         "agent_toolbox": toolbox,
     }
+
+
+@app.get("/api/system/diagnostics")
+async def system_diagnostics() -> dict[str, object]:
+    return await build_system_diagnostics()
+
+
+@app.get("/api/jobs")
+async def jobs(status: str | None = None, limit: int = 50) -> dict[str, object]:
+    return list_jobs(status=status, limit=limit)
+
+
+@app.get("/api/jobs/{job_id}")
+async def job_detail(job_id: str) -> dict[str, object]:
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+    return {"ok": True, "item": job}
+
+
+@app.get("/api/jobs/{job_id}/events")
+async def job_events(job_id: str, limit: int = 100) -> dict[str, object]:
+    if not get_job(job_id):
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+    return list_job_events(job_id, limit=limit)
 
 
 @app.get("/api/integrations")
@@ -639,6 +700,80 @@ async def external_risk_briefing_report(report_id: int) -> dict[str, object]:
     return {"ok": True, "item": report}
 
 
+@app.get("/api/external-risk/cards")
+async def external_risk_cards(
+    category: str | None = None,
+    priority: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    keyword: str | None = None,
+    report_id: str | None = None,
+    limit: int = 100,
+) -> dict[str, object]:
+    from .risk_card_store import list_risk_cards
+
+    cards = list_risk_cards({
+        "category": category,
+        "priority": priority,
+        "date_from": date_from,
+        "date_to": date_to,
+        "keyword": keyword,
+        "report_id": report_id,
+        "limit": max(1, min(limit, 200)),
+    })
+    return {"cards": cards, "total": len(cards)}
+
+
+@app.get("/api/external-risk/cards/stats")
+async def external_risk_card_stats() -> dict[str, object]:
+    from .risk_card_store import get_card_stats
+
+    return get_card_stats()
+
+
+@app.get("/api/external-info/monitor/status")
+async def external_info_monitor_status() -> dict[str, object]:
+    return external_monitor_scheduler.status()
+
+
+@app.put("/api/external-info/monitor/settings")
+async def external_info_monitor_settings(request: ExternalMonitorSettingsRequest) -> dict[str, object]:
+    return external_monitor_scheduler.save_settings(request.model_dump(exclude_none=True))
+
+
+@app.post("/api/external-info/monitor/run-now")
+async def external_info_monitor_run_now() -> dict[str, object]:
+    return await external_monitor_scheduler.run_once(trigger="manual_api")
+
+
+@app.post("/api/external-info/monitor/run-async")
+async def external_info_monitor_run_async() -> dict[str, object]:
+    async def runner(job_id: str) -> dict[str, Any]:
+        update_progress(job_id, 20, "正在启动外部讯息监听")
+        result = await external_monitor_scheduler.run_once(trigger=f"job:{job_id}")
+        update_progress(job_id, 90, "外部讯息监听已完成，正在写入结果")
+        return result
+
+    job = start_background_job(
+        job_type="external_info_monitor",
+        title="外部讯息立即监听",
+        source_module="external_info",
+        request={"trigger": "manual_api"},
+        runner=runner,
+    )
+    return {"ok": True, "job_id": job["job_id"], "job": job}
+
+
+@app.get("/api/external-info/monitor/runs")
+async def external_info_monitor_runs(limit: int = 20) -> dict[str, object]:
+    return external_monitor_scheduler.list_runs(limit=max(1, min(limit, 200)))
+
+
+@app.get("/api/external-info/events")
+async def external_info_events(limit: int = 50, lookback_hours: int | None = None) -> dict[str, object]:
+    return external_monitor_scheduler.list_events(limit=max(1, min(limit, 200)), lookback_hours=lookback_hours)
+
+
 @app.get("/api/confirmations")
 async def confirmations_list(
     status: str = "pending",
@@ -767,6 +902,40 @@ async def rag_document_upload(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except RagServiceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/rag/documents/upload-async")
+async def rag_document_upload_async(
+    file: UploadFile = File(...),
+    collection: str = Form("default"),
+) -> dict[str, object]:
+    filename = Path(file.filename or "document").name
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    temp_dir = settings.chitung_data_dir / "job_uploads"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_path = temp_dir / f"rag_{Path(filename).stem}_{Path(filename).suffix.lstrip('.')}_{len(content)}.upload"
+    temp_path.write_bytes(content)
+
+    async def runner(job_id: str) -> dict[str, Any]:
+        update_progress(job_id, 15, "已接收文件，开始解析文档")
+        stored_upload = _StoredUpload(filename=filename, path=temp_path)
+        try:
+            result = await rag_service.upload_document(stored_upload, collection=collection)
+            update_progress(job_id, 95, "文档已完成入库")
+            return result
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+    job = start_background_job(
+        job_type="rag_upload",
+        title=f"RAG 文档入库：{filename}",
+        source_module="rag",
+        request={"file_name": filename, "collection": collection, "size_bytes": len(content)},
+        runner=runner,
+    )
+    return {"ok": True, "job_id": job["job_id"], "job": job}
 
 
 @app.get("/api/rag/documents")

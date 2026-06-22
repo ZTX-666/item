@@ -13,12 +13,20 @@ import type {
   GeneratedReport,
   HybridPlan,
   ExternalRiskBriefingReport,
+  ExternalInfoEvent,
+  ExternalMonitorRun,
+  ExternalMonitorSettings,
+  ExternalMonitorStatus,
+  JobRun,
+  RiskCardListResponse,
+  RiskCardStats,
   LlmTestResult,
   LlmSettingsStatus,
   RuntimeStatus,
   SafetyCaseRecord,
   SmartFormDraft,
   SmartFormTemplate,
+  SystemDiagnostics,
   SkillDetail,
   SkillInfo,
   VisualPatrolDraft,
@@ -332,10 +340,103 @@ export async function getExternalRiskBriefingReport(reportId: number): Promise<E
   return data.item
 }
 
+export async function listRiskCards(params?: {
+  category?: string
+  priority?: string
+  date_from?: string
+  date_to?: string
+  keyword?: string
+  report_id?: string
+  limit?: number
+}): Promise<RiskCardListResponse> {
+  const query = new URLSearchParams()
+  if (params?.category) query.set('category', params.category)
+  if (params?.priority) query.set('priority', params.priority)
+  if (params?.date_from) query.set('date_from', params.date_from)
+  if (params?.date_to) query.set('date_to', params.date_to)
+  if (params?.keyword) query.set('keyword', params.keyword)
+  if (params?.report_id) query.set('report_id', params.report_id)
+  if (params?.limit) query.set('limit', String(params.limit))
+  const qs = query.toString()
+  const response = await fetch(`${CENTER_BASE_URL}/api/external-risk/cards${qs ? '?' + qs : ''}`)
+  await ensureOk(response, 'List risk cards failed')
+  return response.json() as Promise<RiskCardListResponse>
+}
+
+export async function getRiskCardStats(): Promise<RiskCardStats> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/external-risk/cards/stats`)
+  await ensureOk(response, 'Get risk card stats failed')
+  return response.json() as Promise<RiskCardStats>
+}
+
+export async function getExternalInfoMonitorStatus(): Promise<ExternalMonitorStatus> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/external-info/monitor/status`)
+  await ensureOk(response, 'External info monitor status failed')
+  return response.json() as Promise<ExternalMonitorStatus>
+}
+
+export async function saveExternalInfoMonitorSettings(
+  settings: Partial<ExternalMonitorSettings>,
+): Promise<ExternalMonitorStatus> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/external-info/monitor/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  })
+  await ensureOk(response, 'External info monitor settings failed')
+  return response.json() as Promise<ExternalMonitorStatus>
+}
+
+export async function runExternalInfoMonitorNow(): Promise<Record<string, unknown>> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/external-info/monitor/run-now`, {
+    method: 'POST',
+  })
+  await ensureOk(response, 'External info monitor run failed')
+  return response.json() as Promise<Record<string, unknown>>
+}
+
+export async function runExternalInfoMonitorAsync(): Promise<{ ok: boolean; job_id: string; job: JobRun }> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/external-info/monitor/run-async`, {
+    method: 'POST',
+  })
+  await ensureOk(response, 'External info monitor async run failed')
+  return response.json() as Promise<{ ok: boolean; job_id: string; job: JobRun }>
+}
+
+export async function listExternalInfoMonitorRuns(limit = 20): Promise<ExternalMonitorRun[]> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/external-info/monitor/runs?limit=${encodeURIComponent(String(limit))}`)
+  await ensureOk(response, 'External info monitor runs failed')
+  const data = (await response.json()) as { items?: ExternalMonitorRun[] }
+  return data.items ?? []
+}
+
+export async function listExternalInfoEvents(limit = 30, lookbackHours?: number): Promise<ExternalInfoEvent[]> {
+  const query = new URLSearchParams({ limit: String(limit) })
+  if (lookbackHours) query.set('lookback_hours', String(lookbackHours))
+  const response = await fetch(`${CENTER_BASE_URL}/api/external-info/events?${query}`)
+  await ensureOk(response, 'External info events failed')
+  const data = (await response.json()) as { items?: ExternalInfoEvent[] }
+  return data.items ?? []
+}
+
 export async function getHealth(): Promise<Record<string, unknown>> {
   const response = await fetch(`${CENTER_BASE_URL}/health`)
   await ensureOk(response, 'Health check failed')
   return response.json() as Promise<Record<string, unknown>>
+}
+
+export async function getSystemDiagnostics(): Promise<SystemDiagnostics> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/system/diagnostics`)
+  await ensureOk(response, 'System diagnostics failed')
+  return response.json() as Promise<SystemDiagnostics>
+}
+
+export async function getJob(jobId: string): Promise<JobRun> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/jobs/${encodeURIComponent(jobId)}`)
+  await ensureOk(response, 'Job status failed')
+  const data = (await response.json()) as { item?: JobRun }
+  if (!data.item) throw new Error('Job status failed: empty response')
+  return data.item
 }
 
 export async function getWorkbenchSummary(): Promise<WorkbenchSummary> {

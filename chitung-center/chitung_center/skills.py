@@ -204,6 +204,7 @@ INTENT_TO_SKILL: dict[str, str] = {
     "hazard_intake": "hazard-intake",
     "visual_detection": "visual-patrol",
     "weather_news_risk": "daily-risk-briefing",
+    "external_info_monitor": "external-info-monitor",
     "document_form": "shanshan-doc",
     "knowledge_query": "knowledge-query",
     "whatsapp_sql_query": "whatsapp-sql-query",

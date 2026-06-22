@@ -779,6 +779,61 @@ input[type='radio'] {
   color: var(--text-primary);
 }
 
+.diagnostics-panel {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  margin-bottom: 12px;
+  padding: 12px;
+}
+
+.diagnostics-panel__header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.diagnostics-panel__header h3 {
+  font-size: 14px;
+  margin: 0 0 3px;
+}
+
+.diagnostics-panel__header p {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin: 0;
+}
+
+.diagnostics-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.diagnostics-card {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.diagnostics-card span,
+.diagnostics-card small {
+  color: var(--text-secondary);
+  display: block;
+  font-size: 12px;
+}
+
+.diagnostics-card strong {
+  color: var(--text-primary);
+  display: block;
+  margin: 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .system-ok {
   color: var(--brand-green) !important;
 }

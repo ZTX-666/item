@@ -86,7 +86,7 @@ const panels: Record<string, PanelDef> = {
     items: [
       { icon: '📸', label: '结构化输入', path: '/yaoyao/structured' },
       { icon: '🔎', label: '耀耀知识', path: '/yaoyao/rag' },
-      { icon: '🌐', label: '外部风险', path: '/yaoyao/feed' },
+      { icon: '🌐', label: '外部讯息', path: '/yaoyao/feed' },
     ],
   },
 }

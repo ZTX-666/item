@@ -1,0 +1,7 @@
+{
+  "display_name": "外部讯息监听",
+  "description": "修改外部讯息监听关键词、来源、频率、时间窗口，并可立即触发监听。",
+  "default_sources": ["weather", "official", "media"],
+  "default_lookback_hours": 24,
+  "default_interval_minutes": 60
+}
