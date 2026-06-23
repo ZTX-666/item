@@ -203,7 +203,16 @@ class CameraConfig(BaseModel):
     id: str
     name: str
     area: str
+    source_type: Literal["rtmp", "csmart", "snapshot", "csmart_player"] = "rtmp"
     rtmp_url: str | None = None
+    snapshot_url: str | None = None
+    csmart_channel_number: int | str | None = None
+    csmart_channel_id: str | None = None
+    player_screenshot_url: str | None = None
+    playback_info: dict[str, str] = Field(default_factory=dict)
+    playback_info_raw: str | None = None
+    inspection_interval_minutes: int | None = Field(default=None, ge=1)
+    remark: str | None = None
     enabled: bool = True
 
 
@@ -219,6 +228,10 @@ class AppConfigRequest(BaseModel):
     project: ProjectConfig = Field(default_factory=ProjectConfig)
     cameras: list[CameraConfig] = Field(default_factory=list)
     contractors: list[ContractorConfig] = Field(default_factory=list)
+
+
+class CctvPlaybackInfoParseRequest(BaseModel):
+    text: str
 
 
 class IntegrationStatus(BaseModel):

@@ -133,13 +133,39 @@ def _gateway_snapshot_url(camera: dict[str, Any], channel: dict[str, Any]) -> st
     return f"{base_url}/api/csmart/snapshot/{quote(str(channel_number), safe='')}"
 
 
+def _gateway_player_screenshot_url(camera: dict[str, Any], channel: dict[str, Any]) -> str:
+    configured = _first_nonempty_text(camera.get("player_screenshot_url"))
+    if configured:
+        return configured
+    if _first_nonempty_text(camera.get("source_type")) != "csmart_player":
+        return ""
+    base_url = os.environ.get("CCTV_GATEWAY_BASE_URL", "http://127.0.0.1:3457").strip().rstrip("/")
+    if not base_url:
+        return ""
+    channel_number = channel.get("number") or camera.get("csmart_channel_number")
+    if channel_number is None or str(channel_number).strip() == "":
+        return ""
+    return f"{base_url}/api/csmart/player-screenshot/{quote(str(channel_number), safe='')}"
+
+
 def _snapshot_url_candidates(camera: dict[str, Any], channel: dict[str, Any]) -> list[str]:
     candidates: list[str] = []
     seen: set[str] = set()
+    _append_candidate(candidates, seen, _gateway_player_screenshot_url(camera, channel))
     _append_candidate(candidates, seen, _gateway_snapshot_url(camera, channel))
     for url in _raw_snapshot_url_candidates(camera, channel):
         _append_candidate(candidates, seen, url)
     return candidates
+
+
+def _first_nonempty_text(*values: Any) -> str:
+    for value in values:
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return ""
 
 
 def _sync_cameras(nightly_patrol: Any) -> list[dict[str, Any]]:
@@ -152,15 +178,26 @@ def _sync_cameras(nightly_patrol: Any) -> list[dict[str, Any]]:
         channel = _match_csmart_channel(cam, csmart_channels) or {}
         snapshot_candidates = _snapshot_url_candidates(cam, channel)
         remote_snapshot_candidates = _raw_snapshot_url_candidates(cam, channel)
+        source_type = _first_nonempty_text(cam.get("source_type"), "csmart" if channel else "rtmp")
+        csmart_channel_number = cam.get("csmart_channel_number") or channel.get("number")
+        csmart_channel_id = _first_nonempty_text(cam.get("csmart_channel_id"), channel.get("id"))
         cameras.append(
             {
                 "id": str(cam.get("id")),
                 "name": str(cam.get("name") or cam.get("id")),
                 "area": str(cam.get("area") or "施工区域"),
-                "rtmp_url": str(channel.get("flv") or cam.get("rtmp_url") or ""),
+                "source_type": source_type,
+                "rtmp_url": _first_nonempty_text(cam.get("rtmp_url"), channel.get("flv")),
                 "snapshot_url": snapshot_candidates[0] if snapshot_candidates else "",
                 "snapshot_remote_url": remote_snapshot_candidates[0] if remote_snapshot_candidates else "",
                 "snapshot_url_candidates": snapshot_candidates,
+                "player_screenshot_url": _gateway_player_screenshot_url(cam, channel),
+                "playback_info": cam.get("playback_info") or {},
+                "playback_info_raw": cam.get("playback_info_raw"),
+                "csmart_channel_number": csmart_channel_number,
+                "csmart_channel_id": csmart_channel_id,
+                "inspection_interval_minutes": cam.get("inspection_interval_minutes"),
+                "remark": cam.get("remark"),
             }
         )
     if cameras:
@@ -315,10 +352,30 @@ def camera_result_to_draft(cam: dict[str, Any], patrol_id: str) -> dict[str, Any
     actions = [str(d.get("suggested_action")) for d in detections if isinstance(d, dict) and d.get("suggested_action")]
     snapshot_url = cam.get("snapshot_url") or _asset_url(patrol_id, f"{cam.get('camera_id')}_snapshot.jpg")
     annotated_url = cam.get("annotated_url") or _asset_url(patrol_id, f"{cam.get('camera_id')}_annotated.jpg")
+    success = bool(cam.get("success"))
+    error_message = str(cam.get("error") or "巡检失败")
+    candidates = [
+        {
+            "id": f"visual-{cam.get('camera_id')}",
+            "title": f"{cam.get('camera_name')} 巡检候选",
+            "risk_level": risk_map.get(max_severity, "medium"),
+            "area": cam.get("area") or "未分区",
+            "description": (
+                "; ".join(descriptions[:3])
+                if descriptions
+                else f"检测到 {len(detections)} 个目标：{', '.join(labels[:8])}"
+            ),
+            "labels": labels,
+            "source_mix": cam.get("source_mix", "yolo"),
+            "severity": max_severity,
+            "suggested_action": actions[0] if actions else "请安全主任复核巡检结果",
+            "detection_details": detection_details,
+        }
+    ] if success else []
 
     return {
-        "ok": bool(cam.get("success")),
-        "message": "赤瞳守护者巡检完成，请确认候选后入库。" if cam.get("success") else str(cam.get("error") or "巡检失败"),
+        "ok": success,
+        "message": "赤瞳守护者巡检完成，请确认候选后入库。" if success else error_message,
         "requires_confirmation": True,
         "patrol_id": patrol_id,
         "camera_id": cam.get("camera_id"),
@@ -327,24 +384,7 @@ def camera_result_to_draft(cam: dict[str, Any], patrol_id: str) -> dict[str, Any
         "snapshot_url": snapshot_url,
         "annotated_url": annotated_url,
         "analysis_mode": "hybrid" if cam.get("source_mix") == "hybrid" else "yolo_only",
-        "candidates": [
-            {
-                "id": f"visual-{cam.get('camera_id')}",
-                "title": f"{cam.get('camera_name')} 巡检候选",
-                "risk_level": risk_map.get(max_severity, "medium"),
-                "area": cam.get("area") or "未分区",
-                "description": (
-                    "; ".join(descriptions[:3])
-                    if descriptions
-                    else f"检测到 {len(detections)} 个目标：{', '.join(labels[:8])}"
-                ),
-                "labels": labels,
-                "source_mix": cam.get("source_mix", "yolo"),
-                "severity": max_severity,
-                "suggested_action": actions[0] if actions else "请安全主任复核巡检结果",
-                "detection_details": detection_details,
-            }
-        ],
+        "candidates": candidates,
         "confirm_payload": {
             "image_path": cam.get("snapshot_path"),
             "annotated_path": cam.get("annotated_path"),

@@ -286,6 +286,19 @@ export interface PatrolCameraResult {
   yolo_time_ms?: number
   vlm_time_ms?: number
   source_mix?: string
+  snapshot_source?: 'stream' | 'csmart_screenshot' | 'fallback' | 'failed' | string
+  fallback_used?: boolean
+  fallback_image?: string
+  fallback_reason?: string
+  capture_attempts?: Array<{
+    method?: string
+    url?: string
+    ok?: boolean
+    attempt?: number
+    returncode?: number
+    error?: string
+    skipped?: boolean
+  }>
 }
 
 export interface PatrolRunReport {
@@ -437,11 +450,22 @@ export interface RuntimeStatus {
   ready: boolean
 }
 
+export type CameraSourceType = 'rtmp' | 'csmart' | 'snapshot' | 'csmart_player'
+
 export interface CameraConfig {
   id: string
   name: string
   area: string
+  source_type?: CameraSourceType
   rtmp_url?: string | null
+  snapshot_url?: string | null
+  csmart_channel_number?: number | string | null
+  csmart_channel_id?: string | null
+  player_screenshot_url?: string | null
+  playback_info?: Record<string, string>
+  playback_info_raw?: string | null
+  inspection_interval_minutes?: number | null
+  remark?: string | null
   enabled: boolean
 }
 

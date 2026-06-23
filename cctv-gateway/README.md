@@ -53,4 +53,28 @@ CCTV_PLAYER_URL=https://custom.c-smart.hk/csmart-player/cctv-video-list/
 CCTV_CHANNEL_CACHE_FILE=csmart-channel-list-latest.json
 ```
 
+## Player Screenshot Capture
+
+Guardian patrol can call the gateway as an image source:
+
+```bash
+http://127.0.0.1:3457/api/csmart/player-screenshot/2
+```
+
+Set `CCTV_PLAYER_SCREENSHOT_CMD` to a local screenshot command. The gateway passes these environment variables to the command:
+
+```bash
+CCTV_SCREENSHOT_URL=http://127.0.0.1:3457/player?channel=2&live=1&embedded=1
+CCTV_SCREENSHOT_OUTPUT=/tmp/cctv-player-shot/channel.jpg
+CCTV_SCREENSHOT_CHANNEL=2
+```
+
+The bundled Playwright-based command is:
+
+```bash
+npm install -D playwright
+npx playwright install chromium
+CCTV_PLAYER_SCREENSHOT_CMD="node scripts/capture-player-screenshot.mjs"
+```
+
 Do not commit real C-SMART accounts, passwords, bearer tokens, Ezviz tokens, or captured runtime files.

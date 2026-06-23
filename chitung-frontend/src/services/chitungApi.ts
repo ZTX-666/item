@@ -1,5 +1,6 @@
 import type {
   AppConfig,
+  CameraConfig,
   CenterChatResponse,
   ChatHistoryResponse,
   ChatResponse,
@@ -409,6 +410,16 @@ export async function saveAppConfig(config: AppConfig): Promise<{ ok: boolean; c
   })
   await ensureOk(response, 'App config save failed')
   return response.json() as Promise<{ ok: boolean; config: AppConfig }>
+}
+
+export async function parseCctvPlaybackInfo(text: string): Promise<{ ok: boolean; cameras: CameraConfig[] }> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/config/cctv-playback-info/parse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  await ensureOk(response, 'CCTV playback info parse failed')
+  return response.json() as Promise<{ ok: boolean; cameras: CameraConfig[] }>
 }
 
 export async function getLlmSettings(): Promise<LlmSettingsStatus> {

@@ -7,10 +7,12 @@ import {
   getAppConfig,
   getVisualPatrolRun,
   listVisualPatrolRuns,
+  parseCctvPlaybackInfo,
   runVisualPatrolBatch,
+  saveAppConfig,
   visualPatrolAssetUrl,
 } from '../services/chitungApi'
-import type { AppConfig, PatrolRunReport, PatrolRunSummary, VisualPatrolDraft } from '../types/domain'
+import type { AppConfig, CameraConfig, PatrolRunReport, PatrolRunSummary, VisualPatrolDraft } from '../types/domain'
 
 const CENTER_BASE_URL =
   import.meta.env.VITE_CHITUNG_CENTER_URL?.replace(/\/$/, '') || 'http://127.0.0.1:8999'
@@ -21,15 +23,32 @@ const patrolHistory = ref<PatrolRunSummary[]>([])
 const selectedReport = ref<PatrolRunReport | null>(null)
 const isPatrolling = ref(false)
 const isBatchRunning = ref(false)
+const isSavingCameraSources = ref(false)
+const isParsingPlaybackInfo = ref(false)
+const testingCameraSourceId = ref<string | null>(null)
 const note = ref('等待巡检')
+const cameraConfigNote = ref('')
+const playbackInfoText = ref('')
 
 const vlmEnabled = ref(true)
 const yoloConfThreshold = ref(0.45)
 const analysisMode = computed(() => (vlmEnabled.value ? 'hybrid' : 'yolo_only'))
+const cameraSourceTypes = [
+  { value: 'rtmp', label: 'RTMP / H264' },
+  { value: 'csmart', label: 'C-SMART' },
+  { value: 'csmart_player', label: '播放页截图' },
+  { value: 'snapshot', label: '截图 URL' },
+] as const
 
 const hasCameras = computed(() => (appConfig.value?.cameras?.length ?? 0) > 0)
 const primaryCandidate = computed(() => patrolDraft.value?.candidates[0] || null)
 const detectionDetails = computed(() => primaryCandidate.value?.detection_details || [])
+const selectedCameraResult = computed(() => {
+  const cameraId = patrolDraft.value?.camera_id
+  if (!cameraId) return null
+  return selectedReport.value?.cameras?.find((camera) => camera.camera_id === cameraId) || null
+})
+const captureAttempts = computed(() => selectedCameraResult.value?.capture_attempts || [])
 
 const annotatedImageUrl = computed(() => {
   const url = patrolDraft.value?.annotated_url
@@ -46,9 +65,156 @@ const snapshotImageUrl = computed(() => {
 const evidencePath = computed(() => patrolDraft.value?.source || patrolDraft.value?.confirm_payload?.image_path)
 
 onMounted(async () => {
-  appConfig.value = await getAppConfig()
+  appConfig.value = normalizeAppConfig(await getAppConfig())
   await refreshHistory()
 })
+
+function normalizeAppConfig(config: AppConfig): AppConfig {
+  config.cameras = (config.cameras || []).map((camera) => ({
+    ...camera,
+    source_type: camera.source_type || 'rtmp',
+    rtmp_url: camera.rtmp_url ?? '',
+    snapshot_url: camera.snapshot_url ?? '',
+    csmart_channel_number: camera.csmart_channel_number ?? '',
+    csmart_channel_id: camera.csmart_channel_id ?? '',
+    player_screenshot_url: camera.player_screenshot_url ?? '',
+    playback_info: camera.playback_info ?? {},
+    playback_info_raw: camera.playback_info_raw ?? '',
+    inspection_interval_minutes: camera.inspection_interval_minutes ?? null,
+    remark: camera.remark ?? '',
+    enabled: camera.enabled ?? true,
+  }))
+  return config
+}
+
+function textOrNull(value: unknown): string | null {
+  if (value == null) return null
+  const text = String(value).trim()
+  return text || null
+}
+
+function normalizeInterval(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return null
+  return Math.round(numeric)
+}
+
+function cameraForSave(camera: CameraConfig): CameraConfig {
+  const fallbackId = `camera-${Date.now().toString(36)}`
+  return {
+    id: textOrNull(camera.id) || fallbackId,
+    name: textOrNull(camera.name) || '未命名监控',
+    area: textOrNull(camera.area) || appConfig.value?.project.default_area || '施工区域',
+    source_type: camera.source_type || 'rtmp',
+    rtmp_url: textOrNull(camera.rtmp_url),
+    snapshot_url: textOrNull(camera.snapshot_url),
+    csmart_channel_number: textOrNull(camera.csmart_channel_number),
+    csmart_channel_id: textOrNull(camera.csmart_channel_id),
+    player_screenshot_url: textOrNull(camera.player_screenshot_url),
+    playback_info: camera.playback_info ?? {},
+    playback_info_raw: textOrNull(camera.playback_info_raw),
+    inspection_interval_minutes: normalizeInterval(camera.inspection_interval_minutes),
+    remark: textOrNull(camera.remark),
+    enabled: Boolean(camera.enabled),
+  }
+}
+
+function addCameraSource() {
+  if (!appConfig.value) return
+  appConfig.value.cameras.push({
+    id: `camera-${Date.now().toString(36)}`,
+    name: '新监控',
+    area: appConfig.value.project.default_area || '施工区域',
+    source_type: 'rtmp',
+    rtmp_url: '',
+    snapshot_url: '',
+    csmart_channel_number: '',
+    csmart_channel_id: '',
+    player_screenshot_url: '',
+    playback_info: {},
+    playback_info_raw: '',
+    inspection_interval_minutes: null,
+    remark: '',
+    enabled: true,
+  })
+  cameraConfigNote.value = '已新增一行，保存后生效。'
+}
+
+async function importPlaybackInfo() {
+  if (!appConfig.value) return
+  const text = playbackInfoText.value.trim()
+  if (!text) {
+    cameraConfigNote.value = '请先粘贴 CCTV 播放信息。'
+    return
+  }
+  isParsingPlaybackInfo.value = true
+  cameraConfigNote.value = '正在解析 CCTV 播放信息...'
+  try {
+    const result = await parseCctvPlaybackInfo(text)
+    const parsed = (result.cameras || []).map((camera) => normalizeAppConfig({
+      ...appConfig.value!,
+      cameras: [camera],
+    }).cameras[0])
+    if (!parsed.length) {
+      cameraConfigNote.value = '未解析到 Cam 播放信息。'
+      return
+    }
+    const byId = new Map(appConfig.value.cameras.map((camera, index) => [camera.id, index]))
+    for (const camera of parsed) {
+      const existingIndex = byId.get(camera.id)
+      if (existingIndex == null) {
+        appConfig.value.cameras.push(camera)
+        byId.set(camera.id, appConfig.value.cameras.length - 1)
+      } else {
+        appConfig.value.cameras.splice(existingIndex, 1, {
+          ...appConfig.value.cameras[existingIndex],
+          ...camera,
+        })
+      }
+    }
+    cameraConfigNote.value = `已导入 ${parsed.length} 路播放信息，保存后生效。`
+  } catch (error) {
+    cameraConfigNote.value = `播放信息解析失败：${error instanceof Error ? error.message : String(error)}`
+  } finally {
+    isParsingPlaybackInfo.value = false
+  }
+}
+
+function removeCameraSource(index: number) {
+  if (!appConfig.value) return
+  appConfig.value.cameras.splice(index, 1)
+  cameraConfigNote.value = '已删除该行，保存后生效。'
+}
+
+async function saveCameraSources() {
+  if (!appConfig.value) return
+  isSavingCameraSources.value = true
+  cameraConfigNote.value = '正在保存摄像头源配置...'
+  try {
+    const payload: AppConfig = {
+      ...appConfig.value,
+      cameras: appConfig.value.cameras.map(cameraForSave),
+    }
+    const result = await saveAppConfig(payload)
+    appConfig.value = normalizeAppConfig(result.config)
+    cameraConfigNote.value = '摄像头源配置已保存。'
+  } catch (error) {
+    cameraConfigNote.value = `保存失败：${error instanceof Error ? error.message : String(error)}`
+  } finally {
+    isSavingCameraSources.value = false
+  }
+}
+
+async function testCameraSource(camera: CameraConfig) {
+  testingCameraSourceId.value = camera.id
+  cameraConfigNote.value = `正在巡检 ${camera.name || camera.id}...`
+  try {
+    await handlePatrol(camera.id)
+  } finally {
+    testingCameraSourceId.value = null
+  }
+}
 
 async function refreshHistory() {
   try {
@@ -167,7 +333,7 @@ function selectCameraFromReport(cam: NonNullable<PatrolRunReport['cameras']>[num
     annotated_url: cam.annotated_url,
     source: cam.snapshot_path || undefined,
     analysis_mode: cam.source_mix === 'hybrid' ? 'hybrid' : 'yolo_only',
-    candidates: [
+    candidates: cam.success ? [
       {
         id: `visual-${cam.camera_id}`,
         title: `${cam.camera_name} 巡检候选`,
@@ -186,7 +352,7 @@ function selectCameraFromReport(cam: NonNullable<PatrolRunReport['cameras']>[num
           suggested_action: String(d.suggested_action || ''),
         })),
       },
-    ],
+    ] : [],
     confirm_payload: {
       image_path: cam.snapshot_path,
       area: cam.area,
@@ -273,6 +439,119 @@ function sourceText(source: string | undefined): string {
       </div>
     </section>
 
+    <section class="panel camera-source-panel">
+      <div class="panel__header camera-source-panel__header">
+        <div>
+          <h2>摄像头源配置</h2>
+          <p>监控名、RTMP/H264 地址、截图源和巡检参数</p>
+        </div>
+        <div class="camera-source-actions">
+          <button class="mini-button" type="button" @click="addCameraSource">新增</button>
+          <button
+            class="primary-soft-button"
+            type="button"
+            :disabled="isSavingCameraSources || !appConfig"
+            @click="saveCameraSources"
+          >
+            {{ isSavingCameraSources ? '保存中...' : '保存配置' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="playback-import">
+        <textarea
+          v-model="playbackInfoText"
+          rows="8"
+          placeholder="Cam12&#10;播放信息&#10;EZOPEN(標清)&#10;ezopen://...&#10;FLV(標清)&#10;https://..."
+        />
+        <div class="playback-import__actions">
+          <button
+            class="primary-soft-button"
+            type="button"
+            :disabled="isParsingPlaybackInfo || !appConfig"
+            @click="importPlaybackInfo"
+          >
+            {{ isParsingPlaybackInfo ? '解析中...' : '导入播放信息' }}
+          </button>
+          <button class="mini-button" type="button" @click="playbackInfoText = ''">清空</button>
+        </div>
+      </div>
+
+      <div v-if="appConfig" class="camera-source-table-wrap">
+        <table class="camera-source-table">
+          <thead>
+            <tr>
+              <th>启用</th>
+              <th>监控名</th>
+              <th>区域</th>
+              <th>源类型</th>
+              <th>视频流地址</th>
+              <th>截图 URL</th>
+              <th>C-SMART</th>
+              <th>播放截图</th>
+              <th>间隔</th>
+              <th>备注</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(camera, index) in appConfig.cameras" :key="camera.id || index">
+              <td class="camera-source-table__enabled">
+                <input type="checkbox" v-model="camera.enabled" />
+              </td>
+              <td>
+                <input v-model.trim="camera.name" type="text" />
+              </td>
+              <td>
+                <input v-model.trim="camera.area" type="text" />
+              </td>
+              <td>
+                <select v-model="camera.source_type">
+                  <option v-for="type in cameraSourceTypes" :key="type.value" :value="type.value">
+                    {{ type.label }}
+                  </option>
+                </select>
+              </td>
+              <td>
+                <textarea v-model.trim="camera.rtmp_url" rows="2" placeholder="rtmp://..." />
+              </td>
+              <td>
+                <input v-model.trim="camera.snapshot_url" type="text" placeholder="https://..." />
+              </td>
+              <td>
+                <input v-model.trim="camera.csmart_channel_number" type="text" placeholder="通道号" />
+              </td>
+              <td>
+                <input v-model.trim="camera.player_screenshot_url" type="text" placeholder="自动生成" />
+              </td>
+              <td>
+                <input v-model.number="camera.inspection_interval_minutes" type="number" min="1" placeholder="分钟" />
+              </td>
+              <td>
+                <input v-model.trim="camera.remark" type="text" />
+              </td>
+              <td class="camera-source-table__ops">
+                <button
+                  class="mini-button"
+                  type="button"
+                  :disabled="isPatrolling || testingCameraSourceId === camera.id"
+                  @click="testCameraSource(camera)"
+                >
+                  {{ testingCameraSourceId === camera.id ? '测试中' : '测试' }}
+                </button>
+                <button class="mini-button" type="button" @click="removeCameraSource(index)">删除</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="!appConfig.cameras.length" class="camera-source-empty">
+          暂无摄像头源配置。
+        </div>
+      </div>
+      <p v-else class="camera-source-empty">正在加载摄像头源配置...</p>
+      <p v-if="cameraConfigNote" class="camera-source-note">{{ cameraConfigNote }}</p>
+    </section>
+
     <div class="visual-layout">
       <div class="visual-main">
         <CctvLivePanel
@@ -303,6 +582,32 @@ function sourceText(source: string | undefined): string {
             alt="patrol snapshot"
             class="patrol-image"
           />
+        </section>
+
+        <section v-if="patrolDraft && !patrolDraft.ok && !primaryCandidate" class="panel capture-error-panel">
+          <div class="panel__header">
+            <div>
+              <h2>巡检失败</h2>
+              <p>{{ patrolDraft.camera_name || patrolDraft.camera_id || '当前摄像头' }}</p>
+            </div>
+          </div>
+          <p class="capture-error-panel__message">{{ patrolDraft.message }}</p>
+          <div v-if="captureAttempts.length" class="capture-attempts">
+            <div
+              v-for="(attempt, index) in captureAttempts"
+              :key="`${attempt.method || 'capture'}-${index}`"
+              class="capture-attempt"
+              :class="{ 'capture-attempt--ok': attempt.ok }"
+            >
+              <div class="capture-attempt__row">
+                <strong>{{ attempt.method || 'stream' }}</strong>
+                <span>{{ attempt.ok ? '成功' : '失败' }}</span>
+                <span v-if="attempt.attempt">第 {{ attempt.attempt }} 次</span>
+              </div>
+              <p v-if="attempt.error">{{ attempt.error }}</p>
+              <code v-if="attempt.url">{{ attempt.url }}</code>
+            </div>
+          </div>
         </section>
 
         <section v-if="primaryCandidate" class="panel candidate-panel">
@@ -372,8 +677,9 @@ function sourceText(source: string | undefined): string {
             class="history-camera"
             @click="selectCameraFromReport(cam)"
           >
-            <span>{{ cam.camera_name }}</span>
-            <span>{{ cam.detection_count ?? cam.detections?.length ?? 0 }} 目标 · {{ cam.source_mix }}</span>
+          <span>{{ cam.camera_name }}</span>
+            <span v-if="cam.success">{{ cam.detection_count ?? cam.detections?.length ?? 0 }} 目标 · {{ cam.source_mix }}</span>
+            <span v-else class="history-camera__error">失败 · {{ cam.error || '抽帧失败' }}</span>
           </button>
         </div>
       </aside>
@@ -382,6 +688,135 @@ function sourceText(source: string | undefined): string {
 </template>
 
 <style scoped>
+.camera-source-panel {
+  margin-bottom: 16px;
+}
+
+.camera-source-panel__header,
+.camera-source-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.camera-source-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.playback-import {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  margin: 12px 0 14px;
+}
+
+.playback-import textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dbe3ef;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #111827;
+  background: #fff;
+  font: inherit;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.playback-import__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.camera-source-table-wrap {
+  overflow-x: auto;
+}
+
+.camera-source-table {
+  width: 100%;
+  min-width: 1360px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.camera-source-table th,
+.camera-source-table td {
+  padding: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  vertical-align: top;
+}
+
+.camera-source-table th {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-align: left;
+  background: #f8fafc;
+}
+
+.camera-source-table th:nth-child(1) { width: 58px; }
+.camera-source-table th:nth-child(2) { width: 140px; }
+.camera-source-table th:nth-child(3) { width: 110px; }
+.camera-source-table th:nth-child(4) { width: 130px; }
+.camera-source-table th:nth-child(5) { width: 280px; }
+.camera-source-table th:nth-child(6) { width: 190px; }
+.camera-source-table th:nth-child(7) { width: 110px; }
+.camera-source-table th:nth-child(8) { width: 190px; }
+.camera-source-table th:nth-child(9) { width: 90px; }
+.camera-source-table th:nth-child(10) { width: 150px; }
+.camera-source-table th:nth-child(11) { width: 130px; }
+
+.camera-source-table input,
+.camera-source-table select,
+.camera-source-table textarea {
+  width: 100%;
+  min-height: 36px;
+  box-sizing: border-box;
+  border: 1px solid #dbe3ef;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #111827;
+  background: #fff;
+  font: inherit;
+}
+
+.camera-source-table textarea {
+  resize: vertical;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.camera-source-table__enabled {
+  text-align: center;
+}
+
+.camera-source-table__enabled input {
+  width: 18px;
+  min-height: 18px;
+  margin-top: 8px;
+}
+
+.camera-source-table__ops {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.camera-source-empty,
+.camera-source-note {
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.camera-source-note {
+  color: #0f766e;
+}
+
 .visual-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -425,6 +860,60 @@ function sourceText(source: string | undefined): string {
   background: #111;
 }
 
+.capture-error-panel {
+  margin-top: 16px;
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.capture-error-panel__message {
+  margin: 0;
+  color: #991b1b;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.capture-attempts {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.capture-attempt {
+  padding: 10px 12px;
+  border: 1px solid #fee2e2;
+  border-radius: 6px;
+  background: #fff7f7;
+}
+
+.capture-attempt--ok {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.capture-attempt__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: #334155;
+}
+
+.capture-attempt p {
+  margin: 6px 0 0;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.capture-attempt code {
+  display: block;
+  margin-top: 6px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .patrol-history {
   align-self: start;
   position: sticky;
@@ -457,6 +946,10 @@ function sourceText(source: string | undefined): string {
 .history-camera span {
   font-size: 12px;
   color: #9aa4b2;
+}
+
+.history-camera .history-camera__error {
+  color: #dc2626;
 }
 
 .history-cameras {
@@ -497,5 +990,8 @@ function sourceText(source: string | undefined): string {
 @media (max-width: 1100px) {
   .visual-layout { grid-template-columns: 1fr; }
   .patrol-history { position: static; }
+  .camera-source-panel__header { align-items: flex-start; flex-direction: column; }
+  .playback-import { grid-template-columns: 1fr; }
+  .playback-import__actions { justify-content: flex-start; }
 }
 </style>

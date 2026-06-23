@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from chitung_center.app_config_service import get_app_config, save_app_config
+from chitung_center.cctv_playback_parser import parse_cctv_playback_info
 from chitung_center.case_workflow_service import (
     close_case_after_review,
     confirm_contractor_assignment,
@@ -43,6 +44,7 @@ from chitung_center.models import (
     CaseWorkflowRequest,
     ChatMessageRequest,
     ConfirmationResolveApiRequest,
+    CctvPlaybackInfoParseRequest,
     FeishuEventWebhookRequest,
     DocmateCommitRequest,
     DocmateApplyRequest,
@@ -271,6 +273,11 @@ async def app_config_get() -> dict[str, object]:
 @app.post("/api/config/app")
 async def app_config_save(request: AppConfigRequest) -> dict[str, object]:
     return save_app_config(request)
+
+
+@app.post("/api/config/cctv-playback-info/parse")
+async def cctv_playback_info_parse(request: CctvPlaybackInfoParseRequest) -> dict[str, object]:
+    return {"ok": True, "cameras": parse_cctv_playback_info(request.text)}
 
 
 @app.get("/api/settings/llm")

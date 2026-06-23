@@ -1,5 +1,8 @@
 const http = require('node:http');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { exec } = require('node:child_process');
 const { URL } = require('node:url');
 
 const {
@@ -170,6 +173,67 @@ async function captureDeviceSnapshot(channel, options = {}) {
   };
 }
 
+function localPlayerScreenshotUrl(req, channel) {
+  const host = req.headers.host || `${HOST}:${PORT}`;
+  const url = new URL('/player', `http://${host}`);
+  url.searchParams.set('channel', String(channel.number || channel.id || ''));
+  url.searchParams.set('live', '1');
+  url.searchParams.set('embedded', '1');
+  return url.toString();
+}
+
+function execScreenshotCommand(command, env, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    exec(command, {
+      env,
+      timeout: timeoutMs,
+      windowsHide: true,
+      maxBuffer: 1024 * 1024,
+    }, (error, stdout, stderr) => {
+      if (error) {
+        const details = String(stderr || stdout || error.message || '').trim();
+        reject(new Error(details || error.message));
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+}
+
+async function capturePlayerScreenshot(req, channel, options = {}) {
+  const command = String(process.env.CCTV_PLAYER_SCREENSHOT_CMD || '').trim();
+  if (!command) {
+    throw new Error('CCTV_PLAYER_SCREENSHOT_CMD is not configured');
+  }
+  const timeoutMs = parsePositiveInt(options.timeoutMs, 30000);
+  const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'cctv-player-shot-'));
+  const outputPath = path.join(tempDir, `${channel.number || channel.id || 'channel'}-${Date.now()}.jpg`);
+  const screenshotUrl = localPlayerScreenshotUrl(req, channel);
+  try {
+    await execScreenshotCommand(command, {
+      ...process.env,
+      CCTV_SCREENSHOT_OUTPUT: outputPath,
+      CCTV_SCREENSHOT_URL: screenshotUrl,
+      CCTV_SCREENSHOT_CHANNEL: String(channel.number || ''),
+      CCTV_SCREENSHOT_CHANNEL_ID: String(channel.id || ''),
+      CCTV_SCREENSHOT_CAMERA_NAME: String(channel.cameraName || channel.name || ''),
+    }, timeoutMs);
+    const body = await fs.promises.readFile(outputPath);
+    if (!body.length) {
+      throw new Error('player screenshot command returned empty image');
+    }
+    return {
+      body,
+      contentType: 'image/jpeg',
+      attempts: 1,
+      source: 'player_screenshot',
+      screenshotUrl,
+    };
+  } finally {
+    await fs.promises.rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function refreshChannels(reason = 'manual') {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
@@ -259,6 +323,45 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/csmart/channels') {
       const refresh = url.searchParams.get('refresh') === '1';
       sendJson(res, 200, await getChannels({ refresh }));
+      return;
+    }
+
+    if (url.pathname === '/api/csmart/player-screenshot' || url.pathname.startsWith('/api/csmart/player-screenshot/')) {
+      const identifier = url.pathname === '/api/csmart/player-screenshot'
+        ? url.searchParams.get('channel')
+        : decodeURIComponent(url.pathname.slice('/api/csmart/player-screenshot/'.length));
+      if (!identifier) {
+        sendJson(res, 400, { error: 'Missing channel identifier' });
+        return;
+      }
+
+      const channels = await getChannels({ refresh: url.searchParams.get('refresh') === '1' });
+      const channel = findCsmartChannel(channels, identifier);
+      if (!channel) {
+        sendJson(res, 404, { error: `C-SMART channel not found: ${identifier}` });
+        return;
+      }
+
+      try {
+        const screenshot = await capturePlayerScreenshot(req, channel, {
+          timeoutMs: url.searchParams.get('timeoutMs') || process.env.CCTV_PLAYER_SCREENSHOT_TIMEOUT_MS || 30000,
+        });
+        sendBinary(res, 200, {
+          body: screenshot.body,
+          contentType: screenshot.contentType,
+          headers: {
+            'X-CCTV-Channel': String(channel.number || identifier),
+            'X-CCTV-Snapshot-Attempts': String(screenshot.attempts),
+            'X-CCTV-Snapshot-Source': screenshot.source,
+            'X-CCTV-Player-URL': screenshot.screenshotUrl,
+          },
+        });
+      } catch (err) {
+        sendJson(res, 502, {
+          error: `C-SMART player screenshot failed: ${maskSecret(err.message)}`,
+          channel: String(channel.number || identifier),
+        });
+      }
       return;
     }
 

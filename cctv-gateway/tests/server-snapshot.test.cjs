@@ -206,9 +206,61 @@ async function testPrefersEzvizDeviceCaptureBeforeCachedScreenshot() {
   }
 }
 
+async function testReturnsPlayerScreenshotFromConfiguredCommand() {
+  const imageBytes = Buffer.from('player-screenshot-jpeg');
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cctv-gateway-player-shot-'));
+  const cachePath = path.join(tempDir, 'channels.json');
+  const commandPath = path.join(tempDir, 'fake-player-shot.cjs');
+  fs.writeFileSync(cachePath, JSON.stringify({
+    channels: [
+      {
+        id: 'channel-2',
+        number: 2,
+        cameraName: 'Cam12',
+        status: 1,
+        deviceType: 1,
+      },
+    ],
+  }));
+  fs.writeFileSync(commandPath, `
+const fs = require('node:fs');
+if (!process.env.CCTV_SCREENSHOT_OUTPUT) process.exit(2);
+if (!process.env.CCTV_SCREENSHOT_CHANNEL) process.exit(3);
+if (!process.env.CCTV_SCREENSHOT_URL) process.exit(4);
+fs.writeFileSync(process.env.CCTV_SCREENSHOT_OUTPUT, Buffer.from('player-screenshot-jpeg'));
+`);
+
+  const gatewayPort = await getFreePort();
+  const child = spawn(process.execPath, ['src/server.cjs'], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      CCTV_GATEWAY_HOST: '127.0.0.1',
+      CCTV_GATEWAY_PORT: String(gatewayPort),
+      CCTV_CHANNEL_CACHE_FILE: cachePath,
+      CCTV_PLAYER_SCREENSHOT_CMD: `"${process.execPath}" "${commandPath}"`,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  try {
+    await waitForGateway(gatewayPort);
+    const response = await requestBuffer(`http://127.0.0.1:${gatewayPort}/api/csmart/player-screenshot/2`);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['content-type'], 'image/jpeg');
+    assert.equal(response.headers['x-cctv-snapshot-source'], 'player_screenshot');
+    assert.deepEqual(response.body, imageBytes);
+  } finally {
+    await stopChild(child);
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 Promise.all([
   testProxiesCsmartChannelSnapshotByNumber(),
   testPrefersEzvizDeviceCaptureBeforeCachedScreenshot(),
+  testReturnsPlayerScreenshotFromConfiguredCommand(),
 ])
   .then(() => {
     console.log('cctv-gateway snapshot server tests passed');

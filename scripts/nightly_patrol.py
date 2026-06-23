@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import cv2
 import httpx
@@ -601,34 +601,94 @@ def _build_ffmpeg_capture_command(stream_url: str, output_path: Path, timeout: i
     )
     return cmd
 
-def capture_rtmp_frame(rtmp_url: str, output_path: Path, timeout: int = RTMP_CAPTURE_TIMEOUT) -> bool:
+
+def _derive_ezviz_https_flv_url(stream_url: str) -> str:
+    parsed = urlparse(stream_url)
+    host = parsed.hostname or ""
+    if parsed.scheme.lower() != "rtmp" or "ezvizlife.com" not in host:
+        return ""
+    if not parsed.path.startswith("/v3/openlive/"):
+        return ""
+
+    path = parsed.path if parsed.path.endswith(".flv") else f"{parsed.path}.flv"
+    return urlunparse(("https", f"{host}:9188", path, "", parsed.query, ""))
+
+
+def _stream_capture_url_candidates(stream_url: str) -> list[dict[str, str]]:
+    candidates: list[dict[str, str]] = []
+    seen: set[str] = set()
+
+    def add(method: str, url: str) -> None:
+        text = str(url or "").strip()
+        if text and text not in seen:
+            candidates.append({"method": method, "url": text})
+            seen.add(text)
+
+    add("stream", stream_url)
+    add("stream_https_flv", _derive_ezviz_https_flv_url(stream_url))
+    return candidates
+
+
+def _last_ffmpeg_error(stderr: str) -> str:
+    for line in reversed([item.strip() for item in str(stderr or "").splitlines()]):
+        if not line:
+            continue
+        return line[:300]
+    return ""
+
+
+def capture_rtmp_frame(
+    rtmp_url: str,
+    output_path: Path,
+    timeout: int = RTMP_CAPTURE_TIMEOUT,
+    attempts: list[dict[str, Any]] | None = None,
+) -> bool:
     """用 ffmpeg subprocess 从 RTMP/FLV/HTTP 视频流截取一帧"""
     import subprocess
 
-    for attempt in range(RTMP_RETRIES + 1):
-        try:
-            cmd = _build_ffmpeg_capture_command(rtmp_url, output_path, timeout)
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=timeout + 5,
-            )
-            if output_path.exists() and output_path.stat().st_size > 1000:
-                return True
-            log.warning(f"  ffmpeg attempt {attempt+1}/{RTMP_RETRIES+1} failed, rc={result.returncode}")
-            if result.stderr:
-                # Show last useful line
-                lines = [l for l in result.stderr.strip().split("\n") if l.strip()]
-                if lines:
-                    log.warning(f"  ffmpeg: {lines[-1][:120]}")
-        except subprocess.TimeoutExpired:
-            log.warning(f"  ffmpeg attempt {attempt+1}/{RTMP_RETRIES+1} timed out ({timeout}s)")
-        except Exception as e:
-            log.warning(f"  ffmpeg attempt {attempt+1}/{RTMP_RETRIES+1} error: {e}")
+    for candidate in _stream_capture_url_candidates(rtmp_url):
+        method = candidate["method"]
+        candidate_url = candidate["url"]
+        for attempt in range(RTMP_RETRIES + 1):
+            attempt_record: dict[str, Any] = {
+                "method": method,
+                "url": candidate_url,
+                "ok": False,
+                "attempt": attempt + 1,
+            }
+            try:
+                cmd = _build_ffmpeg_capture_command(candidate_url, output_path, timeout)
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout + 5,
+                )
+                if output_path.exists() and output_path.stat().st_size > 1000:
+                    attempt_record["ok"] = True
+                    if attempts is not None:
+                        attempts.append(attempt_record)
+                    return True
 
-        if attempt < RTMP_RETRIES:
-            time.sleep(2)
+                error = _last_ffmpeg_error(result.stderr) or f"ffmpeg exited with rc={result.returncode}"
+                attempt_record["returncode"] = result.returncode
+                attempt_record["error"] = error
+                log.warning(
+                    f"  ffmpeg {method} attempt {attempt+1}/{RTMP_RETRIES+1} failed, rc={result.returncode}"
+                )
+                log.warning(f"  ffmpeg: {error[:120]}")
+            except subprocess.TimeoutExpired:
+                attempt_record["error"] = f"ffmpeg timed out after {timeout}s"
+                log.warning(f"  ffmpeg {method} attempt {attempt+1}/{RTMP_RETRIES+1} timed out ({timeout}s)")
+            except Exception as e:
+                attempt_record["error"] = str(e)
+                log.warning(f"  ffmpeg {method} attempt {attempt+1}/{RTMP_RETRIES+1} error: {e}")
+            finally:
+                if attempts is not None and not attempt_record["ok"]:
+                    attempts.append(attempt_record)
+
+            if attempt < RTMP_RETRIES:
+                time.sleep(2)
 
     return False
 
@@ -1100,12 +1160,15 @@ def _get_test_image_fallback(cam_id: str) -> str | None:
     return str(images[idx])
 
 
-def _mark_real_frame_capture_failed(result: CameraResult) -> CameraResult:
+def _mark_real_frame_capture_failed(result: CameraResult, detail: str = "") -> CameraResult:
+    message = "真实摄像头抽帧失败，未使用本地回退图"
+    if detail:
+        message = f"{message}：{detail}"
     result.snapshot_source = "failed"
     result.fallback_used = False
     result.fallback_image = ""
-    result.fallback_reason = "真实摄像头抽帧失败，未使用本地回退图"
-    result.error = "真实摄像头抽帧失败，未使用本地回退图"
+    result.fallback_reason = message
+    result.error = message
     result.capture_attempts.append({"method": "fallback_image", "url": "", "ok": False, "skipped": True})
     return result
 
@@ -1156,17 +1219,29 @@ async def patrol_camera(
 
     if not snapshot_path.exists() or snapshot_path.stat().st_size <= 0:
         log.info(f"  视频流截帧中... (超时{RTMP_CAPTURE_TIMEOUT}s)")
-        rtmp_ok = capture_rtmp_frame(camera["rtmp_url"], snapshot_path)
-        result.capture_attempts.append(
-            {"method": "stream", "url": str(camera.get("rtmp_url") or ""), "ok": bool(rtmp_ok)}
-        )
+        stream_attempts: list[dict[str, Any]] = []
+        rtmp_ok = capture_rtmp_frame(camera["rtmp_url"], snapshot_path, attempts=stream_attempts)
+        if stream_attempts:
+            result.capture_attempts.extend(stream_attempts)
+        else:
+            result.capture_attempts.append(
+                {"method": "stream", "url": str(camera.get("rtmp_url") or ""), "ok": bool(rtmp_ok)}
+            )
 
     if rtmp_ok:
         result.snapshot_source = "stream"
         log.info(f"  ✓ 视频流截帧成功: {snapshot_path.name}")
     elif not snapshot_path.exists() or snapshot_path.stat().st_size <= 0:
         if not ALLOW_LOCAL_SNAPSHOT_FALLBACK:
-            _mark_real_frame_capture_failed(result)
+            stream_error = next(
+                (
+                    str(attempt.get("error") or "")
+                    for attempt in reversed(result.capture_attempts)
+                    if str(attempt.get("method") or "").startswith("stream") and attempt.get("error")
+                ),
+                "",
+            )
+            _mark_real_frame_capture_failed(result, stream_error)
             log.warning(f"  ✗ {result.error}")
             return result
 

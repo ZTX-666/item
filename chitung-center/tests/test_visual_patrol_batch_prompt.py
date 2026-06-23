@@ -8,7 +8,12 @@ from types import SimpleNamespace
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "chitung-center"))
 
-from chitung_center.visual_patrol_batch_service import _configure_nightly_vlm, _sync_cameras, run_guardian_patrol
+from chitung_center.visual_patrol_batch_service import (
+    _configure_nightly_vlm,
+    _sync_cameras,
+    camera_result_to_draft,
+    run_guardian_patrol,
+)
 
 
 def test_run_guardian_patrol_passes_inspection_prompt_to_nightly(monkeypatch):
@@ -79,6 +84,25 @@ def test_configure_nightly_vlm_uses_center_secureeye_settings(monkeypatch):
     assert fake_nightly.VLM_MAX_TARGETS_PER_CAMERA == 2
 
 
+def test_camera_result_to_draft_does_not_create_candidate_for_failed_capture():
+    draft = camera_result_to_draft(
+        {
+            "camera_id": "cam-01",
+            "camera_name": "黄埔测试",
+            "area": "出入口",
+            "success": False,
+            "error": "真实摄像头抽帧失败：404 Not Found",
+            "detections": [],
+        },
+        "20260622_200141",
+    )
+
+    assert draft["ok"] is False
+    assert draft["message"] == "真实摄像头抽帧失败：404 Not Found"
+    assert draft["candidates"] == []
+    assert draft["confirm_payload"]["image_path"] is None
+
+
 def test_sync_cameras_enriches_stream_and_screenshot_from_csmart_cache(tmp_path, monkeypatch):
     cache_path = tmp_path / "csmart-channel-list-latest.json"
     cache_path.write_text(
@@ -109,7 +133,7 @@ def test_sync_cameras_enriches_stream_and_screenshot_from_csmart_cache(tmp_path,
                     "id": "cam-slope-03",
                     "name": "斜坡03",
                     "area": "斜坡",
-                    "rtmp_url": "https://stale.example.test/old.flv",
+                    "rtmp_url": "",
                     "snapshot_url": "https://stale.example.test/old-snapshot.jpg",
                     "enabled": True,
                     "csmart_channel_number": 6,
@@ -133,3 +157,111 @@ def test_sync_cameras_enriches_stream_and_screenshot_from_csmart_cache(tmp_path,
         "https://stale.example.test/old-snapshot.jpg",
     ]
     assert nightly.CAMERAS == cameras
+
+
+def test_sync_cameras_prefers_configured_rtmp_over_csmart_stream(tmp_path, monkeypatch):
+    cache_path = tmp_path / "csmart-channel-list-latest.json"
+    cache_path.write_text(
+        json.dumps(
+            {
+                "channels": [
+                    {
+                        "id": "channel-6",
+                        "cameraName": "黄埔门岗",
+                        "number": 6,
+                        "flv": "https://example.test/live.flv",
+                        "screenshot": "https://example.test/snapshot.jpg",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CCTV_CHANNEL_CACHE_FILE", str(cache_path))
+    monkeypatch.setenv("CCTV_GATEWAY_BASE_URL", "http://127.0.0.1:3457")
+    monkeypatch.setattr(
+        "chitung_center.visual_patrol_batch_service.get_app_config",
+        lambda: {
+            "cameras": [
+                {
+                    "id": "cam-yard-01",
+                    "name": "黄埔门岗",
+                    "area": "出入口",
+                    "source_type": "rtmp",
+                    "rtmp_url": "rtmp://vtmsgpzl.ezvizlife.com:1935/v3/openlive/demo",
+                    "snapshot_url": "https://manual.example.test/still.jpg",
+                    "enabled": True,
+                    "csmart_channel_number": 6,
+                    "csmart_channel_id": "channel-6",
+                    "inspection_interval_minutes": 30,
+                    "remark": "硬件同事提供的 H264 RTMP 流",
+                }
+            ]
+        },
+    )
+    nightly = SimpleNamespace(CAMERAS=[])
+
+    cameras = _sync_cameras(nightly)
+
+    assert cameras[0]["rtmp_url"] == "rtmp://vtmsgpzl.ezvizlife.com:1935/v3/openlive/demo"
+    assert cameras[0]["source_type"] == "rtmp"
+    assert cameras[0]["csmart_channel_number"] == 6
+    assert cameras[0]["csmart_channel_id"] == "channel-6"
+    assert cameras[0]["inspection_interval_minutes"] == 30
+    assert cameras[0]["remark"] == "硬件同事提供的 H264 RTMP 流"
+    assert cameras[0]["snapshot_url"] == "http://127.0.0.1:3457/api/csmart/snapshot/6"
+    assert nightly.CAMERAS == cameras
+
+
+def test_sync_cameras_prefers_player_screenshot_before_static_snapshots(tmp_path, monkeypatch):
+    cache_path = tmp_path / "csmart-channel-list-latest.json"
+    cache_path.write_text(
+        json.dumps(
+            {
+                "channels": [
+                    {
+                        "id": "channel-2",
+                        "cameraName": "Cam12",
+                        "number": 2,
+                        "flv": "https://example.test/cam12.flv",
+                        "screenshot": "https://example.test/cam12-stale.jpg",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CCTV_CHANNEL_CACHE_FILE", str(cache_path))
+    monkeypatch.setenv("CCTV_GATEWAY_BASE_URL", "http://127.0.0.1:3457")
+    monkeypatch.setattr(
+        "chitung_center.visual_patrol_batch_service.get_app_config",
+        lambda: {
+            "cameras": [
+                {
+                    "id": "cam-12",
+                    "name": "Cam12",
+                    "area": "施工區域",
+                    "source_type": "csmart_player",
+                    "rtmp_url": "https://vtmsgpzl.ezvizlife.com:9188/v3/openlive/E48203280_2_2.flv",
+                    "enabled": True,
+                    "csmart_channel_number": 2,
+                    "player_screenshot_url": "http://127.0.0.1:3457/api/csmart/player-screenshot/2",
+                    "playback_info": {"flv_sd": "https://vtmsgpzl.ezvizlife.com:9188/live.flv"},
+                    "playback_info_raw": "Cam12\nFLV(標清)\nhttps://vtmsgpzl.ezvizlife.com:9188/live.flv",
+                }
+            ]
+        },
+    )
+    nightly = SimpleNamespace(CAMERAS=[])
+
+    cameras = _sync_cameras(nightly)
+
+    assert cameras[0]["source_type"] == "csmart_player"
+    assert cameras[0]["player_screenshot_url"] == "http://127.0.0.1:3457/api/csmart/player-screenshot/2"
+    assert cameras[0]["snapshot_url"] == "http://127.0.0.1:3457/api/csmart/player-screenshot/2"
+    assert cameras[0]["snapshot_url_candidates"][:3] == [
+        "http://127.0.0.1:3457/api/csmart/player-screenshot/2",
+        "http://127.0.0.1:3457/api/csmart/snapshot/2",
+        "https://example.test/cam12-stale.jpg",
+    ]
+    assert cameras[0]["playback_info"]["flv_sd"] == "https://vtmsgpzl.ezvizlife.com:9188/live.flv"

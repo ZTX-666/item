@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -41,6 +43,53 @@ def test_ffmpeg_capture_command_omits_rtmp_options_for_http_flv_stream():
     assert "-rtmp_live" not in cmd
     assert "-update" in cmd
     assert "https://example.test/openlive/camera.flv?token=demo" in cmd
+
+
+def test_stream_capture_url_candidates_include_ezviz_https_flv_fallback():
+    candidates = nightly_patrol._stream_capture_url_candidates(
+        "rtmp://vtmsgpzl.ezvizlife.com:1935/v3/openlive/AX1963013_6_1?expire=1844265332&id=988"
+    )
+
+    assert candidates == [
+        {
+            "method": "stream",
+            "url": "rtmp://vtmsgpzl.ezvizlife.com:1935/v3/openlive/AX1963013_6_1?expire=1844265332&id=988",
+        },
+        {
+            "method": "stream_https_flv",
+            "url": "https://vtmsgpzl.ezvizlife.com:9188/v3/openlive/AX1963013_6_1.flv?expire=1844265332&id=988",
+        },
+    ]
+
+
+def test_capture_rtmp_frame_records_failed_candidate_diagnostics(monkeypatch, tmp_path):
+    monkeypatch.setattr(nightly_patrol, "RTMP_RETRIES", 0)
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, capture_output: bool, text: bool, timeout: int):
+        calls.append(cmd)
+        stderr = "rtmp input: Input/output error" if any(str(part).startswith("rtmp://") for part in cmd) else "https input: 404 Not Found"
+        return SimpleNamespace(returncode=1, stderr=stderr, stdout="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    output_path = tmp_path / "snapshot.jpg"
+    attempts: list[dict[str, object]] = []
+
+    ok = nightly_patrol.capture_rtmp_frame(
+        "rtmp://vtmsgpzl.ezvizlife.com:1935/v3/openlive/AX1963013_6_1?expire=1844265332&id=988",
+        output_path,
+        timeout=2,
+        attempts=attempts,
+    )
+
+    assert ok is False
+    assert [attempt["method"] for attempt in attempts] == ["stream", "stream_https_flv"]
+    assert [attempt["ok"] for attempt in attempts] == [False, False]
+    assert attempts[0]["url"].startswith("rtmp://vtmsgpzl.ezvizlife.com:1935/")
+    assert attempts[0]["error"] == "rtmp input: Input/output error"
+    assert attempts[1]["url"].startswith("https://vtmsgpzl.ezvizlife.com:9188/")
+    assert attempts[1]["error"] == "https input: 404 Not Found"
+    assert len(calls) == 2
 
 
 def test_camera_result_serializes_fallback_snapshot_metadata():

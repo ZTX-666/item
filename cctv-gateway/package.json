@@ -6,6 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node --env-file-if-exists=.env src/server.cjs",
-    "test": "node tests/core.test.cjs && node tests/server-snapshot.test.cjs"
+    "test": "node tests/core.test.cjs && node tests/server-snapshot.test.cjs && node tests/player-screenshot-script.test.cjs",
+    "screenshot:player": "node scripts/capture-player-screenshot.mjs"
   }
 }
