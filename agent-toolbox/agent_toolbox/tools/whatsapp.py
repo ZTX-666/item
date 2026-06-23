@@ -211,6 +211,8 @@ def _run_wacli(args: list[str], timeout: int = 60) -> tuple[bool, int, str, str,
         env=env,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=timeout,
         check=False,
     )
@@ -587,6 +589,8 @@ def start_auth(req: WhatsAppAuthStartRequest) -> ToolResult:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     now = time.time()
     with _auth_lock:
@@ -701,6 +705,8 @@ def start_sync(req: WhatsAppSyncStartRequest) -> ToolResult:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     now = time.time()
     with _sync_lock:

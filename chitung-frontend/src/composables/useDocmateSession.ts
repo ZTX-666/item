@@ -1,6 +1,6 @@
 import { computed, reactive } from 'vue'
 import { docmateCommit, docmateGenerate, docmateRead, docmateRetry, docmateUpload } from '../services/chitungApi'
-import type { DocmateChange, DocmateDocumentStructure, DocmatePreviewCard } from '../types/domain'
+import type { AuditEntry, DocmateChange, DocmateDocumentStructure, DocmatePreviewCard, RejectReason } from '../types/domain'
 
 export type DocmateStep =
   | 'idle'
@@ -20,6 +20,7 @@ export interface WorkItem {
 }
 
 interface AcceptedEdit {
+  changeId: string
   type: string
   target: string
   replacement: string
@@ -29,6 +30,7 @@ interface DocmateSessionState {
   step: DocmateStep
   filePath: string
   docId: string
+  changesetId: string
   sourcePath: string
   structure: DocmateDocumentStructure | null
   instruction: string
@@ -38,12 +40,15 @@ interface DocmateSessionState {
   outputPath: string
   outputResultPath: string
   error: string
+  auditLog: AuditEntry[]
+  rejectReasons: Record<string, string>
 }
 
 const state = reactive<DocmateSessionState>({
   step: 'idle',
   filePath: '',
   docId: '',
+  changesetId: '',
   sourcePath: '',
   structure: null,
   instruction: '',
@@ -53,6 +58,8 @@ const state = reactive<DocmateSessionState>({
   outputPath: '',
   outputResultPath: '',
   error: '',
+  auditLog: [],
+  rejectReasons: {},
 })
 
 const isLoaded = computed(() => Boolean(state.docId))
@@ -61,6 +68,29 @@ const pendingCount = computed(() => state.workItems.length)
 const selectedCount = computed(() => state.workItems.filter((item) => item.selected).length)
 const pendingChanges = computed(() => state.workItems.map((item) => item.change))
 const isDone = computed(() => state.step === 'done')
+
+/** 按风险等级分组的工作项 */
+const workItemsByRisk = computed(() => {
+  const groups: { high: WorkItem[]; medium: WorkItem[]; low: WorkItem[] } = {
+    high: [],
+    medium: [],
+    low: [],
+  }
+  for (const item of state.workItems) {
+    const level = item.card.risk_level
+    if (level === 'high' || level === 'critical') {
+      groups.high.push(item)
+    } else if (level === 'medium') {
+      groups.medium.push(item)
+    } else {
+      groups.low.push(item)
+    }
+  }
+  return groups
+})
+
+/** 高风险工作项数量 */
+const highRiskCount = computed(() => workItemsByRisk.value.high.length)
 
 export interface PreviewParagraph {
   index: number
@@ -107,6 +137,23 @@ const docStats = computed(
   () => state.structure?.stats ?? { paragraph_count: 0, table_count: 0, image_count: 0 },
 )
 
+/** 添加审计日志条目 */
+function addAuditEntry(
+  action: AuditEntry['action'],
+  target: string,
+  detail?: string,
+): void {
+  const entry: AuditEntry = {
+    id: `audit-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    timestamp: new Date().toLocaleString('zh-CN', { hour12: false }),
+    operator: '当前用户',
+    action,
+    target,
+    detail,
+  }
+  state.auditLog.push(entry)
+}
+
 function defaultOutputPath(): string {
   if (!state.sourcePath) return ''
   return state.sourcePath.replace(/\.docx$/i, '_modified.docx')
@@ -118,6 +165,7 @@ function resetWork() {
   state.completedCount = 0
   state.outputResultPath = ''
   state.instruction = ''
+  state.changesetId = ''
 }
 
 function applyReadResult(data: DocmateDocumentStructure, fallbackName: string) {
@@ -129,6 +177,7 @@ function applyReadResult(data: DocmateDocumentStructure, fallbackName: string) {
   state.error = ''
   resetWork()
   state.step = 'loaded'
+  addAuditEntry('upload', fallbackName, `文档已加载，共 ${data.stats.paragraph_count} 段`)
 }
 
 async function uploadDocument(file: File): Promise<{ ok: boolean; error?: string }> {
@@ -177,7 +226,15 @@ async function loadDocument(path: string): Promise<{ ok: boolean; error?: string
   }
 }
 
-async function generateChanges(instruction: string): Promise<{ ok: boolean; count: number; error?: string }> {
+/**
+ * 生成修改方案
+ * @param instruction 修改指令
+ * @param context 可选的上下文（如用户选中的文本）
+ */
+async function generateChanges(
+  instruction: string,
+  context?: string,
+): Promise<{ ok: boolean; count: number; error?: string }> {
   const text = instruction.trim()
   if (!text) return { ok: false, count: 0, error: '请输入修改指令' }
   if (!state.docId) return { ok: false, count: 0, error: '请先加载一个文档' }
@@ -186,8 +243,9 @@ async function generateChanges(instruction: string): Promise<{ ok: boolean; coun
   state.step = 'generating'
   state.error = ''
   try {
-    const result = await docmateGenerate({ docId: state.docId, instruction: text })
-    if (!result.ok) throw new Error(result.error ?? '生成修改方案失败')
+    const result = await docmateGenerate({ docId: state.docId, instruction: text, context })
+    if (!result.ok) throw new Error(formatDocmateError(result, '生成修改方案失败'))
+    state.changesetId = result.data.changeset_id
 
     const changeById = new Map(result.data.changes.map((change) => [change.change_id, change]))
     state.workItems = result.data.preview_cards.map((card) => ({
@@ -204,6 +262,7 @@ async function generateChanges(instruction: string): Promise<{ ok: boolean; coun
       selected: true,
     }))
     state.step = state.workItems.length > 0 ? 'reviewing' : 'loaded'
+    addAuditEntry('generate', text, `生成 ${state.workItems.length} 条修改建议`)
     return { ok: true, count: state.workItems.length }
   } catch (error) {
     state.error = error instanceof Error ? error.message : '未知错误'
@@ -229,6 +288,23 @@ function clearSelection() {
   })
 }
 
+/** 按风险等级筛选选择 */
+function selectByRisk(levels: string[]) {
+  state.workItems.forEach((item) => {
+    item.selected = levels.includes(item.card.risk_level)
+  })
+}
+
+/** 仅选择低风险 */
+function selectLowRiskOnly() {
+  selectByRisk(['low'])
+}
+
+/** 选择非高风险（低+中） */
+function selectExceptHigh() {
+  selectByRisk(['low', 'medium'])
+}
+
 function takeSelected(): WorkItem[] {
   return state.workItems.filter((item) => item.selected)
 }
@@ -244,18 +320,16 @@ async function maybeFinalize() {
 
   state.step = 'committing'
   try {
+    if (!state.changesetId) throw new Error('缺少 changeset_id，无法写入文档。请重新生成修改方案。')
     const result = await docmateCommit({
-      docId: state.docId,
-      edits: state.acceptedEdits.map((edit) => ({
-        type: edit.type,
-        target: edit.target,
-        replacement: edit.replacement,
-      })),
+      changesetId: state.changesetId,
+      acceptedChangeIds: state.acceptedEdits.map((edit) => edit.changeId),
       saveAs: state.outputPath || defaultOutputPath(),
     })
-    if (!result.ok) throw new Error(result.error ?? '写入文档失败')
+    if (!result.ok) throw new Error(formatDocmateError(result, '写入文档失败'))
     state.outputResultPath = result.data.download_url || result.data.file_id || result.data.output_path
     state.step = 'done'
+    addAuditEntry('download', state.outputResultPath, '文档已写入')
   } catch (error) {
     state.error = error instanceof Error ? error.message : '写入文档失败'
     state.step = 'error'
@@ -268,11 +342,13 @@ async function acceptSelected() {
 
   selected.forEach((item) => {
     state.acceptedEdits.push({
+      changeId: item.changeId,
       type: item.change.type,
       target: item.change.target ?? '',
       replacement: item.change.replacement ?? '',
     })
     state.completedCount += 1
+    addAuditEntry('accept', item.card.title, `置信度 ${Math.round(item.card.confidence * 100)}%`)
   })
 
   const ids = new Set(selected.map((item) => item.changeId))
@@ -284,7 +360,73 @@ async function rejectSelected() {
   const selected = takeSelected()
   if (!selected.length) return
 
+  selected.forEach((item) => {
+    addAuditEntry('reject', item.card.title)
+  })
+
   const ids = new Set(selected.map((item) => item.changeId))
+  state.workItems = state.workItems.filter((item) => !ids.has(item.changeId))
+  await maybeFinalize()
+}
+
+/**
+ * 带理由拒绝单个修改建议
+ * @param changeId 修改项ID
+ * @param reason 拒绝理由
+ */
+async function rejectWithReason(changeId: string, reason: RejectReason | string): Promise<void> {
+  const item = state.workItems.find((candidate) => candidate.changeId === changeId)
+  if (!item) return
+
+  state.rejectReasons[changeId] = reason
+  addAuditEntry('reject', item.card.title, `拒绝理由：${reason}`)
+
+  state.workItems = state.workItems.filter((candidate) => candidate.changeId !== changeId)
+  await maybeFinalize()
+}
+
+/** 批量接受（高风险除外） */
+async function acceptAllExceptHigh(): Promise<void> {
+  const toAccept = state.workItems.filter(
+    (item) => item.card.risk_level !== 'high' && item.card.risk_level !== 'critical',
+  )
+  if (!toAccept.length) return
+
+  toAccept.forEach((item) => {
+    state.acceptedEdits.push({
+      changeId: item.changeId,
+      type: item.change.type,
+      target: item.change.target ?? '',
+      replacement: item.change.replacement ?? '',
+    })
+    state.completedCount += 1
+  })
+
+  addAuditEntry('batch_accept', '全部接受（高风险除外）', `接受 ${toAccept.length} 项，保留高风险 ${state.workItems.length - toAccept.length} 项`)
+
+  const ids = new Set(toAccept.map((item) => item.changeId))
+  state.workItems = state.workItems.filter((item) => !ids.has(item.changeId))
+  await maybeFinalize()
+}
+
+/** 仅接受低风险 */
+async function acceptLowOnly(): Promise<void> {
+  const toAccept = state.workItems.filter((item) => item.card.risk_level === 'low')
+  if (!toAccept.length) return
+
+  toAccept.forEach((item) => {
+    state.acceptedEdits.push({
+      changeId: item.changeId,
+      type: item.change.type,
+      target: item.change.target ?? '',
+      replacement: item.change.replacement ?? '',
+    })
+    state.completedCount += 1
+  })
+
+  addAuditEntry('batch_accept', '仅接受低风险', `接受 ${toAccept.length} 项低风险修改`)
+
+  const ids = new Set(toAccept.map((item) => item.changeId))
   state.workItems = state.workItems.filter((item) => !ids.has(item.changeId))
   await maybeFinalize()
 }
@@ -294,17 +436,14 @@ async function retryAll(): Promise<{ ok: boolean; count: number; error?: string 
 
   state.step = 'generating'
   state.error = ''
+  addAuditEntry('retry', state.instruction, `重试 ${state.workItems.length} 项修改`)
   try {
     const result = await docmateRetry({
-      docId: state.docId,
+      changesetId: state.changesetId,
       instruction: state.instruction,
-      items: state.workItems.map((item) => ({
-        type: item.change.type,
-        target: item.change.target ?? '',
-        replacement: item.change.replacement ?? '',
-      })),
     })
-    if (!result.ok) throw new Error(result.error ?? '重试失败')
+    if (!result.ok) throw new Error(formatDocmateError(result, '重试失败'))
+    state.changesetId = result.data.changeset_id
 
     const changeById = new Map(result.data.changes.map((change) => [change.change_id, change]))
     state.workItems = result.data.preview_cards.map((card) => ({
@@ -338,12 +477,29 @@ function unload() {
   state.step = 'idle'
   state.filePath = ''
   state.docId = ''
+  state.changesetId = ''
   state.sourcePath = ''
   state.structure = null
   state.outputPath = ''
   state.outputResultPath = ''
   state.error = ''
   resetWork()
+}
+
+function formatDocmateError(result: unknown, fallback: string): string {
+  if (!result || typeof result !== 'object') return fallback
+  const data = result as Record<string, unknown>
+  for (const key of ['summary', 'error', 'message']) {
+    const value = data[key]
+    if (typeof value === 'string' && value.trim()) return value
+  }
+  const detail = data.detail
+  if (detail && typeof detail === 'object') return formatDocmateError(detail, fallback)
+  try {
+    return JSON.stringify(data)
+  } catch {
+    return fallback
+  }
 }
 
 export function useDocmateSession() {
@@ -359,16 +515,25 @@ export function useDocmateSession() {
     acceptedAppends,
     docName,
     docStats,
+    workItemsByRisk,
+    highRiskCount,
     uploadDocument,
     loadDocument,
     generateChanges,
     toggleSelect,
     selectAll,
     clearSelection,
+    selectByRisk,
+    selectLowRiskOnly,
+    selectExceptHigh,
     acceptSelected,
     rejectSelected,
+    rejectWithReason,
+    acceptAllExceptHigh,
+    acceptLowOnly,
     retryAll,
     startNewInstruction,
     unload,
+    addAuditEntry,
   }
 }

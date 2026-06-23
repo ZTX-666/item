@@ -13,7 +13,6 @@ import {
   refreshWhatsAppGroups,
   runWhatsAppCommand,
   runWhatsAppSqlSelect,
-  searchWhatsAppMessages,
   startWhatsAppAgentListener,
   startWhatsAppAuth,
   stopWhatsAppAgentListener,
@@ -59,6 +58,12 @@ const ingestNotice = ref<Notice | null>(null)
 const messageRows = ref<Array<Record<string, unknown>>>([])
 const groupRows = ref<Array<Record<string, unknown>>>([])
 const activeBrowseTab = ref<BrowseTab>('messages')
+const browseLimit = ref(50)
+const browsePage = ref(1)
+const browseTotal = ref(0)
+const browseJumpPage = ref(1)
+const databaseChatTotal = ref(0)
+const databaseMessageTotal = ref(0)
 
 const sqlTables = ref<string[]>([])
 const selectedSqlTable = ref('messages')
@@ -70,6 +75,7 @@ const sqlResult = ref<WhatsAppSqlSelectData>({ columns: [], rows: [] })
 
 const commandOutput = ref('等待执行快捷命令。')
 const authTimer = ref<number | null>(null)
+const syncTimer = ref<number | null>(null)
 const route = useRoute()
 const router = useRouter()
 const defaultMessagesSql = `
@@ -116,8 +122,6 @@ SELECT
 FROM messages m
 WHERE m.media_type IS NOT NULL AND TRIM(m.media_type) != ''
 ORDER BY m.ts DESC`.trim()
-const chatsSql = `
-SELECT * FROM chats ORDER BY rowid DESC`.trim()
 sqlInput.value = defaultMessagesSql
 
 const browseTabs: Array<{ id: BrowseTab; label: string }> = [
@@ -200,14 +204,14 @@ const overviewCards = computed(() => [
   },
   {
     label: '聊天列表',
-    value: String(groupRows.value.length),
-    helper: groupRows.value.length ? '已从本地数据库读取' : '点击刷新或开始同步',
+    value: String(databaseChatTotal.value || groupRows.value.length),
+    helper: '数据库中不同聊天人的数量',
     tone: 'blue',
   },
   {
     label: '消息结果',
-    value: String(messageRows.value.length),
-    helper: query.value ? `关键词：${query.value}` : '当前显示最近消息',
+    value: String(databaseMessageTotal.value || messageRows.value.length),
+    helper: '数据库中已同步消息总数',
     tone: 'red',
   },
 ])
@@ -278,9 +282,19 @@ const sqlPageSummary = computed(() => {
   const end = Math.min(sqlOffset.value + sqlResult.value.rows.length, sqlTotal.value)
   return `${start}-${end} / ${sqlTotal.value} 条`
 })
-const sqlPageButtons = computed<Array<number | 'ellipsis'>>(() => {
-  const total = sqlTotalPages.value
-  const current = sqlPage.value
+const sqlPageButtons = computed<Array<number | 'ellipsis'>>(() => pageButtonList(sqlPage.value, sqlTotalPages.value))
+const browseTotalPages = computed(() => Math.max(1, Math.ceil(browseTotal.value / Math.max(1, browseLimit.value || 50))))
+const browseOffset = computed(() => (browsePage.value - 1) * Math.max(1, browseLimit.value || 50))
+const browsePageSummary = computed(() => {
+  if (!browseTotal.value) return '暂无记录'
+  const rowCount = activeBrowseTab.value === 'chats' ? groupRows.value.length : messageRows.value.length
+  const start = browseOffset.value + 1
+  const end = Math.min(browseOffset.value + rowCount, browseTotal.value)
+  return `${start}-${end} / ${browseTotal.value} 条`
+})
+const browsePageButtons = computed<Array<number | 'ellipsis'>>(() => pageButtonList(browsePage.value, browseTotalPages.value))
+
+function pageButtonList(current: number, total: number): Array<number | 'ellipsis'> {
   if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
 
   const pages = new Set<number>([1, total])
@@ -303,7 +317,7 @@ const sqlPageButtons = computed<Array<number | 'ellipsis'>>(() => {
     result.push(page)
   })
   return result
-})
+}
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
@@ -485,10 +499,51 @@ function arrayFromData(data: Record<string, unknown>, keys: string[]): Array<Rec
   return []
 }
 
-async function loadMessagesFromSql(sql = defaultMessagesSql) {
-  const result = await runWhatsAppSqlSelect({ sql, limit: 50 })
+function quoteSqlLiteral(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`
+}
+
+function browseFilterSql(alias = 'm'): string {
+  const keyword = query.value.trim()
+  if (!keyword) return ''
+  const like = quoteSqlLiteral(`%${keyword}%`)
+  return `WHERE (
+    COALESCE(${alias}.text, '') LIKE ${like}
+    OR COALESCE(${alias}.display_text, '') LIKE ${like}
+    OR COALESCE(${alias}.chat_name, '') LIKE ${like}
+    OR COALESCE(${alias}.sender_name, '') LIKE ${like}
+    OR COALESCE(${alias}.filename, '') LIKE ${like}
+    OR COALESCE(${alias}.media_caption, '') LIKE ${like}
+  )`
+}
+
+function browseMessagesSql(): string {
+  const filter = browseFilterSql('m')
+  return defaultMessagesSql.replace('ORDER BY m.ts DESC', `${filter}\nORDER BY m.ts DESC`)
+}
+
+function browseAttachmentsSql(): string {
+  const filter = browseFilterSql('m')
+  const where = filter
+    ? `${filter} AND m.media_type IS NOT NULL AND TRIM(m.media_type) != ''`
+    : "WHERE m.media_type IS NOT NULL AND TRIM(m.media_type) != ''"
+  return attachmentsSql.replace("WHERE m.media_type IS NOT NULL AND TRIM(m.media_type) != ''", where)
+}
+
+function browseChatsSql(): string {
+  const keyword = query.value.trim()
+  const where = keyword
+    ? `WHERE COALESCE(name, '') LIKE ${quoteSqlLiteral(`%${keyword}%`)} OR COALESCE(jid, '') LIKE ${quoteSqlLiteral(`%${keyword}%`)}`
+    : ''
+  return `SELECT * FROM chats ${where} ORDER BY rowid DESC`.trim()
+}
+
+async function loadMessagesFromSql(sql = defaultMessagesSql, page = browsePage.value) {
+  browsePage.value = Math.max(1, page)
+  const result = await runWhatsAppSqlSelect({ sql, limit: browseLimit.value, offset: browseOffset.value })
   if (!result.ok) {
     messageRows.value = []
+    browseTotal.value = 0
     browseNotice.value = {
       tone: result.unavailable ? 'warning' : 'error',
       text: result.error || 'SQLite 消息读取暂不可用。',
@@ -496,15 +551,19 @@ async function loadMessagesFromSql(sql = defaultMessagesSql) {
     return
   }
   messageRows.value = result.data?.rows ?? []
+  browseTotal.value = Number(result.data?.total ?? messageRows.value.length)
+  browseJumpPage.value = browsePage.value
   if (!messageRows.value.length) {
     browseNotice.value = { tone: 'info', text: 'SQLite 已连接，但当前查询没有返回消息。' }
   }
 }
 
-async function loadChatsFromSql() {
-  const result = await runWhatsAppSqlSelect({ sql: chatsSql, limit: 200 })
+async function loadChatsFromSql(page = browsePage.value) {
+  browsePage.value = Math.max(1, page)
+  const result = await runWhatsAppSqlSelect({ sql: browseChatsSql(), limit: browseLimit.value, offset: browseOffset.value })
   if (!result.ok) {
     groupRows.value = []
+    browseTotal.value = 0
     browseNotice.value = {
       tone: result.unavailable ? 'warning' : 'error',
       text: result.error || 'SQLite 聊天列表读取暂不可用。',
@@ -512,10 +571,25 @@ async function loadChatsFromSql() {
     return false
   }
   groupRows.value = result.data?.rows ?? []
+  browseTotal.value = Number(result.data?.total ?? groupRows.value.length)
+  browseJumpPage.value = browsePage.value
   if (!groupRows.value.length) {
     browseNotice.value = { tone: 'info', text: 'SQLite 已连接，但 chats 表还没有聊天记录。请先点击开始同步。' }
   }
   return groupRows.value.length > 0
+}
+
+async function refreshDatabaseTotals() {
+  const [messageResult, chatResult] = await Promise.allSettled([
+    runWhatsAppSqlSelect({ sql: 'SELECT COUNT(*) AS total FROM messages', limit: 1 }),
+    runWhatsAppSqlSelect({ sql: 'SELECT COUNT(*) AS total FROM chats', limit: 1 }),
+  ])
+  if (messageResult.status === 'fulfilled' && messageResult.value.ok) {
+    databaseMessageTotal.value = Number(messageResult.value.data?.rows?.[0]?.total ?? databaseMessageTotal.value)
+  }
+  if (chatResult.status === 'fulfilled' && chatResult.value.ok) {
+    databaseChatTotal.value = Number(chatResult.value.data?.rows?.[0]?.total ?? databaseChatTotal.value)
+  }
 }
 
 function hasAttachment(row: Record<string, unknown>): boolean {
@@ -534,9 +608,9 @@ function hasAttachment(row: Record<string, unknown>): boolean {
 
 function setTab(tab: BrowseTab) {
   activeBrowseTab.value = tab
-  if ((tab === 'chats' && !groupRows.value.length) || (tab !== 'chats' && !messageRows.value.length)) {
-    void loadBrowseData(false)
-  }
+  browsePage.value = 1
+  browseJumpPage.value = 1
+  void loadBrowseData(false)
 }
 
 function selectMainTab(tab: MainTab) {
@@ -594,6 +668,15 @@ async function pollSync() {
 function startAuthPoller() {
   if (authTimer.value) window.clearInterval(authTimer.value)
   authTimer.value = window.setInterval(() => void pollAuth(), 3000)
+}
+
+function startSyncPoller() {
+  if (syncTimer.value) window.clearInterval(syncTimer.value)
+  syncTimer.value = window.setInterval(() => {
+    void pollSync()
+    void refreshDatabaseTotals()
+    void loadBrowseData(false)
+  }, 5000)
 }
 
 async function startQrLogin(mode: 'qr' | 'phone') {
@@ -669,6 +752,8 @@ async function startSync() {
       return
     }
     syncNotice.value = { tone: 'success', text: '已请求启动同步监听。' }
+    startSyncPoller()
+    await Promise.allSettled([pollSync(), refreshDatabaseTotals(), loadBrowseData(false)])
   } catch (error) {
     syncNotice.value = {
       tone: 'error',
@@ -684,6 +769,8 @@ async function stopSync() {
   try {
     syncStatus.value = toolData(await stopWhatsAppAgentListener('user_stop'))
     syncNotice.value = { tone: 'info', text: '已请求停止同步监听。' }
+    if (syncTimer.value) window.clearInterval(syncTimer.value)
+    syncTimer.value = null
   } catch (error) {
     syncNotice.value = {
       tone: 'error',
@@ -705,7 +792,7 @@ async function loadBrowseData(refresh = false) {
   try {
     if (activeBrowseTab.value === 'chats') {
       const loadedFromSql = await loadChatsFromSql()
-      if (loadedFromSql && !refresh) return
+      if (loadedFromSql) return
 
       const resp = refresh ? await refreshWhatsAppGroups() : await getWhatsAppGroups()
       const data = toolData(resp)
@@ -726,26 +813,16 @@ async function loadBrowseData(refresh = false) {
     }
 
     if (activeBrowseTab.value === 'attachments' && !query.value.trim()) {
-      await loadMessagesFromSql(attachmentsSql)
+      await loadMessagesFromSql(browseAttachmentsSql())
       return
     }
 
-    if (!query.value.trim()) {
-      await loadMessagesFromSql(defaultMessagesSql)
+    if (activeBrowseTab.value === 'attachments') {
+      await loadMessagesFromSql(browseAttachmentsSql())
       return
     }
 
-    const resp = await searchWhatsAppMessages({ q: query.value.trim(), limit: 50 })
-    const data = toolData(resp)
-    if (!toolOk(resp)) {
-      messageRows.value = []
-      browseNotice.value = { tone: 'warning', text: responseText(resp, '消息检索暂不可用。') }
-      return
-    }
-    messageRows.value = arrayFromData(data, ['rows', 'items', 'messages', 'results'])
-    if (!messageRows.value.length) {
-      browseNotice.value = { tone: 'info', text: '未检索到消息。可以换一个关键词或稍后刷新。' }
-    }
+    await loadMessagesFromSql(browseMessagesSql())
   } catch (error) {
     browseNotice.value = {
       tone: 'warning',
@@ -756,6 +833,25 @@ async function loadBrowseData(refresh = false) {
   } finally {
     browseLoading.value = false
   }
+}
+
+async function resetAndLoadBrowse() {
+  browsePage.value = 1
+  browseJumpPage.value = 1
+  await loadBrowseData(false)
+}
+
+async function goBrowsePage(page: number) {
+  const safePage = Number.isFinite(page) ? page : 1
+  const target = Math.min(Math.max(1, safePage), browseTotalPages.value)
+  if (target === browsePage.value && browseTableRows.value.length) return
+  browsePage.value = target
+  browseJumpPage.value = target
+  await loadBrowseData(false)
+}
+
+async function jumpBrowsePage() {
+  await goBrowsePage(browseJumpPage.value)
 }
 
 async function ingestSearch() {
@@ -906,12 +1002,14 @@ function cellValue(row: Record<string, unknown>, column: string): string {
 
 onMounted(async () => {
   startAuthPoller()
-  await Promise.allSettled([pollAuth(), pollSync(), loadSqlTables(), loadBrowseData(false), loadChatsFromSql()])
+  startSyncPoller()
+  await Promise.allSettled([pollAuth(), pollSync(), loadSqlTables(), refreshDatabaseTotals(), loadBrowseData(false)])
   await runSql()
 })
 
 onUnmounted(() => {
   if (authTimer.value) window.clearInterval(authTimer.value)
+  if (syncTimer.value) window.clearInterval(syncTimer.value)
 })
 </script>
 
@@ -1029,8 +1127,8 @@ onUnmounted(() => {
             {{ tab.label }}
           </button>
         </div>
-        <input v-model="query" placeholder="搜索关键词，如：整改 / 发票 / 吊运" @keydown.enter="loadBrowseData(false)" />
-        <button class="primary-button" :disabled="browseLoading" @click="loadBrowseData(false)">
+        <input v-model="query" placeholder="搜索关键词，如：整改 / 发票 / 吊运" @keydown.enter="resetAndLoadBrowse" />
+        <button class="primary-button" :disabled="browseLoading" @click="resetAndLoadBrowse">
           {{ browseLoading ? '搜索中' : '搜索' }}
         </button>
       </div>
@@ -1069,6 +1167,31 @@ onUnmounted(() => {
             </tr>
           </tbody>
         </table>
+      </div>
+      <div class="sql-pagination" aria-label="WhatsApp browse pagination">
+        <span>{{ browsePageSummary }}</span>
+        <div class="pagination-buttons">
+          <button class="secondary-button" :disabled="browseLoading || browsePage <= 1" @click="goBrowsePage(browsePage - 1)">左翻</button>
+          <template v-for="(page, index) in browsePageButtons" :key="`browse-${page}-${index}`">
+            <span v-if="page === 'ellipsis'" class="pagination-ellipsis">...</span>
+            <button
+              v-else
+              class="page-button"
+              :class="{ active: page === browsePage }"
+              :disabled="browseLoading"
+              @click="goBrowsePage(page)"
+            >
+              {{ page }}
+            </button>
+          </template>
+          <button class="secondary-button" :disabled="browseLoading || browsePage >= browseTotalPages" @click="goBrowsePage(browsePage + 1)">右翻</button>
+          <button class="secondary-button" :disabled="browseLoading || browsePage >= browseTotalPages" @click="goBrowsePage(browseTotalPages)">最后一页</button>
+          <label class="jump-input">
+            <span>跳到</span>
+            <input v-model.number="browseJumpPage" type="number" min="1" :max="browseTotalPages" @keydown.enter="jumpBrowsePage" />
+          </label>
+          <button class="secondary-button" :disabled="browseLoading" @click="jumpBrowsePage">跳转</button>
+        </div>
       </div>
     </section>
 
@@ -1711,6 +1834,17 @@ pre {
 .pagination-ellipsis {
   color: var(--text-muted);
   padding: 0 4px;
+}
+
+.jump-input {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.jump-input input {
+  max-width: 76px;
+  padding: 7px 8px;
 }
 
 .empty-cell {

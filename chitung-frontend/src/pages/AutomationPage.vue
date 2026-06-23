@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getAppConfig, runVisualPatrolBatch } from '../services/chitungApi'
 import type { AppConfig } from '../types/domain'
@@ -82,6 +82,8 @@ interface AiSetupResult {
 
 const TASKS_KEY = 'chitung.automation.tasks.v2'
 const RUNS_KEY = 'chitung.automation.runs.v2'
+const SAFETY_PATROL_TASK_ID = 'auto_safety_ppe_smoking_30min'
+const SAFETY_PATROL_PROMPT = '检测工人是否佩戴安全帽、PPE，是否有工人在抽烟。请对项目启用摄像头执行视觉巡检，生成巡检报告，并标记高风险画面。'
 
 const templates: AutomationTemplate[] = [
   {
@@ -179,6 +181,7 @@ const aiDescription = ref('')
 const aiLoading = ref(false)
 const aiResult = ref<AiSetupResult | null>(null)
 const aiError = ref('')
+let automationTimer: number | undefined
 
 const enabledCameras = computed(() => (appConfig.value?.cameras ?? []).filter((camera) => camera.enabled))
 const activeTasks = computed(() => tasks.value.filter((task) => task.status === 'ACTIVE'))
@@ -205,8 +208,14 @@ watch(selectedTemplateId, () => {
 
 onMounted(async () => {
   loadLocalData()
+  ensureVisibleSafetyPatrolTask()
   ensureStarterTask()
   await refreshRuntimeData()
+  startAutomationScheduler()
+})
+
+onBeforeUnmount(() => {
+  if (automationTimer) window.clearInterval(automationTimer)
 })
 
 async function refreshRuntimeData() {
@@ -264,6 +273,34 @@ function ensureStarterTask() {
     nextRunAt: estimateNextRunAt(template.defaultRrule),
     lastRun: null,
   }]
+  persist()
+}
+
+function ensureVisibleSafetyPatrolTask() {
+  const now = new Date().toISOString()
+  const existing = tasks.value.find((task) => task.id === SAFETY_PATROL_TASK_ID)
+  const task: AutomationTask = {
+    id: SAFETY_PATROL_TASK_ID,
+    name: '30分钟安全帽/PPE/抽烟自动巡检',
+    prompt: SAFETY_PATROL_PROMPT,
+    scheduleType: 'recurring',
+    rrule: 'RRULE:FREQ=MINUTELY;INTERVAL=30',
+    scheduledAt: null,
+    status: 'ACTIVE',
+    validFrom: null,
+    validUntil: null,
+    templateId: 'tpl_visual_inspection',
+    cwds: '',
+    modelId: null,
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+    fieldValues: { target_url: appConfig.value?.project?.name || '项目摄像头', alert_threshold: 5 },
+    cameraIds: existing?.cameraIds ?? [],
+    nextRunAt: existing?.nextRunAt || estimateNextRunAt('RRULE:FREQ=MINUTELY;INTERVAL=30'),
+    lastRun: existing?.lastRun ?? null,
+  }
+  if (existing) Object.assign(existing, task)
+  else tasks.value.unshift(task)
   persist()
 }
 
@@ -383,12 +420,12 @@ function deleteTask(task: AutomationTask) {
   persist()
 }
 
-async function triggerTask(task: AutomationTask) {
+async function triggerTask(task: AutomationTask, triggeredBy: TriggeredBy = 'manual') {
   runningTaskId.value = task.id
   const run: AutomationRun = {
     id: generateId('run'),
     taskId: task.id,
-    triggeredBy: 'manual',
+    triggeredBy,
     status: 'running',
     startedAt: new Date().toISOString(),
     finishedAt: null,
@@ -429,6 +466,22 @@ async function triggerTask(task: AutomationTask) {
 
 function taskRuns(taskId: string) {
   return runs.value.filter((run) => run.taskId === taskId).slice(0, 5)
+}
+
+function startAutomationScheduler() {
+  if (automationTimer) window.clearInterval(automationTimer)
+  automationTimer = window.setInterval(checkDueTasks, 30_000)
+  checkDueTasks()
+}
+
+function checkDueTasks() {
+  if (runningTaskId.value) return
+  const now = Date.now()
+  const dueTask = tasks.value.find((task) => {
+    if (task.status !== 'ACTIVE' || task.scheduleType !== 'recurring' || !task.nextRunAt) return false
+    return new Date(task.nextRunAt).getTime() <= now
+  })
+  if (dueTask) triggerTask(dueTask, 'scheduler')
 }
 
 async function runAiSetup() {
@@ -495,6 +548,7 @@ function heuristicAiSetup(description: string): AiSetupResult {
 function parseRruleFromText(text: string): string {
   const hourMatch = text.match(/(\d{1,2})\s*[点:：时]/)
   const hour = hourMatch ? Math.min(23, Number(hourMatch[1])) : 8
+  if (/每\s*30\s*分|30\s*min|30\s*minutes/i.test(text)) return 'RRULE:FREQ=MINUTELY;INTERVAL=30'
   if (/每\s*6\s*小?时|6\s*hours/i.test(text)) return 'RRULE:FREQ=HOURLY;INTERVAL=6'
   if (/每小时|hourly/i.test(text)) return 'RRULE:FREQ=HOURLY'
   if (/每周|weekly/i.test(text)) return `RRULE:FREQ=WEEKLY;BYDAY=MO;BYHOUR=${hour};BYMINUTE=0`
@@ -517,7 +571,8 @@ function updatePromptFromFields() {
 function setSimpleSchedule(value: string) {
   drawerForm.simpleFrequency = value
   const [hour = '8', minute = '0'] = drawerForm.time.split(':')
-  if (value === 'hourly') drawerForm.rrule = 'RRULE:FREQ=HOURLY'
+  if (value === 'every30min') drawerForm.rrule = 'RRULE:FREQ=MINUTELY;INTERVAL=30'
+  else if (value === 'hourly') drawerForm.rrule = 'RRULE:FREQ=HOURLY'
   else if (value === 'every6hours') drawerForm.rrule = 'RRULE:FREQ=HOURLY;INTERVAL=6'
   else if (value === 'daily') drawerForm.rrule = `RRULE:FREQ=DAILY;BYHOUR=${Number(hour)};BYMINUTE=${Number(minute)}`
   else if (value === 'weekly') drawerForm.rrule = `RRULE:FREQ=WEEKLY;BYDAY=${drawerForm.weekday};BYHOUR=${Number(hour)};BYMINUTE=${Number(minute)}`
@@ -525,7 +580,8 @@ function setSimpleSchedule(value: string) {
 }
 
 function deriveSimpleSchedule(rrule: string) {
-  if (rrule.includes('FREQ=HOURLY;INTERVAL=6')) drawerForm.simpleFrequency = 'every6hours'
+  if (rrule.includes('FREQ=MINUTELY;INTERVAL=30')) drawerForm.simpleFrequency = 'every30min'
+  else if (rrule.includes('FREQ=HOURLY;INTERVAL=6')) drawerForm.simpleFrequency = 'every6hours'
   else if (rrule.includes('FREQ=HOURLY')) drawerForm.simpleFrequency = 'hourly'
   else if (rrule.includes('FREQ=WEEKLY')) drawerForm.simpleFrequency = 'weekly'
   else if (rrule.includes('FREQ=MONTHLY')) drawerForm.simpleFrequency = 'monthly'
@@ -540,6 +596,10 @@ function deriveSimpleSchedule(rrule: string) {
 function estimateNextRunAt(rrule?: string): string | null {
   if (!rrule) return null
   const now = new Date()
+  if (rrule.includes('FREQ=MINUTELY')) {
+    const interval = Number(rrule.match(/INTERVAL=(\d+)/)?.[1] ?? 1)
+    return new Date(now.getTime() + interval * 60 * 1000).toISOString()
+  }
   if (rrule.includes('FREQ=HOURLY')) {
     const interval = Number(rrule.match(/INTERVAL=(\d+)/)?.[1] ?? 1)
     return new Date(now.getTime() + interval * 60 * 60 * 1000).toISOString()
@@ -830,6 +890,7 @@ function fromLocalDateTime(value: string) {
             <label v-if="drawerForm.scheduleType === 'recurring'">
               <span>简单频率</span>
               <select v-model="drawerForm.simpleFrequency" @change="setSimpleSchedule(drawerForm.simpleFrequency)">
+                <option value="every30min">每 30 分钟</option>
                 <option value="hourly">每小时</option>
                 <option value="every6hours">每 6 小时</option>
                 <option value="daily">每天</option>

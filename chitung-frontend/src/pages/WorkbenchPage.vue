@@ -3,7 +3,6 @@ import { computed, onMounted, ref } from 'vue'
 import ActiveHazards from '../components/cards/ActiveHazards.vue'
 import ActivityFeed from '../components/cards/ActivityFeed.vue'
 import ActionReviewCards from '../components/cards/ActionReviewCards.vue'
-import StatusStrip from '../components/cards/StatusStrip.vue'
 import CctvLivePanel from '../components/cctv/CctvLivePanel.vue'
 import CommandBar from '../components/layout/CommandBar.vue'
 import ProgressChain from '../components/workflow/ProgressChain.vue'
@@ -25,7 +24,6 @@ import type {
   AppConfig,
   HazardCase,
   NotificationDraft,
-  StatusMetric,
   WorkbenchVideoDetectionReport,
   WorkbenchStatus,
   WorkflowStep,
@@ -43,7 +41,6 @@ type VideoDetectionPhase = 'idle' | 'prompting' | 'ready' | 'detecting' | 'done'
 
 const { goTo, goToPendingConfirmations } = useAppNavigation()
 
-const metrics = ref<StatusMetric[]>([])
 const hazards = ref<HazardCase[]>([])
 const workbenchStatus = ref<WorkbenchStatus | null>(null)
 
@@ -125,14 +122,12 @@ async function refreshWorkbenchSummary() {
   try {
     const summary = await getWorkbenchSummary()
     workbenchStatus.value = summary.status
-    metrics.value = summary.metrics
     hazards.value = summary.hazards
     activities.value = summary.activities
     workflowSteps.value = summary.workflow_steps
   } catch (error) {
     summaryLoadError.value = error instanceof Error ? error.message : String(error)
     workbenchStatus.value = null
-    metrics.value = []
     hazards.value = []
     activities.value = []
   }
@@ -459,7 +454,7 @@ async function confirmNotificationDraft() {
     <section class="hero-panel">
       <div>
         <p class="eyebrow">Chitung Workbench</p>
-        <h1>赤瞳安全智能平台</h1>
+        <h1>赤瞳</h1>
         <p>用一个工作台连接隐患、视频、聊天、表格、外部讯息和 AI 确认闭环。</p>
       </div>
       <div class="hero-panel__status">
@@ -672,8 +667,6 @@ async function confirmNotificationDraft() {
         </section>
       </div>
     </section>
-
-    <StatusStrip :metrics="metrics" />
 
     <section class="workbench-grid">
       <ActiveHazards

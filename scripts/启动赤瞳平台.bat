@@ -2,7 +2,7 @@
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
 
-rem 赤瞳安全智能平台 — Windows 一键启动（开发模式）
+rem 赤瞳 — Windows 一键启动（开发模式）
 rem 双击本脚本：启动后端 + Electron 桌面工作台
 
 set "ROOT=%~dp0.."
@@ -13,7 +13,7 @@ set "CCTV_GATEWAY=%ROOT%\cctv-gateway"
 
 echo.
 echo ========================================
-echo   赤瞳安全智能平台
+echo   赤瞳
 echo ========================================
 echo 项目目录: %ROOT%
 echo.

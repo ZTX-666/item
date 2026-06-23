@@ -74,6 +74,23 @@ export interface PendingConfirmation {
   updated_at?: string
 }
 
+export interface LongTermMemoryDocument {
+  ok: boolean
+  content: string
+  path: string
+  updated_at?: string
+  audit_id?: string
+}
+
+export interface LongTermMemorySummaryResult {
+  ok: boolean
+  message: string
+  summary: string
+  message_count: number
+  audit_id?: string
+  memory?: LongTermMemoryDocument
+}
+
 export interface ChatResponse {
   type: 'reply' | 'review_card' | 'workflow'
   message: string
@@ -89,6 +106,8 @@ export interface ChatResponse {
     workflowRunId?: string
     skill?: ChatSkillReference | null
     appliedSkill?: ChatAppliedSkill | null
+    agentTrace?: AgentTraceItem[]
+    richBlocks?: Array<Record<string, unknown>>
   }
 }
 
@@ -120,6 +139,13 @@ export interface ChatAppliedSkill {
   next_actions?: string[]
 }
 
+export interface AgentTraceItem {
+  stage: string
+  status: string
+  title: string
+  detail?: string
+}
+
 export interface CenterChatResponse {
   reply: string
   session_id?: string
@@ -127,10 +153,12 @@ export interface CenterChatResponse {
   cards?: Array<Record<string, unknown>>
   tool_results?: Array<Record<string, unknown>>
   applied_skill?: ChatAppliedSkill | null
+  agent_trace?: AgentTraceItem[]
   skill?: ChatSkillReference | null
   workflow_name?: string
   workflow_run_id?: string
   audit_id?: string
+  rich_blocks?: Array<Record<string, unknown>>
 }
 
 export interface ChatSessionRecord {
@@ -464,6 +492,14 @@ export interface TaskEvent {
   created_at: string
 }
 
+export interface JobStats {
+  ok: boolean
+  total: number
+  by_status: Record<string, number>
+  by_module: Record<string, number>
+  by_type: Record<string, number>
+}
+
 export interface SystemDiagnostics {
   ok: boolean
   center: Record<string, unknown>
@@ -611,6 +647,9 @@ export interface DocmateChange {
   risk_level: RiskLevel
   confidence: number
   status?: string
+  explanation?: string
+  reason?: string
+  source?: string
 }
 
 export interface DocmatePreviewCard {
@@ -621,7 +660,22 @@ export interface DocmatePreviewCard {
   type: string
   risk_level: RiskLevel
   confidence: number
+  explanation?: string
+  reason?: string
+  source?: string
+  paragraph_index?: number
 }
+
+export interface AuditEntry {
+  id: string
+  timestamp: string
+  operator: string
+  action: 'accept' | 'reject' | 'edit' | 'retry' | 'generate' | 'upload' | 'download' | 'batch_accept' | 'batch_reject'
+  target: string
+  detail?: string
+}
+
+export type RejectReason = '修改过度' | '语义错误' | '不符合规范' | '其他'
 
 export interface DocmateReadResult {
   ok: boolean
@@ -786,6 +840,31 @@ export interface YaoyaoStructuredDraft {
   }
 }
 
+export interface YaoyaoPageRenderResult {
+  ok: boolean
+  preview_image_path?: string | null
+  preview_url?: string
+  page_index: number
+  page_count?: number
+  error?: string
+  message?: string
+}
+
+export interface YaoyaoPageRow {
+  pageNumber: number
+  values: Record<string, string>
+}
+
+export interface YaoyaoExcelExportResult {
+  ok: boolean
+  file_id: string
+  file_name: string
+  output_path: string
+  download_url: string
+  row_count: number
+  column_count: number
+}
+
 export interface YaoyaoConfirmResult {
   ok: boolean
   message: string
@@ -823,6 +902,11 @@ export interface SkillInfo {
   phase?: string
   tools?: string[]
   workflow?: string
+  display_name?: string
+  description?: string
+  intents?: string[]
+  triggers?: string[]
+  example_prompts?: string[]
   config?: Record<string, unknown>
 }
 
@@ -830,6 +914,10 @@ export interface SkillDetail {
   name: string
   content: string
   config?: Record<string, unknown>
+  meta?: SkillInfo | null
+  dependencies?: Array<Record<string, unknown>>
+  recent_runs?: JobRun[]
+  stats?: JobStats
 }
 
 export interface WorkflowTemplateInfo {

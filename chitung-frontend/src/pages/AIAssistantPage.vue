@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useAiAssistant } from '../composables/useAiAssistant'
+import ChatRichBlocks from '../components/chat/ChatRichBlocks.vue'
 import { getSkills, getWorkflowTemplates } from '../services/chitungApi'
 import type { SkillInfo, WorkflowTemplateInfo } from '../types/domain'
 
@@ -147,7 +148,6 @@ const {
   toolOk,
   toolSummary,
   cardTitle,
-  cardSummary,
   cardActions,
   cardActionLabel,
   actionKey,
@@ -392,7 +392,14 @@ function buildEntryMetadata(entry: AssistantEntry): Record<string, unknown> {
             :class="`assistant-message--${message.role}`"
           >
             <div class="assistant-message__body">
-              <p>{{ message.content }}</p>
+              <ChatRichBlocks
+                v-if="message.role === 'assistant'"
+                :content="message.content"
+                :cards="message.cards"
+                :tool-results="message.toolResults"
+                :rich-blocks="message.richBlocks"
+              />
+              <p v-else>{{ message.content }}</p>
               <div class="assistant-message__meta">
                 <span v-if="message.status">{{ message.status }}</span>
                 <span v-if="message.intent">意图 {{ message.intent }}</span>
@@ -427,7 +434,6 @@ function buildEntryMetadata(entry: AssistantEntry): Record<string, unknown> {
             <div v-if="message.cards?.length" class="assistant-message__cards">
               <article v-for="(card, index) in message.cards" :key="`${message.id}-card-${index}`" class="assistant-card">
                 <strong>{{ cardTitle(card) }}</strong>
-                <p>{{ cardSummary(card) }}</p>
                 <div v-if="cardActions(card).length" class="assistant-card__actions">
                   <button
                     v-for="action in cardActions(card)"

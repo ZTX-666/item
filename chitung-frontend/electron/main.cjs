@@ -130,7 +130,8 @@ function createMainWindow() {
     height: 960,
     minWidth: 1180,
     minHeight: 760,
-    title: '赤瞳安全智能平台',
+    title: '赤瞳',
+    icon: path.join(__dirname, 'icon.png'),
     backgroundColor: '#f4f7fb',
     autoHideMenuBar: true,
     titleBarStyle: 'default',
@@ -161,6 +162,7 @@ function createMainWindow() {
 }
 
 app.whenReady().then(() => {
+  app.setName('赤瞳')
   ipcMain.handle('app:get-runtime', () => ({
     platform: process.platform,
     version: app.getVersion(),

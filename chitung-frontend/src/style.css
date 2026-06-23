@@ -36,6 +36,19 @@
   --color-info: #0f9ed5;
   --color-link: #0f9ed5;
 
+  /* ── DocMate AI review ── */
+  --diff-add-bg: #e8f5e9;
+  --diff-add-text: #2e7d32;
+  --diff-del-bg: #ffebee;
+  --diff-del-text: #c62828;
+  --risk-high: #e53935;
+  --risk-medium: #fb8c00;
+  --risk-low: #43a047;
+  --confidence-high: #43a047;
+  --confidence-medium: #fb8c00;
+  --confidence-low: #9e9e9e;
+  --ai-badge: #7c4dff;
+
   /* ── navigation rails (Feishu-like light theme) ── */
   --rail-bg: #f7f9fc;
   --rail-bg-2: #f3f6fb;

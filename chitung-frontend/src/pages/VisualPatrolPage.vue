@@ -243,7 +243,7 @@ function sourceText(source: string | undefined): string {
     <section class="hero-panel">
       <div>
         <p class="eyebrow">Chitung Guardian</p>
-        <h1>赤瞳守护者 · 视觉巡检</h1>
+        <h1>赤瞳守护者 · CCTV</h1>
         <p>RTMP 截帧 → YOLO 双模型 → VLM 语义精分 → 标注图 → 人工确认入库</p>
       </div>
       <div class="hero-panel__status">

@@ -1,0 +1,11 @@
+{
+  "display_name": "DocMate 文档编辑",
+  "description": "DocMate 独立 DOCX 编辑：上传、生成修改方案、预览 diff、人工确认后提交。",
+  "intents": ["docmate_edit"],
+  "triggers": ["docmate", "闪闪文档", "docx", "word", "改文档", "修改文档", "润色", "潤色", "替换", "变更"],
+  "example_prompts": [
+    "用 DocMate 帮我把这份 docx 里的安全计划润色一下",
+    "上传 Word 后按我的要求改第三段",
+    "生成文档修改预览让我确认"
+  ]
+}

@@ -13,6 +13,16 @@ from chitung_center.external_briefing_store import persist_external_briefing_rep
 from chitung_center.llm_gateway import llm_gateway
 from chitung_center.models import ActionCard, ChatMessageRequest, VisualPatrolDraftRequest, WorkbenchVideoDetectionRequest
 from chitung_center.rag_service import rag_service
+from chitung_center.rich_content import (
+    build_policy_rich_blocks,
+    build_rag_rich_blocks,
+    build_sql_rich_blocks,
+    build_wacli_rich_blocks,
+    build_briefing_rich_blocks,
+    build_visual_patrol_rich_blocks,
+    build_video_detection_rich_blocks,
+    format_sql_reply_text,
+)
 from chitung_center.toolbox_client import toolbox_client
 from chitung_center.whatsapp_local_service import (
     is_whatsapp_command_readonly,
@@ -261,6 +271,13 @@ class WorkflowEngine:
                     "report_links": report_links,
                     "briefing_report_id": briefing_report.get("report_id"),
                     "briefing_report": briefing_report,
+                    "rich_blocks": build_briefing_rich_blocks(
+                        {
+                            "briefing_text": briefing_text,
+                            "report_images": report_images,
+                            "report_links": report_links,
+                        }
+                    ),
                 },
             )
         ]
@@ -324,6 +341,7 @@ class WorkflowEngine:
                         "answer": answer.get("answer"),
                         "citations": answer.get("citations") or [],
                         "matches": answer.get("matches") or [],
+                        "rich_blocks": build_rag_rich_blocks(answer),
                     },
                 )
             ]
@@ -338,7 +356,11 @@ class WorkflowEngine:
                 title="制度条款检索",
                 summary="已在本地安全管理办法全文中检索相关条款。",
                 actions=[{"id": "summarize_policy_document", "label": "生成制度摘要"}],
-                data={"policy": policy_result, "workflow_run_id": workflow_run_id},
+                data={
+                    "policy": policy_result,
+                    "workflow_run_id": workflow_run_id,
+                    "rich_blocks": build_policy_rich_blocks(policy_result),
+                },
             )
         ]
         return "我已在本地制度文件中检索相关条款。", [policy_result], cards
@@ -356,14 +378,19 @@ class WorkflowEngine:
             raw_result = run_whatsapp_sql_query(str(plan["sql"]), int(plan["limit"]))
         result = {"tool": plan["tool"], "plan": plan, **raw_result}
         await _finish_step(step, result)
-        reply = _whatsapp_sql_reply(plan, raw_result)
+        reply = format_sql_reply_text(plan, raw_result)
         cards = [
             ActionCard(
                 card_type="whatsapp_sql_query",
                 title="WhatsApp SQLite 查询",
-                summary=reply,
+                summary=reply.split("\n\n")[0],
                 actions=[{"id": "open_whatsapp_ops", "label": "打开 WhatsApp 控制台"}],
-                data={"workflow_run_id": workflow_run_id, "plan": plan, "result": raw_result},
+                data={
+                    "workflow_run_id": workflow_run_id,
+                    "plan": plan,
+                    "result": raw_result,
+                    "rich_blocks": build_sql_rich_blocks(plan, raw_result),
+                },
             )
         ]
         return reply, [result], cards
@@ -448,7 +475,12 @@ class WorkflowEngine:
                     title="WhatsApp wacli 只读命令",
                     summary=reply,
                     actions=[{"id": "open_whatsapp_ops", "label": "打开 WhatsApp 控制台"}],
-                    data={"workflow_run_id": workflow_run_id, "args_text": args_text, "result": raw_result},
+                    data={
+                        "workflow_run_id": workflow_run_id,
+                        "args_text": args_text,
+                        "result": raw_result,
+                        "rich_blocks": build_wacli_rich_blocks(args_text, raw_result),
+                    },
                 )
             ]
         return reply, [result], cards
@@ -484,7 +516,11 @@ class WorkflowEngine:
                     title="视觉巡检候选",
                     summary=str(draft.get("message") or "已生成视觉巡检候选，等待人工确认。"),
                     actions=[{"id": "confirm_visual_candidate", "label": "确认入库"}],
-                    data={"workflow_run_id": workflow_run_id, "draft": draft},
+                    data={
+                        "workflow_run_id": workflow_run_id,
+                        "draft": draft,
+                        "rich_blocks": build_visual_patrol_rich_blocks(draft),
+                    },
                 )
             ]
             return "已基于本地图片生成视觉巡检候选，请人工确认后入库。", [draft], cards
@@ -512,7 +548,11 @@ class WorkflowEngine:
                 title="视频巡检结果",
                 summary=summary_text or "视频巡检已执行。",
                 actions=[{"id": "open_hazard_ledger", "label": "查看证据"}],
-                data={"workflow_run_id": workflow_run_id, "report": detection},
+                data={
+                    "workflow_run_id": workflow_run_id,
+                    "report": detection,
+                    "rich_blocks": build_video_detection_rich_blocks(detection),
+                },
             )
         ]
         if detection.get("ok") is False:
@@ -662,18 +702,7 @@ def _extract_select_sql(message: str) -> str:
 
 
 def _whatsapp_sql_reply(plan: dict[str, Any], result: dict[str, Any]) -> str:
-    if not result.get("ok", True):
-        return f"WhatsApp SQLite 查询失败：{result.get('error') or result.get('summary') or '未知错误'}。"
-    data = result.get("data") if isinstance(result.get("data"), dict) else {}
-    if plan.get("kind") == "tables":
-        tables = data.get("tables") if isinstance(data.get("tables"), list) else []
-        preview = "、".join(str(item) for item in tables[:12])
-        suffix = "等" if len(tables) > 12 else ""
-        return f"WhatsApp 本地库表名读取完成，共 {len(tables)} 个表：{preview}{suffix}。"
-    rows = data.get("rows") if isinstance(data.get("rows"), list) else []
-    columns = data.get("columns") if isinstance(data.get("columns"), list) else []
-    preview_cols = "、".join(str(item) for item in columns[:6])
-    return f"WhatsApp SQLite 只读查询完成，返回 {len(rows)} 行。字段：{preview_cols}。"
+    return format_sql_reply_text(plan, result)
 
 
 def _prepare_wacli_readonly_args(args_text: str) -> dict[str, Any]:

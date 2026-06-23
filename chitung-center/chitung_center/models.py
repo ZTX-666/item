@@ -16,6 +16,7 @@ IntentName = Literal[
     "docmate_edit",
     "whatsapp_sql_query",
     "whatsapp_wacli_ops",
+    "long_term_memory",
     "general_chat",
 ]
 
@@ -51,6 +52,7 @@ class ChatMessageResponse(BaseModel):
     tool_results: list[dict[str, Any]] = Field(default_factory=list)
     audit_id: str
     applied_skill: Optional[dict[str, Any]] = None
+    agent_trace: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class CardActionRequest(BaseModel):
@@ -58,6 +60,10 @@ class CardActionRequest(BaseModel):
     card_data: dict[str, Any] = Field(default_factory=dict)
     user_id: str = "local_user"
     channel: str = "local_web"
+
+
+class LongTermMemorySaveRequest(BaseModel):
+    content: str = Field(default="")
 
 
 class ConfirmationResolveApiRequest(BaseModel):
@@ -535,6 +541,13 @@ class YaoyaoStructuredDraftRequest(BaseModel):
     render_height: int = 2800
 
 
+class YaoyaoPageRenderRequest(BaseModel):
+    file_path: str
+    page_index: int = 0
+    render_width: int = 2000
+    render_height: int = 2800
+
+
 class YaoyaoFieldCandidate(BaseModel):
     field_name: str
     value: str = ""
@@ -562,6 +575,12 @@ class YaoyaoTemplateSaveRequest(BaseModel):
 
 class YaoyaoTemplateLoadRequest(BaseModel):
     template_id: str
+
+
+class YaoyaoExcelExportRequest(BaseModel):
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    regions: list[YaoyaoRegion] = Field(default_factory=list)
+    file_name: str | None = None
 
 
 class YaoyaoConfirmRequest(BaseModel):

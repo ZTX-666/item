@@ -6,10 +6,10 @@ rem 打开已打包的赤瞳桌面 exe（需先运行 build_chitung_exe.bat）
 
 set "ROOT=%~dp0.."
 set "EXE_DIR=%ROOT%\chitung-frontend\release\win-unpacked"
-set "EXE=%EXE_DIR%\赤瞳安全智能平台.exe"
+set "EXE=%EXE_DIR%\赤瞳.exe"
 
 echo.
-echo 赤瞳安全智能平台 — 打开已打包程序
+echo 赤瞳 — 打开已打包程序
 echo.
 
 if not exist "%EXE%" (

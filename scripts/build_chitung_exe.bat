@@ -11,7 +11,7 @@ set "CENTER=%ROOT%\chitung-center"
 
 echo.
 echo ========================================
-echo   打包赤瞳安全智能平台 (Windows exe)
+echo   打包赤瞳 (Windows exe)
 echo ========================================
 echo.
 
@@ -31,7 +31,7 @@ popd
 
 echo.
 echo [完成] exe 已生成:
-echo   %FRONTEND%\release\win-unpacked\赤瞳安全智能平台.exe
+echo   %FRONTEND%\release\win-unpacked\赤瞳.exe
 echo.
 echo 安装包 (可选):
 echo   %FRONTEND%\release\*.exe

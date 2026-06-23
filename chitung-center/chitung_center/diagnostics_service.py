@@ -8,7 +8,7 @@ from typing import Any
 
 from chitung_center import storage
 from chitung_center.asset_service import list_assets
-from chitung_center.config import settings
+from chitung_center.config import ROOT, settings
 from chitung_center.external_monitor_scheduler import external_monitor_scheduler
 from chitung_center.job_service import list_jobs
 from chitung_center.rag_service import rag_service
@@ -56,7 +56,7 @@ async def build_system_diagnostics() -> dict[str, Any]:
                 "ultralytics": importlib.util.find_spec("ultralytics") is not None,
             },
             "commands": {
-                "wacli": bool(shutil.which("wacli")),
+                        "wacli": _wacli_check(),
                 "node": bool(shutil.which("node")),
                 "python": bool(shutil.which("python")),
             },
@@ -87,3 +87,18 @@ def _database_check() -> dict[str, Any]:
         }
     except sqlite3.Error as exc:
         return {"ok": False, "path": str(path), "error": str(exc)}
+
+
+def _wacli_check() -> dict[str, Any]:
+    path_value = shutil.which("wacli") or shutil.which("wacli.exe")
+    candidates = [
+        ROOT.parent / "publish3.0" / "runtime" / "bin" / "wacli.exe",
+        ROOT.parent / "agent-toolbox" / "workspace" / "wacli" / "wacli.exe",
+        ROOT.parent.parent / "publish3.0" / "runtime" / "bin" / "wacli.exe",
+    ]
+    existing = [str(path) for path in candidates if path.exists()]
+    return {
+        "available": bool(path_value or existing),
+        "path": path_value,
+        "packaged_candidates": existing,
+    }

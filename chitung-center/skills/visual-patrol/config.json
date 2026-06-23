@@ -1,0 +1,11 @@
+{
+  "display_name": "视觉巡检",
+  "description": "CCTV、RTMP、图片或视频流的 YOLO/VLM 巡检，识别现场安全风险。",
+  "intents": ["visual_detection"],
+  "triggers": ["摄像头", "cctv", "巡检", "照片", "视频", "识别", "rtmp", "vlm", "监控", "yolo"],
+  "example_prompts": [
+    "检查 B2 摄像头有没有未戴安全帽",
+    "对这张现场照片做视觉识别",
+    "帮我巡检一下施工区监控"
+  ]
+}

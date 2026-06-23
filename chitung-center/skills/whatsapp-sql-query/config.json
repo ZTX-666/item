@@ -1,0 +1,11 @@
+{
+  "display_name": "WhatsApp 数据库查询",
+  "description": "只读查询本地 wacli.db / SQLite，列出表结构并执行安全 SQL。",
+  "intents": ["whatsapp_sql_query"],
+  "triggers": ["whatsapp", "wacli.db", "sqlite", "sql", "数据库", "本地库", "数据表", "表名"],
+  "example_prompts": [
+    "帮我看 WhatsApp 本地数据库有哪些表",
+    "查一下 wacli.db 里最近的消息记录",
+    "这个 SQLite 库里 messages 表有多少行"
+  ]
+}

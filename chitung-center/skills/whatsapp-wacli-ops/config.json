@@ -1,0 +1,11 @@
+{
+  "display_name": "WhatsApp wacli 运维",
+  "description": "只读 wacli 命令：登录状态、消息搜索、聊天/群组/联系人诊断。",
+  "intents": ["whatsapp_wacli_ops"],
+  "triggers": ["wacli", "登录状态", "认证状态", "消息搜索", "搜消息", "聊天列表", "群组", "联系人", "whatsapp"],
+  "example_prompts": [
+    "帮我用 wacli 查 WhatsApp 登录状态",
+    "搜索最近关于安全会议的 WhatsApp 消息",
+    "列出当前 WhatsApp 群组"
+  ]
+}

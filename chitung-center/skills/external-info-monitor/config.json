@@ -1,6 +1,13 @@
 {
   "display_name": "外部讯息监听",
   "description": "修改外部讯息监听关键词、来源、频率、时间窗口，并可立即触发监听。",
+  "intents": ["external_info_monitor"],
+  "triggers": ["外部讯息", "外部信息", "外部讯息监听", "外部信息监听", "监听外部", "舆情监听", "新闻监听"],
+  "example_prompts": [
+    "把外部讯息监听关键词改成暴雨和工伤",
+    "立即执行一次外部讯息监听",
+    "外部信息每 30 分钟轮询一次"
+  ],
   "default_sources": ["weather", "official", "media"],
   "default_lookback_hours": 24,
   "default_interval_minutes": 60

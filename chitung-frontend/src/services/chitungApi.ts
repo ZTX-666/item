@@ -17,7 +17,10 @@ import type {
   ExternalMonitorRun,
   ExternalMonitorSettings,
   ExternalMonitorStatus,
+  JobStats,
   JobRun,
+  LongTermMemoryDocument,
+  LongTermMemorySummaryResult,
   RiskCardListResponse,
   RiskCardStats,
   LlmTestResult,
@@ -47,6 +50,9 @@ import type {
   WorkflowInfo,
   WorkflowTemplateInfo,
   YaoyaoConfirmResult,
+  YaoyaoExcelExportResult,
+  YaoyaoPageRenderResult,
+  YaoyaoPageRow,
   YaoyaoRegion,
   YaoyaoStructuredDraft,
   YaoyaoTemplateListItem,
@@ -61,7 +67,8 @@ async function ensureOk(response: Response, message: string) {
   let detail = ''
   try {
     const data = await response.json()
-    detail = String(data.message || data.detail || data.error || '')
+    const value = data.message || data.detail || data.error || ''
+    detail = typeof value === 'string' ? value : JSON.stringify(value)
   } catch {
     detail = await response.text().catch(() => '')
   }
@@ -100,11 +107,13 @@ export async function sendChatMessage(request: SendMessageRequest): Promise<Chat
       cards: data.cards ?? [],
       toolResults: data.tool_results ?? [],
       appliedSkill: data.applied_skill ?? null,
+      agentTrace: data.agent_trace ?? [],
       skill: data.skill ?? null,
       auditId: data.audit_id,
       sessionId: data.session_id,
       workflowName: data.workflow_name,
       workflowRunId: data.workflow_run_id,
+      richBlocks: data.rich_blocks ?? [],
     },
   }
 }
@@ -114,6 +123,30 @@ export async function getChatHistory(sessionId?: string): Promise<ChatHistoryRes
   const response = await fetch(`${CENTER_BASE_URL}/api/chat/history${query}`)
   await ensureOk(response, 'Chat history failed')
   return response.json() as Promise<ChatHistoryResponse>
+}
+
+export async function getLongTermMemory(): Promise<LongTermMemoryDocument> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/long-term-memory`)
+  await ensureOk(response, 'Long-term memory load failed')
+  return response.json() as Promise<LongTermMemoryDocument>
+}
+
+export async function saveLongTermMemory(content: string): Promise<LongTermMemoryDocument> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/long-term-memory`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  })
+  await ensureOk(response, 'Long-term memory save failed')
+  return response.json() as Promise<LongTermMemoryDocument>
+}
+
+export async function summarizeTodayLongTermMemory(): Promise<LongTermMemorySummaryResult> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/long-term-memory/summarize-today`, {
+    method: 'POST',
+  })
+  await ensureOk(response, 'Long-term memory summarize failed')
+  return response.json() as Promise<LongTermMemorySummaryResult>
 }
 
 export async function getSkills(): Promise<SkillInfo[]> {
@@ -437,6 +470,38 @@ export async function getJob(jobId: string): Promise<JobRun> {
   const data = (await response.json()) as { item?: JobRun }
   if (!data.item) throw new Error('Job status failed: empty response')
   return data.item
+}
+
+export async function listJobs(params?: {
+  status?: string
+  sourceModule?: string
+  jobType?: string
+  limit?: number
+}): Promise<JobRun[]> {
+  const query = new URLSearchParams()
+  if (params?.status) query.set('status', params.status)
+  if (params?.sourceModule) query.set('source_module', params.sourceModule)
+  if (params?.jobType) query.set('job_type', params.jobType)
+  if (params?.limit) query.set('limit', String(params.limit))
+  const qs = query.toString()
+  const response = await fetch(`${CENTER_BASE_URL}/api/jobs${qs ? '?' + qs : ''}`)
+  await ensureOk(response, 'Jobs list failed')
+  const data = (await response.json()) as { items?: JobRun[] }
+  return data.items ?? []
+}
+
+export async function getJobStats(): Promise<JobStats> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/jobs/stats`)
+  await ensureOk(response, 'Job stats failed')
+  return response.json() as Promise<JobStats>
+}
+
+export async function testSkill(name: string): Promise<Record<string, unknown>> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/skills/${encodeURIComponent(name)}/test`, {
+    method: 'POST',
+  })
+  await ensureOk(response, 'Skill test failed')
+  return response.json() as Promise<Record<string, unknown>>
 }
 
 export async function getWorkbenchSummary(): Promise<WorkbenchSummary> {
@@ -802,13 +867,15 @@ export async function getVisualPatrolRun(patrolId: string): Promise<PatrolRunRep
   return data.report
 }
 
-export function visualPatrolAssetUrl(path?: string | null): string | undefined {
+export function resolveChatAssetUrl(path?: string | null): string | undefined {
   if (!path) return undefined
-  if (path.startsWith('http://') || path.startsWith('https://')) return path
-  if (path.startsWith('/api/visual/patrol-files/')) {
-    return `${CENTER_BASE_URL}${path}`
-  }
-  return undefined
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path
+  if (path.startsWith('/api/')) return `${CENTER_BASE_URL}${path}`
+  return `${CENTER_BASE_URL}/api/chat/attachment?path=${encodeURIComponent(path)}`
+}
+
+export function visualPatrolAssetUrl(path?: string | null): string | undefined {
+  return resolveChatAssetUrl(path)
 }
 
 export async function confirmVisualPatrolCandidate(draft: VisualPatrolDraft): Promise<Record<string, unknown>> {
@@ -1292,13 +1359,13 @@ export function docmateDownloadUrl(fileIdOrUrl: string): string {
 }
 
 export async function docmateCommit(payload: {
-  docId: string
-  edits: Array<{ type: string; target?: string; replacement?: string }>
+  changesetId: string
+  acceptedChangeIds: string[]
   saveAs?: string
 }): Promise<DocmateApplyResult> {
   const body: Record<string, unknown> = {
-    doc_id: payload.docId,
-    edits: payload.edits,
+    changeset_id: payload.changesetId,
+    accepted_change_ids: payload.acceptedChangeIds,
   }
   if (payload.saveAs?.trim()) {
     body.save_as = payload.saveAs.trim()
@@ -1313,17 +1380,17 @@ export async function docmateCommit(payload: {
 }
 
 export async function docmateRetry(payload: {
-  docId: string
+  changesetId: string
   instruction: string
-  items: Array<{ type: string; target?: string; replacement?: string }>
+  context?: unknown
 }): Promise<DocmateGenerateResult> {
   const response = await fetch(`${CENTER_BASE_URL}/api/docmate/retry`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      doc_id: payload.docId,
+      changeset_id: payload.changesetId,
       instruction: payload.instruction,
-      items: payload.items,
+      context: payload.context,
     }),
   })
   await ensureOk(response, 'Docmate retry failed')
@@ -1467,6 +1534,52 @@ export async function createYaoyaoStructuredDraft(request: {
   })
   await ensureOk(response, 'Yaoyao structured draft failed')
   return response.json() as Promise<YaoyaoStructuredDraft>
+}
+
+export async function renderYaoyaoStructuredPage(request: {
+  filePath: string
+  pageIndex?: number
+  renderWidth?: number
+  renderHeight?: number
+}): Promise<YaoyaoPageRenderResult> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/yaoyao/structured/render`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      file_path: request.filePath,
+      page_index: request.pageIndex ?? 0,
+      render_width: request.renderWidth ?? 2000,
+      render_height: request.renderHeight ?? 2800,
+    }),
+  })
+  await ensureOk(response, 'Yaoyao page render failed')
+  const data = (await response.json()) as YaoyaoPageRenderResult
+  if (data.preview_url?.startsWith('/')) {
+    data.preview_url = `${CENTER_BASE_URL}${data.preview_url}`
+  }
+  return data
+}
+
+export async function exportYaoyaoStructuredExcel(request: {
+  rows: YaoyaoPageRow[]
+  regions: YaoyaoRegion[]
+  fileName?: string
+}): Promise<YaoyaoExcelExportResult> {
+  const response = await fetch(`${CENTER_BASE_URL}/api/yaoyao/structured/export-excel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      rows: request.rows,
+      regions: request.regions,
+      file_name: request.fileName,
+    }),
+  })
+  await ensureOk(response, 'Yaoyao Excel export failed')
+  const data = (await response.json()) as YaoyaoExcelExportResult
+  if (data.download_url?.startsWith('/')) {
+    data.download_url = `${CENTER_BASE_URL}${data.download_url}`
+  }
+  return data
 }
 
 export async function confirmYaoyaoStructuredDraft(request: {

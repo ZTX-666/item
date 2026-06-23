@@ -62,6 +62,39 @@ def list_whatsapp_sql_tables(db_path: str | None = None) -> dict[str, Any]:
     }
 
 
+def list_whatsapp_chats(db_path: str | None = None, limit: int = 200) -> dict[str, Any]:
+    resolved = _resolve_db_path(db_path)
+    if not resolved:
+        return {
+            "ok": False,
+            "summary": "未找到 WhatsApp SQLite 数据库。",
+            "error": "database_not_found",
+            "data": {"groups": [], "rows": [], "database_path": "", "default_store_dir": str(_default_store_dir())},
+        }
+    bounded_limit = max(1, min(int(limit or 200), 500))
+    try:
+        with _connect_readonly(resolved) as conn:
+            rows = conn.execute("SELECT * FROM chats ORDER BY rowid DESC LIMIT ?", (bounded_limit,)).fetchall()
+    except sqlite3.Error as exc:
+        return {
+            "ok": False,
+            "summary": "SQLite 聊天列表读取失败。",
+            "error": str(exc),
+            "data": {"groups": [], "rows": [], "database_path": str(resolved)},
+        }
+    items = [dict(row) for row in rows]
+    return {
+        "ok": True,
+        "summary": f"已从 SQLite chats 表读取 {len(items)} 个聊天。",
+        "data": {
+            "groups": items,
+            "rows": items,
+            "chats": items,
+            "database_path": str(resolved),
+        },
+    }
+
+
 def run_whatsapp_sql_query(
     sql: str,
     limit: int = 100,
@@ -192,6 +225,8 @@ def run_whatsapp_command(args_text: str, timeout_seconds: int = 60, read_only: b
             env=env,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=max(5, min(timeout_seconds, 120)),
             check=False,
         )

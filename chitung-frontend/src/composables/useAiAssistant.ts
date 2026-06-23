@@ -1,5 +1,5 @@
 import { nextTick, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getChatHistory, sendCardAction, sendChatMessage, visualPatrolAssetUrl } from '../services/chitungApi'
 import type { ChatAppliedSkill, ChatSkillReference } from '../types/domain'
 
@@ -10,6 +10,7 @@ export interface AiAssistantMessage {
   status?: '执行中' | '完成' | '失败'
   cards?: Array<Record<string, unknown>>
   toolResults?: Array<Record<string, unknown>>
+  richBlocks?: Array<Record<string, unknown>>
   appliedSkill?: ChatAppliedSkill | null
   skill?: ChatSkillReference | null
   intent?: string
@@ -47,6 +48,7 @@ export const aiAssistantQuickActions: AiAssistantQuickAction[] = [
 
 export function useAiAssistant() {
   const route = useRoute()
+  const router = useRouter()
   const messages = ref<AiAssistantMessage[]>([
     {
       id: 1,
@@ -99,6 +101,7 @@ export function useAiAssistant() {
         status: '完成',
         cards: (response.payload?.cards as Array<Record<string, unknown>> | undefined) ?? [],
         toolResults: (response.payload?.toolResults as Array<Record<string, unknown>> | undefined) ?? [],
+        richBlocks: (response.payload?.richBlocks as Array<Record<string, unknown>> | undefined) ?? [],
         appliedSkill: response.payload?.appliedSkill ?? null,
         skill: response.payload?.skill ?? null,
         intent: String(response.payload?.intent?.intent || ''),
@@ -188,6 +191,17 @@ export function useAiAssistant() {
   async function handleCardAction(message: AiAssistantMessage, card: Record<string, unknown>, action: Record<string, unknown>) {
     const id = cardActionId(action)
     if (!id) return
+    if (id === 'open_long_term_memory') {
+      await router.push('/center/memory')
+      messages.value.push({
+        id: nextId++,
+        role: 'assistant',
+        content: '已打开赤瞳中台的长期记忆页面，可查看和手动编辑 Markdown。',
+        status: '完成',
+      })
+      scrollToBottom()
+      return
+    }
     const key = actionKey(message, card, action)
     if (actionRunning(key)) return
     activeActionKeys.value = [...activeActionKeys.value, key]

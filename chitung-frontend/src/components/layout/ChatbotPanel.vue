@@ -3,8 +3,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { askRag, getSkills, sendChatMessage } from '../../services/chitungApi'
 import { useDocmateSession } from '../../composables/useDocmateSession'
 import DocmateDiffReview from '../documents/DocmateDiffReview.vue'
+import ChatRichBlocks from '../chat/ChatRichBlocks.vue'
 import assistantAvatar from '../../assets/logos/assistant-avatar.png'
-import type { SkillInfo } from '../../types/domain'
+import type { AgentTraceItem, SkillInfo } from '../../types/domain'
 
 defineProps<{
   visible: boolean
@@ -83,6 +84,10 @@ interface Message {
   id: number
   role: 'user' | 'assistant'
   content: string
+  trace?: AgentTraceItem[]
+  cards?: Array<Record<string, unknown>>
+  toolResults?: Array<Record<string, unknown>>
+  richBlocks?: Array<Record<string, unknown>>
 }
 
 const messages = ref<Message[]>([
@@ -100,6 +105,7 @@ const backendSkills = ref<SkillInfo[]>([])
 const skillsLoading = ref(false)
 const skillsError = ref('')
 const selectedSkillLabel = ref('')
+const selectedSkillName = ref<string | null>(null)
 let nextId = 2
 
 // ── DocMate 文档改稿能力（与文档工作台共享同一会话） ──
@@ -143,7 +149,7 @@ const skillActions = computed<SkillAction[]>(() => {
     label: readableSkillName(skill),
     prompt: `🔨 使用技能：${readableSkillName(skill)}\n`,
     skill: skill.name,
-    summary: skill.summary || skill.category || skill.name,
+    summary: skill.description || skill.summary || skill.category || skill.name,
     enabled: skill.enabled !== false,
   }))
   return [...fallbackActions, ...backend]
@@ -165,6 +171,7 @@ async function loadBackendSkills() {
 }
 
 function readableSkillName(skill: SkillInfo): string {
+  if (skill.display_name?.trim()) return skill.display_name.trim()
   const config = skill.config as Record<string, unknown> | undefined
   if (typeof config?.display_name === 'string' && config.display_name.trim()) {
     return config.display_name.trim()
@@ -184,6 +191,17 @@ function scrollToBottom() {
 
 function pushAssistant(content: string) {
   messages.value.push({ id: nextId++, role: 'assistant', content })
+  scrollToBottom()
+}
+
+function pushAssistantWithTrace(
+  content: string,
+  trace?: AgentTraceItem[],
+  cards: Array<Record<string, unknown>> = [],
+  toolResults: Array<Record<string, unknown>> = [],
+  richBlocks: Array<Record<string, unknown>> = [],
+) {
+  messages.value.push({ id: nextId++, role: 'assistant', content, trace: trace ?? [], cards, toolResults, richBlocks })
   scrollToBottom()
 }
 
@@ -237,8 +255,19 @@ async function sendMessage() {
   isTyping.value = true
   scrollToBottom()
   try {
-    const response = await sendChatMessage({ message: text, channel: 'local_chat' })
-    pushAssistant(response.message)
+    const context: Record<string, unknown> = {}
+    if (selectedSkillName.value) {
+      context.skill = selectedSkillName.value
+    }
+    const response = await sendChatMessage({ message: text, channel: 'local_chat', context })
+    selectedSkillName.value = null
+    pushAssistantWithTrace(
+      response.message,
+      response.payload?.agentTrace,
+      (response.payload?.cards as Array<Record<string, unknown>> | undefined) ?? [],
+      (response.payload?.toolResults as Array<Record<string, unknown>> | undefined) ?? [],
+      (response.payload?.richBlocks as Array<Record<string, unknown>> | undefined) ?? [],
+    )
   } catch (error) {
     pushAssistant(`请求失败：${error instanceof Error ? error.message : String(error)}`)
   } finally {
@@ -251,11 +280,13 @@ function handleQuickAction(action: SkillAction) {
   if (action.enabled === false) return
   selectedSkillLabel.value = action.label
   if (action.skill === 'rag') {
+    selectedSkillName.value = null
     mode.value = 'rag'
     inputText.value = action.prompt
     return
   }
   mode.value = 'chat'
+  selectedSkillName.value = action.skill || null
   inputText.value = action.prompt
 }
 
@@ -314,7 +345,27 @@ function handleKeydown(event: KeyboardEvent) {
         <img v-if="message.role === 'assistant'" class="chatbot-avatar" :src="assistantAvatar" alt="闪闪助手" />
         <span v-else class="chatbot-avatar chatbot-avatar--user">👷</span>
         <article class="chatbot-message" :class="`chatbot-message--${message.role}`">
-          {{ message.content }}
+          <ChatRichBlocks
+            v-if="message.role === 'assistant'"
+            :content="message.content"
+            :cards="message.cards"
+            :tool-results="message.toolResults"
+            :rich-blocks="message.richBlocks"
+          />
+          <template v-else>{{ message.content }}</template>
+          <div v-if="message.role === 'assistant' && message.trace?.length" class="agent-trace">
+            <button
+              v-for="item in message.trace"
+              :key="`${message.id}-${item.stage}-${item.title}`"
+              type="button"
+              class="agent-trace__item"
+              :class="`agent-trace__item--${item.status}`"
+              :title="item.detail"
+            >
+              <span>{{ item.stage }}</span>
+              <strong>{{ item.title }}</strong>
+            </button>
+          </div>
         </article>
       </div>
       <div v-if="isTyping" class="chatbot-row chatbot-row--assistant">
@@ -589,6 +640,42 @@ function handleKeydown(event: KeyboardEvent) {
   border-top-right-radius: 4px;
   color: #1f2329;
   box-shadow: 0 1px 2px rgb(16 24 40 / 5%);
+}
+
+.agent-trace {
+  border-top: 1px dashed #d5dbe7;
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
+.agent-trace__item {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e5e9f2;
+  border-radius: 10px;
+  color: #1f2329;
+  display: grid;
+  gap: 2px;
+  grid-template-columns: 64px 1fr;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.agent-trace__item span {
+  color: #667085;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.agent-trace__item strong {
+  font-size: 11px;
+}
+
+.agent-trace__item--error {
+  background: #fff1f2;
+  border-color: #fecdd3;
 }
 
 .chatbot-panel__diff {

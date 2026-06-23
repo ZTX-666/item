@@ -1,0 +1,14 @@
+{
+  "display_name": "长期记忆",
+  "description": "总结今日对话并写入统一 Markdown 长期记忆文档，后续交互自动参考。",
+  "intents": ["long_term_memory"],
+  "triggers": ["长期记忆", "長期記憶", "记住今天", "記住今天", "总结今日对话", "總結今日對話", "压缩今日聊天"],
+  "example_prompts": [
+    "把今天的对话总结进长期记忆",
+    "长期记忆技能，记住今天讨论的内容",
+    "帮我压缩今日对话写入记忆文档"
+  ],
+  "memory_path": "chitung-center/data/long_term_memory.md",
+  "auto_context_enabled": true,
+  "default_summary_scope": "today"
+}

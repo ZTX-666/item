@@ -22,7 +22,7 @@
   },
   "build": {
     "appId": "com.chitung.safety",
-    "productName": "赤瞳安全智能平台",
+    "productName": "赤瞳",
     "directories": {
       "output": "release"
     },
@@ -62,6 +62,7 @@
       }
     ],
     "win": {
+      "icon": "build/icon.png",
       "target": [
         "nsis"
       ]

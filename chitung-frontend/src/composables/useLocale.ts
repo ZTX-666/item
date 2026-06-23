@@ -7,16 +7,16 @@ const initialLocale = localStorage.getItem(STORAGE_KEY) === 'zh-TW' ? 'zh-TW' : 
 const locale = ref<Locale>(initialLocale)
 
 const traditionalText: Record<string, string> = {
-  赤瞳安全智能平台: '赤瞳安全智能平台',
+  赤瞳: '赤瞳',
   开发者: '開發者',
   简体: '簡體',
   繁体: '繁體',
   赤瞳守护者: '赤瞳守護者',
   望风险: '望風險',
-  视觉巡检总览: '視覺巡檢總覽',
+  视觉巡检: '視覺巡檢',
+  CCTV: 'CCTV',
   待确认事项: '待確認事項',
   隐患台账: '隱患台賬',
-  视觉巡检: '視覺巡檢',
   闪闪文档: '閃閃文檔',
   书文档: '書文檔',
   文档审阅: '文檔審閱',
@@ -32,6 +32,8 @@ const traditionalText: Record<string, string> = {
   AI助手: 'AI 助手',
   自动化: '自動化',
   技能: '技能',
+  长期记忆: '長期記憶',
+  执行中心: '執行中心',
   工作流: '工作流',
   耀耀慧读: '耀耀慧讀',
   问制度: '問制度',

@@ -955,7 +955,12 @@ def yaoyao_render_pdf_pages(req: YaoyaoRenderPdfPagesRequest):
             req.file_path, req.page_index, out_dir / "preview.jpg",
             req.render_width, req.render_height,
         )
-        return {"ok": True, "preview_image_path": out_path, "page_index": req.page_index}
+        return {
+            "ok": True,
+            "preview_image_path": out_path,
+            "page_index": req.page_index,
+            "page_count": service.get_page_count(req.file_path),
+        }
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
 

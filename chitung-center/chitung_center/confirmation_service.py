@@ -25,6 +25,33 @@ REJECT_ACTIONS = {
     "mark_false_positive",
 }
 
+CONFIRMATION_POLICY = {
+    "send_feishu_message": "发送外部通知前必须人工确认。",
+    "send_feishu_card": "发送外部通知卡片前必须人工确认。",
+    "send_whatsapp_message": "发送 WhatsApp 消息前必须人工确认。",
+    "docmate_apply_changes": "修改或写回文件前必须人工确认。",
+    "generate_rectification_notice": "创建整改通知前必须人工确认。",
+    "generate_warning_letter": "创建警告信前必须人工确认。",
+    "close_safety_case": "关闭整改事项前必须人工确认。",
+    "create_safety_case": "创建整改事项前必须人工确认。",
+    "trigger_external_notification": "触发外部通知前必须人工确认。",
+}
+
+
+def confirmation_policy() -> dict[str, Any]:
+    return {
+        "ok": True,
+        "mode": "confirmation_required",
+        "actions": [
+            {"action_type": action_type, "requires_confirmation": True, "reason": reason}
+            for action_type, reason in CONFIRMATION_POLICY.items()
+        ],
+    }
+
+
+def action_requires_confirmation(action_type: str) -> bool:
+    return action_type in CONFIRMATION_POLICY
+
 
 async def list_pending_confirmations(
     *,

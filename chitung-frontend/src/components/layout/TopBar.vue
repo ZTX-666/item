@@ -10,9 +10,9 @@ const { isDark, toggleTheme } = useTheme()
 
 <template>
   <header class="topbar">
-    <img class="topbar__logo" :src="brandLogo" alt="赤瞳安全智能平台" />
+    <img class="topbar__logo" :src="brandLogo" alt="赤瞳" />
     <div class="topbar__brand">
-      <strong>{{ display('赤瞳安全智能平台') }}</strong>
+      <strong>{{ display('赤瞳') }}</strong>
       <span>CSCEC Safety Intelligence</span>
     </div>
     <div class="topbar__center-mark">

@@ -1,842 +1,967 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   createYaoyaoStructuredDraft,
-  confirmYaoyaoStructuredDraft,
-  listYaoyaoTemplates,
-  saveYaoyaoTemplate,
+  exportYaoyaoStructuredExcel,
   getYaoyaoTemplate,
+  listYaoyaoTemplates,
+  renderYaoyaoStructuredPage,
+  saveYaoyaoTemplate,
 } from '../services/chitungApi'
-import type {
-  YaoyaoRegion,
-  YaoyaoFieldCandidate,
-  YaoyaoStructuredDraft,
-  YaoyaoTemplateListItem,
-} from '../types/domain'
+import type { YaoyaoPageRow, YaoyaoRegion, YaoyaoTemplateListItem } from '../types/domain'
 
-// ── State ──────────────────────────────────────────────────────
+const CANVAS_WIDTH = 900
+const CANVAS_HEIGHT = 1200
+const FIELD_SERIAL = '序號'
 
-const filePath = ref('')
-const isExtracting = ref(false)
-const isConfirming = ref(false)
-const draft = ref<YaoyaoStructuredDraft | null>(null)
-const errorMessage = ref('')
-const successMessage = ref('')
-const logs = ref<string[]>([])
+const fileInput = ref<HTMLInputElement | null>(null)
+const sourcePath = ref('')
+const statusText = ref('未載入 PDF')
+const previewUrl = ref('')
+const currentPageIndex = ref(0)
+const pageCount = ref(0)
+const pageInput = ref('1')
+const zoom = ref(1)
+const pdfViewportRef = ref<HTMLElement | null>(null)
+const fitScale = ref(0.72)
+let fitScaleObserver: ResizeObserver | null = null
 
-// Region management
 const regions = ref<YaoyaoRegion[]>([])
-const newRegionName = ref('')
 const selectedRegionIndex = ref(-1)
+const pageRows = ref<YaoyaoPageRow[]>([])
+const templates = ref<YaoyaoTemplateListItem[]>([])
+const selectedTemplateId = ref('')
+const templateName = ref('')
 
-// Template management
-const templateIdInput = ref('')
-const templateNameInput = ref('')
-const availableTemplates = ref<YaoyaoTemplateListItem[]>([])
+const isRendering = ref(false)
+const isRecognizing = ref(false)
+const isBatching = ref(false)
+const cancelBatch = ref(false)
+const message = ref('')
+const errorMessage = ref('')
+const exportedUrl = ref('')
 
-// Editable field values (field_name -> edited value)
-const editedFields = ref<Record<string, string>>({})
-
-// ── Computed ───────────────────────────────────────────────────
-
-const fieldCandidates = computed<YaoyaoFieldCandidate[]>(() => {
-  return draft.value?.field_candidates ?? []
-})
-
-// ── Actions ────────────────────────────────────────────────────
-
-function log(msg: string) {
-  const ts = new Date().toLocaleTimeString()
-  logs.value.unshift(`[${ts}] ${msg}`)
-  if (logs.value.length > 50) logs.value.pop()
+type DragMode = 'move' | 'resize'
+type DragState = {
+  mode: DragMode
+  index: number
+  startX: number
+  startY: number
+  original: YaoyaoRegion
 }
 
-function handleFileSelect(event: Event) {
+const dragState = ref<DragState | null>(null)
+
+const orderedRows = computed(() =>
+  [...pageRows.value].sort((a, b) => a.pageNumber - b.pageNumber),
+)
+
+const tableColumns = computed(() => [FIELD_SERIAL, ...regions.value.map((region) => region.name)])
+
+const canRecognize = computed(() => Boolean(sourcePath.value.trim()) && regions.value.length > 0 && !isRecognizing.value && !isBatching.value)
+
+function pickFile() {
+  fileInput.value?.click()
+}
+
+async function handleFileSelect(event: Event) {
   const input = event.target as HTMLInputElement
-  if (input.files && input.files.length > 0) {
-    // In a desktop context, the file path may be available.
-    // For web context, we use the file name as a placeholder.
-    const file = input.files[0]
-    // @ts-expect-error - path is available in Electron/desktop contexts
-    filePath.value = file.path || ''
-    if (!filePath.value) {
-      errorMessage.value = '当前浏览器环境拿不到本地绝对路径，请手动输入文件路径（桌面版可自动识别）。'
-      log(`File selected without absolute path: ${file.name}`)
-      return
-    }
-    log(`File selected: ${filePath.value}`)
+  const file = input.files?.[0]
+  if (!file) return
+  const maybePath = (file as File & { path?: string }).path || ''
+  if (maybePath) {
+    sourcePath.value = maybePath
+    await importCurrentPath()
+  } else {
+    errorMessage.value = `已选择 ${file.name}，但浏览器环境不能读取本地绝对路径，请在路径栏粘贴 PDF 路径。`
   }
+  input.value = ''
 }
 
-async function refreshTemplates() {
+async function importCurrentPath() {
+  if (!sourcePath.value.trim()) {
+    errorMessage.value = '请先输入或选择 PDF / 图片路径。'
+    return
+  }
+  currentPageIndex.value = 0
+  pageInput.value = '1'
+  pageRows.value = []
+  exportedUrl.value = ''
+  await renderPage(0)
+}
+
+async function renderPage(pageIndex: number) {
+  isRendering.value = true
+  errorMessage.value = ''
+  message.value = ''
   try {
-    availableTemplates.value = await listYaoyaoTemplates()
-  } catch {
-    availableTemplates.value = []
+    const result = await renderYaoyaoStructuredPage({
+      filePath: sourcePath.value.trim(),
+      pageIndex,
+      renderWidth: CANVAS_WIDTH,
+      renderHeight: CANVAS_HEIGHT,
+    })
+    if (!result.ok) throw new Error(result.message || result.error || '页面渲染失败')
+    previewUrl.value = result.preview_url || ''
+    currentPageIndex.value = result.page_index ?? pageIndex
+    pageCount.value = result.page_count || pageCount.value || 1
+    pageInput.value = String(currentPageIndex.value + 1)
+    statusText.value = `已載入：第 ${currentPageIndex.value + 1} / ${pageCount.value} 頁`
+    await nextTick()
+    updateFitScale()
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : String(error)
+    statusText.value = '頁面渲染失敗'
+  } finally {
+    isRendering.value = false
   }
 }
 
 function addRegion() {
-  if (!newRegionName.value.trim()) {
-    errorMessage.value = 'Please enter a region name.'
-    return
-  }
-  regions.value.push({
-    name: newRegionName.value.trim(),
-    x: 50,
-    y: 50,
-    width: 200,
-    height: 60,
+  const index = regions.value.length + 1
+  const region = {
+    name: `欄位${index}`,
+    x: Math.round((CANVAS_WIDTH - 180) / 2),
+    y: Math.round((CANVAS_HEIGHT - 80) / 2),
+    width: 180,
+    height: 80,
     angle: 0,
-  })
-  newRegionName.value = ''
-  log(`Region added: ${regions.value[regions.value.length - 1].name}`)
+  }
+  regions.value.push(region)
+  selectedRegionIndex.value = regions.value.length - 1
+  ensureRowsHaveColumns()
+  statusText.value = `已新增識別框：${region.name}`
 }
 
 function removeRegion(index: number) {
-  const name = regions.value[index]?.name
-  regions.value.splice(index, 1)
-  if (selectedRegionIndex.value === index) {
-    selectedRegionIndex.value = -1
-  }
-  log(`Region removed: ${name}`)
-}
-
-function updateRegion(index: number, field: keyof YaoyaoRegion, value: number) {
-  if (index >= 0 && index < regions.value.length) {
-    regions.value[index] = { ...regions.value[index], [field]: value }
+  const [removed] = regions.value.splice(index, 1)
+  if (selectedRegionIndex.value === index) selectedRegionIndex.value = -1
+  if (removed) {
+    for (const row of pageRows.value) delete row.values[removed.name]
   }
 }
 
-async function handleExtract() {
-  if (!filePath.value) {
-    errorMessage.value = 'Please select a file first.'
+function duplicateRegion(index: number) {
+  const source = regions.value[index]
+  if (!source) return
+  regions.value.push({
+    ...source,
+    name: `${source.name}_副本`,
+    x: Math.min(CANVAS_WIDTH - source.width, source.x + 20),
+    y: Math.min(CANVAS_HEIGHT - source.height, source.y + 20),
+  })
+  selectedRegionIndex.value = regions.value.length - 1
+}
+
+function updateRegion(index: number, patch: Partial<YaoyaoRegion>) {
+  const current = regions.value[index]
+  if (!current) return
+  const next = { ...current, ...patch }
+  next.x = clamp(next.x, 0, CANVAS_WIDTH - 12)
+  next.y = clamp(next.y, 0, CANVAS_HEIGHT - 12)
+  next.width = clamp(next.width, 12, CANVAS_WIDTH - next.x)
+  next.height = clamp(next.height, 12, CANVAS_HEIGHT - next.y)
+  next.angle = Number.isFinite(next.angle) ? next.angle : 0
+  regions.value[index] = next
+  ensureRowsHaveColumns()
+}
+
+function startRegionDrag(event: PointerEvent, index: number, mode: DragMode) {
+  const region = regions.value[index]
+  if (!region) return
+  selectedRegionIndex.value = index
+  dragState.value = {
+    mode,
+    index,
+    startX: event.clientX,
+    startY: event.clientY,
+    original: { ...region },
+  }
+  window.addEventListener('pointermove', handleRegionDrag)
+  window.addEventListener('pointerup', stopRegionDrag, { once: true })
+}
+
+function handleRegionDrag(event: PointerEvent) {
+  const drag = dragState.value
+  if (!drag) return
+  const scale = fitScale.value * zoom.value
+  const dx = (event.clientX - drag.startX) / scale
+  const dy = (event.clientY - drag.startY) / scale
+  if (drag.mode === 'move') {
+    updateRegion(drag.index, {
+      x: Math.round(drag.original.x + dx),
+      y: Math.round(drag.original.y + dy),
+    })
+  } else {
+    updateRegion(drag.index, {
+      width: Math.round(drag.original.width + dx),
+      height: Math.round(drag.original.height + dy),
+    })
+  }
+}
+
+function stopRegionDrag() {
+  dragState.value = null
+  window.removeEventListener('pointermove', handleRegionDrag)
+}
+
+function zoomIn() {
+  zoom.value = Math.min(2, Number((zoom.value + 0.1).toFixed(2)))
+}
+
+function zoomOut() {
+  zoom.value = Math.max(0.5, Number((zoom.value - 0.1).toFixed(2)))
+}
+
+function resetZoom() {
+  zoom.value = 1
+}
+
+async function goToPage(pageIndex: number) {
+  if (!sourcePath.value.trim()) return
+  const safeIndex = clamp(pageIndex, 0, Math.max(0, pageCount.value - 1))
+  await renderPage(safeIndex)
+}
+
+async function jumpPage() {
+  const value = Number(pageInput.value)
+  if (!Number.isFinite(value)) return
+  await goToPage(value - 1)
+}
+
+async function recognizeCurrentPage() {
+  if (!canRecognize.value) {
+    errorMessage.value = '请先导入文件并新增至少一个识别框。'
     return
   }
-
-  isExtracting.value = true
+  isRecognizing.value = true
   errorMessage.value = ''
-  successMessage.value = ''
-  log(`Starting structured extraction: ${filePath.value}`)
-
+  exportedUrl.value = ''
   try {
-    const result = await createYaoyaoStructuredDraft({
-      filePath: filePath.value,
-      regions: regions.value.length > 0 ? regions.value : undefined,
-      templateId: templateIdInput.value || undefined,
+    const draft = await createYaoyaoStructuredDraft({
+      filePath: sourcePath.value.trim(),
+      pageIndex: currentPageIndex.value,
+      regions: regions.value,
+      renderWidth: CANVAS_WIDTH,
+      renderHeight: CANVAS_HEIGHT,
     })
-    draft.value = result
-    // Initialize editable fields with OCR results.
-    editedFields.value = {}
-    for (const fc of result.field_candidates) {
-      editedFields.value[fc.field_name] = fc.value
-    }
-    log(`Extraction complete: ${result.field_candidates.length} fields, ${result.page_count} pages, ${result.elapsed_seconds}s`)
-    if (!result.ok) {
-      errorMessage.value = result.message
-    }
-  } catch (err) {
-    errorMessage.value = String(err)
-    log(`Extraction error: ${err}`)
+    if (!draft.ok) throw new Error(draft.message || '识别失败')
+    upsertRows(draft.pages)
+    if (draft.page_count) pageCount.value = draft.page_count
+    message.value = `第 ${currentPageIndex.value + 1} 頁識別完成，共 ${draft.field_candidates.length} 個欄位。`
+    statusText.value = message.value
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : String(error)
   } finally {
-    isExtracting.value = false
+    isRecognizing.value = false
   }
 }
 
-async function handleConfirm() {
-  if (!draft.value) return
-
-  isConfirming.value = true
+async function recognizeAllPages() {
+  if (!canRecognize.value) {
+    errorMessage.value = '请先导入文件并新增至少一个识别框。'
+    return
+  }
+  isBatching.value = true
+  cancelBatch.value = false
   errorMessage.value = ''
-  log('Confirming structured input...')
-
+  exportedUrl.value = ''
+  const total = pageCount.value || 1
   try {
-    const result = await confirmYaoyaoStructuredDraft({
-      draftId: draft.value.draft_id,
-      fields: editedFields.value,
-      templateId: draft.value.confirm_payload?.template_id ?? undefined,
-      caseId: draft.value.confirm_payload?.case_id ?? undefined,
-      notes: 'Confirmed from Yaoyao structured input page.',
-    })
-    if (result.ok) {
-      successMessage.value = `Record written: ${result.record_id} (audit: ${result.audit_id})`
-      log(`Confirmation successful: record_id=${result.record_id}, audit_id=${result.audit_id}`)
+    for (let page = 0; page < total; page += 1) {
+      if (cancelBatch.value) break
+      statusText.value = `批量識別中：${page + 1} / ${total}`
+      const draft = await createYaoyaoStructuredDraft({
+        filePath: sourcePath.value.trim(),
+        pageIndex: page,
+        regions: regions.value,
+        renderWidth: CANVAS_WIDTH,
+        renderHeight: CANVAS_HEIGHT,
+      })
+      if (!draft.ok) throw new Error(draft.message || `第 ${page + 1} 頁識別失敗`)
+      upsertRows(draft.pages)
+    }
+    message.value = cancelBatch.value ? '批量識別已取消。' : `批量識別完成，共 ${orderedRows.value.length} 頁。`
+    statusText.value = message.value
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    isBatching.value = false
+    cancelBatch.value = false
+  }
+}
+
+function requestCancelBatch() {
+  cancelBatch.value = true
+}
+
+function upsertRows(rows: Array<{ page_number: number; values: Record<string, string> }>) {
+  for (const page of rows) {
+    const pageNumber = page.page_number
+    const existing = pageRows.value.find((row) => row.pageNumber === pageNumber)
+    const values = normalizeValues(page.values || {})
+    if (existing) {
+      existing.values = { ...existing.values, ...values }
     } else {
-      errorMessage.value = result.message
-      log(`Confirmation failed: ${result.message}`)
+      pageRows.value.push({ pageNumber, values })
     }
-  } catch (err) {
-    errorMessage.value = String(err)
-    log(`Confirmation error: ${err}`)
-  } finally {
-    isConfirming.value = false
+  }
+  ensureRowsHaveColumns()
+}
+
+function normalizeValues(values: Record<string, string>) {
+  const next: Record<string, string> = {}
+  for (const region of regions.value) {
+    next[region.name] = values[region.name] ?? ''
+  }
+  return next
+}
+
+function ensureRowsHaveColumns() {
+  for (const row of pageRows.value) {
+    for (const region of regions.value) {
+      if (!(region.name in row.values)) row.values[region.name] = ''
+    }
   }
 }
 
-async function handleSaveTemplate() {
-  if (regions.value.length === 0) {
-    errorMessage.value = 'No regions to save.'
+function updateCell(row: YaoyaoPageRow, field: string, value: string) {
+  row.values[field] = value
+}
+
+async function refreshTemplates() {
+  try {
+    templates.value = await listYaoyaoTemplates()
+  } catch {
+    templates.value = []
+  }
+}
+
+async function saveTemplate() {
+  if (!regions.value.length) {
+    errorMessage.value = '没有可保存的识别框。'
     return
   }
-
   try {
     const result = await saveYaoyaoTemplate({
       regions: regions.value,
-      name: templateNameInput.value || undefined,
-      templateId: templateIdInput.value || undefined,
+      rows: orderedRows.value.map((row) => ({ page: row.pageNumber, values: row.values })),
+      name: templateName.value || undefined,
+      templateId: selectedTemplateId.value || undefined,
     })
-    if (result.ok) {
-      templateIdInput.value = result.template_id
-      successMessage.value = `Template saved: ${result.template_id}`
-      log(`Template saved: ${result.template_id} (${result.name})`)
-      await refreshTemplates()
-    }
-  } catch (err) {
-    errorMessage.value = String(err)
-    log(`Template save error: ${err}`)
+    selectedTemplateId.value = result.template_id
+    templateName.value = result.name
+    message.value = `模板已保存：${result.name}`
+    await refreshTemplates()
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : String(error)
   }
 }
 
-async function handleLoadTemplate() {
-  if (!templateIdInput.value.trim()) {
-    errorMessage.value = 'Please enter a template ID.'
+async function loadTemplate() {
+  if (!selectedTemplateId.value) {
+    errorMessage.value = '请选择或输入模板 ID。'
     return
   }
-
   try {
-    const result = await getYaoyaoTemplate(templateIdInput.value.trim())
-    if (result.ok && result.template) {
-      regions.value = result.template.regions || []
-      templateNameInput.value = result.template.name || ''
-      log(`Template loaded: ${result.template.id} (${regions.value.length} regions)`)
-    }
-  } catch (err) {
-    errorMessage.value = String(err)
-    log(`Template load error: ${err}`)
+    const result = await getYaoyaoTemplate(selectedTemplateId.value)
+    if (!result.ok || !result.template) throw new Error('模板读取失败')
+    regions.value = result.template.regions || []
+    templateName.value = result.template.name || ''
+    pageRows.value = (result.template.rows || []).map((row) => ({
+      pageNumber: row.page,
+      values: { ...row.values },
+    }))
+    selectedRegionIndex.value = regions.value.length ? 0 : -1
+    message.value = `模板已载入：${result.template.name}`
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : String(error)
   }
 }
 
-function applyTemplateFromList(templateId: string) {
-  templateIdInput.value = templateId
-  void handleLoadTemplate()
+async function exportExcel() {
+  if (!orderedRows.value.length) {
+    errorMessage.value = '请先识别至少一页数据。'
+    return
+  }
+  try {
+    const result = await exportYaoyaoStructuredExcel({
+      rows: orderedRows.value,
+      regions: regions.value,
+      fileName: 'ocr_result.xlsx',
+    })
+    exportedUrl.value = result.download_url
+    message.value = `Excel 已导出：${result.file_name}`
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : String(error)
+  }
 }
 
-function confidenceLabel(score: number): string {
-  if (score >= 0.9) return 'High'
-  if (score >= 0.7) return 'Medium'
-  return 'Low'
+function showUsageGuide() {
+  message.value = '使用流程：导入 PDF -> 新增并拖动识别框 -> 识别当前页或批量识别 -> 校对右侧表格 -> 导出 Excel。'
 }
 
-function confidenceTone(score: number): string {
-  if (score >= 0.9) return 'yaoyao-conf--high'
-  if (score >= 0.7) return 'yaoyao-conf--medium'
-  return 'yaoyao-conf--low'
+function previewCrop() {
+  const region = regions.value[selectedRegionIndex.value]
+  if (!region) {
+    message.value = '请先选择一个识别框。'
+    return
+  }
+  message.value = `当前识别框：${region.name}，坐标 ${Math.round(region.x)}, ${Math.round(region.y)}, ${Math.round(region.width)} x ${Math.round(region.height)}，角度 ${region.angle}°。`
 }
 
-onMounted(() => {
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+const canvasTransformScale = computed(() => Number((fitScale.value * zoom.value).toFixed(3)))
+
+function updateFitScale() {
+  const viewport = pdfViewportRef.value
+  if (!viewport) return
+  const availableWidth = Math.max(120, viewport.clientWidth - 24)
+  const availableHeight = Math.max(120, viewport.clientHeight - 24)
+  const scale = Math.min(1, availableWidth / CANVAS_WIDTH, availableHeight / CANVAS_HEIGHT)
+  fitScale.value = Number(scale.toFixed(3))
+}
+
+onMounted(async () => {
   void refreshTemplates()
+  await nextTick()
+  updateFitScale()
+  if (pdfViewportRef.value) {
+    fitScaleObserver = new ResizeObserver(() => updateFitScale())
+    fitScaleObserver.observe(pdfViewportRef.value)
+  }
+})
+
+watch(previewUrl, async () => {
+  await nextTick()
+  updateFitScale()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pointermove', handleRegionDrag)
+  fitScaleObserver?.disconnect()
+  fitScaleObserver = null
 })
 </script>
 
 <template>
-  <div class="yaoyao-page">
-    <!-- Top bar: file + template -->
-    <div class="yaoyao-toolbar">
-      <div class="yaoyao-toolbar__left">
-        <label class="yaoyao-file-btn">
-          <input type="file" accept=".pdf,.png,.jpg,.jpeg,.bmp,.tiff" @change="handleFileSelect" />
-          <span>Choose File</span>
-        </label>
-        <input
-          v-model="filePath"
-          class="yaoyao-input yaoyao-input--path"
-          placeholder="Or paste absolute file path here..."
-        />
-        <span class="yaoyao-filepath" v-if="filePath">{{ filePath }}</span>
+  <main class="ocr-app">
+    <section class="ocr-header">
+      <div>
+        <h1>地盤票據識別助手</h1>
+        <p>OCR Document Assistant</p>
       </div>
-      <div class="yaoyao-toolbar__right">
-        <input
-          v-model="templateIdInput"
-          class="yaoyao-input"
-          placeholder="Template ID"
-        />
-        <input
-          v-model="templateNameInput"
-          class="yaoyao-input"
-          placeholder="Template name"
-        />
-        <button class="yaoyao-btn yaoyao-btn--ghost" @click="handleLoadTemplate">Load</button>
-        <button class="yaoyao-btn yaoyao-btn--ghost" @click="handleSaveTemplate">Save Template</button>
-        <button class="yaoyao-btn yaoyao-btn--ghost" @click="refreshTemplates">Refresh List</button>
+      <div class="ocr-status">
+        <span>當前狀態：</span>
+        <strong>{{ statusText }}</strong>
       </div>
-    </div>
+    </section>
 
-    <!-- Main content: left regions / right results -->
-    <div class="yaoyao-body">
-      <!-- Left: regions management -->
-      <div class="yaoyao-left">
-        <div class="yaoyao-panel">
-          <div class="yaoyao-panel__header">
-            <h3 class="yaoyao-panel__title">Recognition Regions</h3>
-            <span class="yaoyao-panel__count">{{ regions.length }}</span>
-          </div>
+    <section class="ocr-pathbar">
+      <button @click="pickFile">導入 PDF</button>
+      <input ref="fileInput" type="file" accept=".pdf,.png,.jpg,.jpeg,.bmp,.webp" class="hidden-input" @change="handleFileSelect" />
+      <input v-model="sourcePath" class="path-input" placeholder="或粘贴本地 PDF / 图片绝对路径，例如 E:\\data\\ticket.pdf" @keydown.enter="importCurrentPath" />
+      <button @click="importCurrentPath">載入</button>
+    </section>
 
-          <div class="yaoyao-add-region">
-            <input
-              v-model="newRegionName"
-              class="yaoyao-input"
-              placeholder="Region name (e.g. company_name)"
-              @keyup.enter="addRegion"
-            />
-            <button class="yaoyao-btn yaoyao-btn--sm" @click="addRegion">+ Add</button>
-          </div>
+    <section class="ocr-toolbar">
+      <button @click="showUsageGuide">使用教學</button>
+      <button :disabled="!previewUrl" @click="addRegion">新增識別框</button>
+      <button :disabled="selectedRegionIndex < 0" @click="previewCrop">裁剪預覽</button>
+      <button :disabled="!canRecognize" @click="recognizeCurrentPage">{{ isRecognizing ? '識別中...' : '識別當前頁' }}</button>
+      <button :disabled="!canRecognize" @click="recognizeAllPages">{{ isBatching ? '批量中...' : '批量識別' }}</button>
+      <button :disabled="!isBatching" @click="requestCancelBatch">取消批量</button>
+      <button :disabled="!regions.length" @click="saveTemplate">儲存模板</button>
+      <button :disabled="!selectedTemplateId" @click="loadTemplate">載入模板</button>
+      <button :disabled="!orderedRows.length" @click="exportExcel">導出 Excel</button>
+    </section>
 
-          <div v-if="availableTemplates.length" class="yaoyao-template-list">
-            <h4>Saved Templates</h4>
-            <button
-              v-for="tpl in availableTemplates"
-              :key="tpl.id"
-              class="yaoyao-template-item"
-              @click="applyTemplateFromList(tpl.id)"
-            >
-              <span>{{ tpl.name }}</span>
-              <small>{{ tpl.id }} · {{ tpl.region_count }} regions</small>
-            </button>
-          </div>
+    <section class="template-row">
+      <select v-model="selectedTemplateId">
+        <option value="">选择模板</option>
+        <option v-for="template in templates" :key="template.id" :value="template.id">
+          {{ template.name }} · {{ template.region_count }}框
+        </option>
+      </select>
+      <input v-model="selectedTemplateId" placeholder="模板 ID" />
+      <input v-model="templateName" placeholder="模板名称" />
+      <a v-if="exportedUrl" class="download-link" :href="exportedUrl" target="_blank" rel="noreferrer">下载 Excel</a>
+    </section>
 
-          <div class="yaoyao-region-list" v-if="regions.length > 0">
-            <div
-              v-for="(region, idx) in regions"
-              :key="idx"
-              class="yaoyao-region-item"
-              :class="{ 'yaoyao-region-item--active': selectedRegionIndex === idx }"
-              @click="selectedRegionIndex = idx"
-            >
-              <div class="yaoyao-region-item__header">
-                <span class="yaoyao-region-item__name">{{ region.name }}</span>
-                <button class="yaoyao-region-item__del" @click.stop="removeRegion(idx)">x</button>
-              </div>
-              <div class="yaoyao-region-item__coords" v-if="selectedRegionIndex === idx">
-                <label>X <input type="number" class="yaoyao-mini-input" :value="region.x" @input="updateRegion(idx, 'x', +($event.target as HTMLInputElement).value)" /></label>
-                <label>Y <input type="number" class="yaoyao-mini-input" :value="region.y" @input="updateRegion(idx, 'y', +($event.target as HTMLInputElement).value)" /></label>
-                <label>W <input type="number" class="yaoyao-mini-input" :value="region.width" @input="updateRegion(idx, 'width', +($event.target as HTMLInputElement).value)" /></label>
-                <label>H <input type="number" class="yaoyao-mini-input" :value="region.height" @input="updateRegion(idx, 'height', +($event.target as HTMLInputElement).value)" /></label>
-                <label>Rot <input type="number" class="yaoyao-mini-input" :value="region.angle" @input="updateRegion(idx, 'angle', +($event.target as HTMLInputElement).value)" /></label>
-              </div>
-            </div>
-          </div>
+    <p v-if="message" class="notice notice--ok">{{ message }}</p>
+    <p v-if="errorMessage" class="notice notice--error">{{ errorMessage }}</p>
 
-          <div class="yaoyao-empty" v-else>
-            <p>No regions defined. Add regions above or run extraction without regions for full-page OCR.</p>
-          </div>
-
-          <div class="yaoyao-actions">
-            <button
-              class="yaoyao-btn yaoyao-btn--primary"
-              :disabled="isExtracting || !filePath"
-              @click="handleExtract"
-            >
-              {{ isExtracting ? 'Extracting...' : 'Run OCR Extraction' }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right: results + confirm -->
-      <div class="yaoyao-right">
-        <div class="yaoyao-panel">
-          <div class="yaoyao-panel__header">
-            <h3 class="yaoyao-panel__title">Field Results</h3>
-            <span class="yaoyao-panel__count" v-if="fieldCandidates.length">{{ fieldCandidates.length }}</span>
-          </div>
-
-          <div v-if="fieldCandidates.length > 0" class="yaoyao-results">
-            <table class="yaoyao-table">
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>OCR Value</th>
-                  <th>Confidence</th>
-                  <th>Page</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="fc in fieldCandidates" :key="fc.field_name">
-                  <td class="yaoyao-table__field">{{ fc.field_name }}</td>
-                  <td>
-                    <input
-                      v-model="editedFields[fc.field_name]"
-                      class="yaoyao-table__input"
-                    />
-                  </td>
-                  <td>
-                    <span class="yaoyao-conf" :class="confidenceTone(fc.confidence)">
-                      {{ confidenceLabel(fc.confidence) }} ({{ (fc.confidence * 100).toFixed(0) }}%)
-                    </span>
-                  </td>
-                  <td class="yaoyao-table__page">{{ fc.page_number }}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div class="yaoyao-confirm-bar">
-              <button
-                class="yaoyao-btn yaoyao-btn--success"
-                :disabled="isConfirming"
-                @click="handleConfirm"
+    <section class="ocr-workspace">
+      <article class="pdf-panel">
+        <div ref="pdfViewportRef" class="pdf-viewport">
+          <div class="canvas-shell" :style="{ transform: `scale(${canvasTransformScale})` }">
+            <img v-if="previewUrl" :src="previewUrl" class="page-image" alt="PDF page preview" />
+            <div v-else class="empty-preview">請導入 PDF</div>
+            <div class="region-layer">
+              <div
+                v-for="(region, index) in regions"
+                :key="`${region.name}-${index}`"
+                class="ocr-region"
+                :class="{ 'ocr-region--active': selectedRegionIndex === index }"
+                :style="{
+                  left: `${region.x}px`,
+                  top: `${region.y}px`,
+                  width: `${region.width}px`,
+                  height: `${region.height}px`,
+                  transform: `rotate(${region.angle}deg)`,
+                }"
+                @pointerdown.prevent="startRegionDrag($event, index, 'move')"
               >
-                {{ isConfirming ? 'Writing...' : 'Confirm & Write to Records' }}
-              </button>
-              <span class="yaoyao-hint">Fields are editable. Review before confirming.</span>
+                <span>{{ region.name }} ({{ Math.round(region.angle) }}°)</span>
+                <button class="region-resize" title="resize" @pointerdown.prevent.stop="startRegionDrag($event, index, 'resize')"></button>
+              </div>
             </div>
           </div>
 
-          <div class="yaoyao-empty" v-else-if="!isExtracting">
-            <p>Run OCR extraction to see field results here.</p>
-          </div>
-          <div class="yaoyao-loading" v-else>
-            <p>Extracting... please wait.</p>
+          <div class="zoom-controls">
+            <button @click="zoomOut">-</button>
+            <button @click="resetZoom">1:1</button>
+            <button @click="zoomIn">+</button>
           </div>
         </div>
+      </article>
 
-        <!-- Draft metadata -->
-        <div class="yaoyao-panel" v-if="draft">
-          <div class="yaoyao-panel__header">
-            <h3 class="yaoyao-panel__title">Draft Info</h3>
-          </div>
-          <dl class="yaoyao-meta">
-            <dt>Draft ID</dt><dd>{{ draft.draft_id }}</dd>
-            <dt>Pages</dt><dd>{{ draft.page_count }}</dd>
-            <dt>Elapsed</dt><dd>{{ draft.elapsed_seconds }}s</dd>
-            <dt>Requires Acceptance</dt><dd>{{ draft.requires_acceptance ? 'Yes' : 'No' }}</dd>
-          </dl>
+      <article class="result-panel">
+        <div class="result-table-wrap">
+          <table class="result-table">
+            <thead>
+              <tr>
+                <th v-for="column in tableColumns" :key="column">{{ column }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in orderedRows" :key="row.pageNumber">
+                <td>{{ row.pageNumber }}</td>
+                <td v-for="region in regions" :key="`${row.pageNumber}-${region.name}`">
+                  <input :value="row.values[region.name] || ''" @input="updateCell(row, region.name, ($event.target as HTMLInputElement).value)" />
+                </td>
+              </tr>
+              <tr v-if="!orderedRows.length">
+                <td :colspan="Math.max(1, tableColumns.length)">尚未識別，結果會顯示在這裡。</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      </div>
-    </div>
+      </article>
+    </section>
 
-    <!-- Bottom: logs & messages -->
-    <div class="yaoyao-footer">
-      <div v-if="errorMessage" class="yaoyao-alert yaoyao-alert--error">{{ errorMessage }}</div>
-      <div v-if="successMessage" class="yaoyao-alert yaoyao-alert--success">{{ successMessage }}</div>
-      <div class="yaoyao-logs" v-if="logs.length > 0">
-        <div v-for="(line, i) in logs" :key="i" class="yaoyao-logs__line">{{ line }}</div>
+    <section class="region-editor">
+      <div class="region-list">
+        <button
+          v-for="(region, index) in regions"
+          :key="`${region.name}-tab-${index}`"
+          :class="{ active: selectedRegionIndex === index }"
+          @click="selectedRegionIndex = index"
+        >
+          {{ region.name }}
+        </button>
       </div>
-    </div>
-  </div>
+      <div v-if="regions[selectedRegionIndex]" class="region-fields">
+        <label>
+          名稱
+          <input :value="regions[selectedRegionIndex].name" @input="updateRegion(selectedRegionIndex, { name: ($event.target as HTMLInputElement).value })" />
+        </label>
+        <label>
+          X
+          <input type="number" :value="regions[selectedRegionIndex].x" @input="updateRegion(selectedRegionIndex, { x: Number(($event.target as HTMLInputElement).value) })" />
+        </label>
+        <label>
+          Y
+          <input type="number" :value="regions[selectedRegionIndex].y" @input="updateRegion(selectedRegionIndex, { y: Number(($event.target as HTMLInputElement).value) })" />
+        </label>
+        <label>
+          W
+          <input type="number" :value="regions[selectedRegionIndex].width" @input="updateRegion(selectedRegionIndex, { width: Number(($event.target as HTMLInputElement).value) })" />
+        </label>
+        <label>
+          H
+          <input type="number" :value="regions[selectedRegionIndex].height" @input="updateRegion(selectedRegionIndex, { height: Number(($event.target as HTMLInputElement).value) })" />
+        </label>
+        <label>
+          角度
+          <input type="number" :value="regions[selectedRegionIndex].angle" @input="updateRegion(selectedRegionIndex, { angle: Number(($event.target as HTMLInputElement).value) })" />
+        </label>
+        <button @click="duplicateRegion(selectedRegionIndex)">复制</button>
+        <button class="danger" @click="removeRegion(selectedRegionIndex)">删除</button>
+      </div>
+      <p v-else class="region-empty">新增或选择一个识别框后，可在这里精确调整坐标。</p>
+    </section>
+
+    <section class="pager">
+      <button :disabled="currentPageIndex <= 0 || isRendering" @click="goToPage(currentPageIndex - 1)">上一頁</button>
+      <span>頁碼：</span>
+      <input v-model="pageInput" @keydown.enter="jumpPage" />
+      <span>/ {{ pageCount || 0 }}</span>
+      <button :disabled="isRendering" @click="jumpPage">跳轉</button>
+      <button :disabled="!pageCount || currentPageIndex >= pageCount - 1 || isRendering" @click="goToPage(currentPageIndex + 1)">下一頁</button>
+    </section>
+  </main>
 </template>
 
 <style scoped>
-.yaoyao-page {
+.ocr-app {
+  background: #f4f6fa;
+  color: #1d2b45;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  overflow: hidden;
+  gap: 8px;
+  min-height: calc(100vh - 56px);
+  padding: 10px;
 }
 
-.yaoyao-toolbar {
+.ocr-header,
+.ocr-pathbar,
+.ocr-toolbar,
+.template-row,
+.pager,
+.region-editor {
+  background: #fff;
+  border: 1px solid #d8e1ee;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(29, 43, 69, 0.06);
+}
+
+.ocr-header {
+  align-items: center;
+  display: grid;
+  gap: 34px;
+  grid-template-columns: minmax(360px, auto) 1fr;
+  min-height: 86px;
+  padding: 8px 14px;
+}
+
+.ocr-header h1 {
+  color: #1d2b45;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  margin: 0;
+}
+
+.ocr-header p {
+  color: #6b7893;
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+
+.ocr-status {
+  align-items: center;
+  color: #344563;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--bg-white);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  font-size: 14px;
+  gap: 8px;
+  justify-self: start;
 }
 
-.yaoyao-toolbar__left,
-.yaoyao-toolbar__right {
+.ocr-status strong {
+  color: #1d2b45;
+}
+
+.ocr-pathbar,
+.ocr-toolbar,
+.template-row,
+.pager {
+  align-items: center;
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
+  padding: 7px 8px;
 }
 
-.yaoyao-file-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  background: var(--brand-cyan);
-  color: var(--text-white);
-  border-radius: var(--radius-sm);
+.ocr-toolbar {
+  flex-wrap: wrap;
+}
+
+.template-row {
+  background: #fbfcff;
+  border-color: #e0e7f2;
+}
+
+.path-input,
+.template-row input,
+.template-row select,
+.pager input,
+.region-fields input,
+.result-table input {
+  background: #fff;
+  border: 1px solid #bfcbe0;
+  border-radius: 3px;
+  color: #1d2b45;
+  padding: 5px 8px;
+}
+
+.path-input {
+  flex: 1;
+}
+
+button,
+.download-link {
+  background: #fff;
+  border: 1px solid #bfcbe0;
+  border-radius: 3px;
+  color: #1d2b45;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 700;
+  min-height: 30px;
+  padding: 5px 11px;
+  text-decoration: none;
 }
 
-.yaoyao-file-btn input {
+button:hover,
+.download-link:hover {
+  background: rgba(15, 158, 213, 0.08);
+  border-color: var(--brand-cyan, #0f9ed5);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.hidden-input {
   display: none;
 }
 
-.yaoyao-filepath {
-  color: var(--text-secondary);
-  font-size: 13px;
-  max-width: 300px;
+.notice {
+  border-radius: 8px;
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.notice--ok {
+  background: rgba(67, 160, 71, 0.12);
+  color: var(--risk-low, #2e7d32);
+}
+
+.notice--error {
+  background: rgba(229, 57, 53, 0.12);
+  color: var(--risk-high, #c62828);
+}
+
+.ocr-workspace {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 12px;
+  grid-template-columns: minmax(0, 2.1fr) minmax(0, 2.2fr);
+}
+
+.pdf-panel,
+.result-panel {
+  aspect-ratio: 11 / 10;
+  background: #fff;
+  border: 1px solid #c8d1e0;
+  border-radius: 8px;
+  max-height: min(42vw, 460px);
+  min-height: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  width: 100%;
 }
 
-.yaoyao-input {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-normal);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  width: 120px;
+.result-panel {
+  background: #2f3640;
+  padding: 8px;
 }
 
-.yaoyao-input--path {
-  width: 280px;
-}
-
-.yaoyao-body {
+.pdf-viewport {
+  align-items: center;
+  background: #f8faff;
   display: flex;
-  gap: var(--space-4);
-  flex: 1;
-  overflow: hidden;
+  height: 100%;
+  justify-content: center;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
 }
 
-.yaoyao-left {
-  width: 40%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  overflow: hidden;
+.canvas-shell {
+  height: 1200px;
+  position: relative;
+  transform-origin: center;
+  width: 900px;
 }
 
-.yaoyao-right {
-  width: 60%;
+.page-image,
+.region-layer,
+.empty-preview {
+  height: 1200px;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 900px;
+}
+
+.page-image {
+  object-fit: contain;
+}
+
+.empty-preview {
+  align-items: center;
+  background: linear-gradient(135deg, #f8fbff, #eef3fb);
+  color: #6b7893;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  font-size: 28px;
+  font-weight: 800;
+  justify-content: center;
+}
+
+.region-layer {
+  pointer-events: none;
+}
+
+.ocr-region {
+  background: rgba(0, 191, 255, 0.16);
+  border: 2px solid deepskyblue;
+  cursor: move;
+  pointer-events: auto;
+  position: absolute;
+  transform-origin: center;
+}
+
+.ocr-region--active {
+  border-color: #ff9800;
+  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.22);
+}
+
+.ocr-region span {
+  background: deepskyblue;
+  color: white;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 5px;
+}
+
+.region-resize {
+  background: deepskyblue;
+  border: none;
+  border-radius: 0;
+  bottom: -1px;
+  height: 16px;
+  min-width: 0;
+  padding: 0;
+  position: absolute;
+  right: -1px;
+  width: 16px;
+}
+
+.zoom-controls {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-normal, #bfcbe0);
+  border-radius: 8px;
+  bottom: 12px;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  position: absolute;
+  right: 12px;
+}
+
+.result-table-wrap {
+  background: #fff;
+  border: 1px solid #1f252d;
+  height: 100%;
   overflow: auto;
 }
 
-.yaoyao-panel {
-  background: var(--bg-white);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+.result-table {
+  border-collapse: collapse;
+  min-width: 100%;
 }
 
-.yaoyao-panel__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.result-table th,
+.result-table td {
+  border: 1px solid #9ca8b9;
+  min-width: 140px;
+  padding: 3px 4px;
+  text-align: left;
 }
 
-.yaoyao-panel__title {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.yaoyao-panel__count {
-  background: var(--bg-active);
-  color: var(--brand-cyan);
+.result-table th {
+  background: #eef2f8;
+  color: #1d2b45;
   font-size: 12px;
-  padding: 2px 8px;
-  border-radius: var(--radius-round);
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
-.yaoyao-add-region {
+.result-table input {
+  border: none;
+  border-radius: 0;
+  min-width: 120px;
+  padding: 3px 4px;
+  width: 100%;
+}
+
+.region-editor {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 260px 1fr;
+  padding: 8px;
+}
+
+.region-list {
   display: flex;
-  gap: var(--space-2);
-}
-
-.yaoyao-add-region .yaoyao-input {
-  flex: 1;
-  width: auto;
-}
-
-.yaoyao-region-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  overflow-y: auto;
-  max-height: 300px;
-}
-
-.yaoyao-template-list {
-  display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
-.yaoyao-template-list h4 {
-  margin: 0;
-  font-size: 12px;
-  color: var(--text-secondary);
+.region-list button.active {
+  background: var(--brand-cyan, #0f9ed5);
+  border-color: var(--brand-cyan, #0f9ed5);
+  color: white;
 }
 
-.yaoyao-template-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 6px 8px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  background: var(--bg-subtle);
-  cursor: pointer;
-  text-align: left;
-}
-
-.yaoyao-template-item small {
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.yaoyao-region-item {
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-
-.yaoyao-region-item--active {
-  border-color: var(--brand-cyan);
-  background: var(--bg-active);
-}
-
-.yaoyao-region-item__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.yaoyao-region-item__name {
-  font-weight: 500;
-  font-size: 13px;
-}
-
-.yaoyao-region-item__del {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.yaoyao-region-item__del:hover {
-  color: var(--color-error);
-}
-
-.yaoyao-region-item__coords {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-.yaoyao-region-item__coords label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.yaoyao-mini-input {
-  width: 50px;
-  padding: 2px 4px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-xs);
-  font-size: 11px;
-}
-
-.yaoyao-empty {
-  padding: var(--space-6);
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.yaoyao-loading {
-  padding: var(--space-6);
-  text-align: center;
-  color: var(--brand-cyan);
-  font-size: 13px;
-}
-
-.yaoyao-actions {
-  margin-top: var(--space-2);
-}
-
-.yaoyao-btn {
-  padding: var(--space-2) var(--space-4);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.yaoyao-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.yaoyao-btn--primary {
-  background: var(--brand-cyan);
-  color: var(--text-white);
-  width: 100%;
-}
-
-.yaoyao-btn--success {
-  background: var(--color-success);
-  color: var(--text-white);
-}
-
-.yaoyao-btn--ghost {
-  background: var(--bg-subtle);
-  color: var(--text-primary);
-  border: 1px solid var(--border-normal);
-}
-
-.yaoyao-btn--sm {
-  padding: var(--space-1) var(--space-3);
-  font-size: 12px;
-}
-
-.yaoyao-results {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.yaoyao-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.yaoyao-table th {
-  text-align: left;
-  padding: var(--space-2) var(--space-3);
-  background: var(--bg-subtle);
-  color: var(--text-secondary);
-  font-weight: 500;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.yaoyao-table td {
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border-light);
-}
-
-.yaoyao-table__field {
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.yaoyao-table__input {
-  width: 100%;
-  padding: 4px 8px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-xs);
-  font-size: 13px;
-}
-
-.yaoyao-table__input:focus {
-  border-color: var(--brand-cyan);
-  outline: none;
-}
-
-.yaoyao-table__page {
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.yaoyao-conf {
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: var(--radius-xs);
-}
-
-.yaoyao-conf--high {
-  background: #e8f5e9;
-  color: var(--color-success);
-}
-
-.yaoyao-conf--medium {
-  background: #fff3e0;
-  color: var(--color-warning);
-}
-
-.yaoyao-conf--low {
-  background: #ffebee;
-  color: var(--color-error);
-}
-
-.yaoyao-confirm-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-light);
-}
-
-.yaoyao-hint {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.yaoyao-meta {
+.region-fields {
+  align-items: end;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-1) var(--space-4);
-  font-size: 13px;
+  gap: 8px;
+  grid-template-columns: 1.3fr repeat(5, 90px) auto auto;
 }
 
-.yaoyao-meta dt {
-  color: var(--text-secondary);
+.region-fields label {
+  color: var(--text-secondary, #6b7893);
+  display: grid;
+  font-size: 12px;
+  gap: 3px;
 }
 
-.yaoyao-meta dd {
+.danger {
+  color: var(--risk-high, #c62828);
+}
+
+.region-empty {
+  color: var(--text-secondary, #6b7893);
   margin: 0;
 }
 
-.yaoyao-footer {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+.pager {
+  justify-content: center;
+  min-height: 42px;
 }
 
-.yaoyao-alert {
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+.pager input {
+  width: 70px;
 }
 
-.yaoyao-alert--error {
-  background: #ffebee;
-  color: var(--color-error);
-}
+@media (max-width: 1200px) {
+  .ocr-workspace,
+  .region-editor {
+    grid-template-columns: 1fr;
+  }
 
-.yaoyao-alert--success {
-  background: #e8f5e9;
-  color: var(--color-success);
-}
-
-.yaoyao-logs {
-  background: var(--bg-white);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  max-height: 120px;
-  overflow-y: auto;
-  box-shadow: var(--shadow-sm);
-}
-
-.yaoyao-logs__line {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.8;
+  .region-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

@@ -182,21 +182,64 @@ def get_job(job_id: str) -> dict[str, Any] | None:
     return _row_to_job(row) if row else None
 
 
-def list_jobs(status: str | None = None, limit: int = 50) -> dict[str, Any]:
+def list_jobs(
+    status: str | None = None,
+    limit: int = 50,
+    source_module: str | None = None,
+    job_type: str | None = None,
+) -> dict[str, Any]:
     ensure_schema()
     limit = max(1, min(limit, 200))
+    filters: list[str] = []
+    params: list[Any] = []
+    if status:
+        filters.append("status = ?")
+        params.append(status)
+    if source_module:
+        filters.append("source_module = ?")
+        params.append(source_module)
+    if job_type:
+        filters.append("job_type = ?")
+        params.append(job_type)
+    where = f"WHERE {' AND '.join(filters)}" if filters else ""
     with storage.connect() as conn:
-        if status:
-            rows = conn.execute(
-                "SELECT * FROM job_runs WHERE status = ? ORDER BY datetime(created_at) DESC LIMIT ?",
-                (status, limit),
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT * FROM job_runs ORDER BY datetime(created_at) DESC LIMIT ?",
-                (limit,),
-            ).fetchall()
+        rows = conn.execute(
+            f"SELECT * FROM job_runs {where} ORDER BY datetime(created_at) DESC LIMIT ?",
+            (*params, limit),
+        ).fetchall()
     return {"ok": True, "items": [_row_to_job(row) for row in rows]}
+
+
+def job_stats() -> dict[str, Any]:
+    ensure_schema()
+    with storage.connect() as conn:
+        status_rows = conn.execute(
+            "SELECT status, COUNT(*) AS count FROM job_runs GROUP BY status ORDER BY status"
+        ).fetchall()
+        module_rows = conn.execute(
+            """
+            SELECT COALESCE(source_module, 'unknown') AS source_module, COUNT(*) AS count
+            FROM job_runs
+            GROUP BY COALESCE(source_module, 'unknown')
+            ORDER BY count DESC
+            """
+        ).fetchall()
+        type_rows = conn.execute(
+            """
+            SELECT job_type, COUNT(*) AS count
+            FROM job_runs
+            GROUP BY job_type
+            ORDER BY count DESC
+            """
+        ).fetchall()
+        total = conn.execute("SELECT COUNT(*) AS count FROM job_runs").fetchone()["count"]
+    return {
+        "ok": True,
+        "total": int(total or 0),
+        "by_status": {row["status"]: row["count"] for row in status_rows},
+        "by_module": {row["source_module"]: row["count"] for row in module_rows},
+        "by_type": {row["job_type"]: row["count"] for row in type_rows},
+    }
 
 
 def list_events(job_id: str, limit: int = 100) -> dict[str, Any]:

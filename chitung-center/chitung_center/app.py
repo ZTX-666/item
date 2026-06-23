@@ -16,6 +16,7 @@ from chitung_center.case_workflow_service import (
     send_rectification_notification,
 )
 from chitung_center.confirmation_service import (
+    confirmation_policy,
     list_pending_confirmations,
     resolve_and_execute,
 )
@@ -23,6 +24,7 @@ from chitung_center.feishu_adapter_service import handle_feishu_event
 from chitung_center.whatsapp_adapter_service import handle_whatsapp_event
 from chitung_center.config import settings
 from chitung_center.chat_store import chat_store
+from chitung_center.chat_attachment_service import attachment_meta, resolve_chat_attachment_path
 from chitung_center.document_service import build_document_revision_preview
 from chitung_center.docmate_service import (
     apply_changeset,
@@ -40,11 +42,19 @@ from chitung_center.external_monitor_scheduler import external_monitor_scheduler
 from chitung_center.diagnostics_service import build_system_diagnostics
 from chitung_center.job_service import (
     get_job,
+    job_stats,
     list_events as list_job_events,
     list_jobs,
     start_background_job,
     update_progress,
 )
+from chitung_center.long_term_memory_service import (
+    memory_context,
+    read_long_term_memory,
+    save_long_term_memory,
+    summarize_today_into_memory,
+)
+from chitung_center.skill_management_service import skill_operational_view, test_skill
 from chitung_center.integrations import list_integrations
 from chitung_center.hybrid_orchestration import hybrid_orchestration_service
 from chitung_center.models import (
@@ -68,6 +78,7 @@ from chitung_center.models import (
     HybridConfirmRequest,
     HybridExecuteRequest,
     HybridPlanRequest,
+    LongTermMemorySaveRequest,
     LlmSettingsRequest,
     NotificationSendRequest,
     RagAskRequest,
@@ -102,11 +113,14 @@ from chitung_center.models import (
     WorkflowImportRequest,
     WorkflowRunRequest,
     YaoyaoConfirmRequest,
+    YaoyaoExcelExportRequest,
+    YaoyaoPageRenderRequest,
     YaoyaoStructuredDraftRequest,
     YaoyaoTemplateLoadRequest,
     YaoyaoTemplateSaveRequest,
 )
 from chitung_center.orchestrator import orchestrator
+from chitung_center.rich_content import aggregate_rich_blocks_from_chat_payload
 from chitung_center.rag_service import RagDependencyError, RagServiceError, rag_service
 from chitung_center.runtime_service import build_runtime_status
 from chitung_center.report_service import generate_report_file
@@ -145,6 +159,7 @@ from chitung_center.workflow_engine import workflow_engine
 from chitung_center.workflow_templates import workflow_for_intent
 from chitung_center.workflows import workflow_loader
 from chitung_center.whatsapp_local_service import (
+    list_whatsapp_chats,
     list_whatsapp_sql_tables,
     resolve_whatsapp_media_file,
     run_whatsapp_command,
@@ -154,8 +169,12 @@ from chitung_center.whatsapp_local_service import (
 from chitung_center.yaoyao_structured_service import (
     build_yaoyao_structured_draft,
     confirm_yaoyao_structured_draft,
+    export_yaoyao_excel,
     list_yaoyao_templates,
     load_yaoyao_template,
+    render_yaoyao_page_preview,
+    resolve_yaoyao_export_file,
+    resolve_yaoyao_preview_file,
     save_yaoyao_template,
 )
 
@@ -227,8 +246,18 @@ async def system_diagnostics() -> dict[str, object]:
 
 
 @app.get("/api/jobs")
-async def jobs(status: str | None = None, limit: int = 50) -> dict[str, object]:
-    return list_jobs(status=status, limit=limit)
+async def jobs(
+    status: str | None = None,
+    source_module: str | None = None,
+    job_type: str | None = None,
+    limit: int = 50,
+) -> dict[str, object]:
+    return list_jobs(status=status, source_module=source_module, job_type=job_type, limit=limit)
+
+
+@app.get("/api/jobs/stats")
+async def jobs_stats() -> dict[str, object]:
+    return job_stats()
 
 
 @app.get("/api/jobs/{job_id}")
@@ -256,8 +285,13 @@ async def skills() -> dict[str, object]:
     from chitung_center.skills import INTENT_TO_SKILL
 
     intent_bindings = {**INTENT_TO_SKILL, "docmate_edit": "docmate-edit"}
+    items = []
+    for skill in skill_loader.list_skills():
+        data = skill.to_dict()
+        data["config"] = skill_loader.read_config(skill.name) or {}
+        items.append(data)
     return {
-        "items": [skill.to_dict() for skill in skill_loader.list_skills()],
+        "items": items,
         "intent_bindings": intent_bindings,
     }
 
@@ -300,11 +334,15 @@ async def skill_detail(name: str) -> dict[str, object]:
     if content is None:
         raise HTTPException(status_code=404, detail=f"Skill not found: {name}")
     info = skill_loader.get_info(name)
+    ops = await skill_operational_view(name)
     return {
         "name": name,
         "content": content,
         "meta": info.to_dict() if info else None,
         "config": skill_loader.read_config(name) or {},
+        "dependencies": ops.get("dependencies", []),
+        "recent_runs": ops.get("recent_runs", []),
+        "stats": ops.get("stats", {}),
     }
 
 
@@ -313,6 +351,14 @@ async def skill_config_save(name: str, request: SkillConfigSaveRequest) -> dict[
     if not skill_loader.write_config(name, request.config):
         raise HTTPException(status_code=404, detail=f"Skill not found: {name}")
     return {"ok": True, "name": name, "config": skill_loader.read_config(name) or {}}
+
+
+@app.post("/api/skills/{name}/test")
+async def skill_test(name: str) -> dict[str, object]:
+    result = await test_skill(name)
+    if not result.get("ok") and result.get("error"):
+        raise HTTPException(status_code=404, detail=str(result["error"]))
+    return result
 
 
 @app.get("/api/workbench/summary")
@@ -606,8 +652,25 @@ async def report_generate(request: ReportGenerateRequest) -> dict[str, object]:
     return await generate_report_file(request)
 
 
+@app.get("/api/chat/attachment")
+async def chat_attachment(path: str) -> FileResponse:
+    file_path = resolve_chat_attachment_path(path)
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Chat attachment not found")
+    meta = attachment_meta(file_path)
+    return FileResponse(
+        file_path,
+        media_type=str(meta.get("mime") or "application/octet-stream"),
+        filename=str(meta.get("file_name") or file_path.name),
+    )
+
+
 @app.post("/api/chat/message")
 async def chat_message(request: ChatMessageRequest) -> dict[str, object]:
+    request.metadata = {
+        **request.metadata,
+        "long_term_memory": memory_context(),
+    }
     session = chat_store.ensure_session(
         session_id=request.session_id,
         channel=request.channel,
@@ -652,6 +715,7 @@ async def chat_message(request: ChatMessageRequest) -> dict[str, object]:
         workflow_run_id=workflow_run_id,
     )
     payload["session_id"] = session_id
+    payload["rich_blocks"] = aggregate_rich_blocks_from_chat_payload(payload)
     return payload
 
 
@@ -663,6 +727,21 @@ async def chat_history(session_id: str | None = None, limit: int = 100) -> dict[
 @app.get("/api/chat/sessions")
 async def chat_sessions(limit: int = 20) -> dict[str, object]:
     return chat_store.list_sessions(limit=limit)
+
+
+@app.get("/api/long-term-memory")
+async def long_term_memory_get() -> dict[str, object]:
+    return read_long_term_memory()
+
+
+@app.put("/api/long-term-memory")
+async def long_term_memory_put(request: LongTermMemorySaveRequest) -> dict[str, object]:
+    return save_long_term_memory(request.content)
+
+
+@app.post("/api/long-term-memory/summarize-today")
+async def long_term_memory_summarize_today(user_id: str = "local_user") -> dict[str, object]:
+    return await summarize_today_into_memory(user_id=user_id)
 
 
 @app.post("/api/chat/card-action")
@@ -787,6 +866,11 @@ async def confirmations_list(
         source_channel=source_channel,
         limit=max(1, min(limit, 200)),
     )
+
+
+@app.get("/api/confirmations/policy")
+async def confirmations_policy() -> dict[str, object]:
+    return confirmation_policy()
 
 
 @app.post("/api/confirmations/resolve")
@@ -1058,11 +1142,20 @@ async def whatsapp_search_api(request: WhatsAppSearchApiRequest) -> dict[str, ob
 
 @app.post("/api/whatsapp/groups")
 async def whatsapp_groups_api(request: WhatsAppGroupsApiRequest) -> dict[str, object]:
-    result = await toolbox_client.call_tool(
-        "whatsapp_groups_wacli",
-        {"include_archived": request.include_archived, "limit": 200},
-    )
-    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+    try:
+        result = await toolbox_client.call_tool(
+            "whatsapp_groups_wacli",
+            {"include_archived": request.include_archived, "limit": 200},
+        )
+        if isinstance(result, dict) and result.get("ok") is not False:
+            return result
+        fallback = list_whatsapp_chats(limit=200)
+        fallback["toolbox_error"] = result if isinstance(result, dict) else "unexpected_result"
+        return fallback
+    except Exception as exc:  # noqa: BLE001
+        fallback = list_whatsapp_chats(limit=200)
+        fallback["toolbox_error"] = str(exc)
+        return fallback
 
 
 @app.post("/api/whatsapp/auth/start")
@@ -1107,8 +1200,17 @@ async def whatsapp_auth_logout_api(request: WhatsAppAuthLogoutApiRequest) -> dic
 
 @app.post("/api/whatsapp/groups/refresh")
 async def whatsapp_groups_refresh_api() -> dict[str, object]:
-    result = await toolbox_client.call_tool("whatsapp_groups_refresh", {"dry_run": False})
-    return result if isinstance(result, dict) else {"ok": False, "error": "unexpected_result"}
+    try:
+        result = await toolbox_client.call_tool("whatsapp_groups_refresh", {"dry_run": False})
+        if isinstance(result, dict) and result.get("ok") is not False:
+            return result
+        fallback = list_whatsapp_chats(limit=200)
+        fallback["toolbox_error"] = result if isinstance(result, dict) else "unexpected_result"
+        return fallback
+    except Exception as exc:  # noqa: BLE001
+        fallback = list_whatsapp_chats(limit=200)
+        fallback["toolbox_error"] = str(exc)
+        return fallback
 
 
 @app.post("/api/whatsapp/send")
@@ -1233,6 +1335,37 @@ async def whatsapp_command_run_api(request: WhatsAppCommandRunApiRequest) -> dic
 @app.post("/api/yaoyao/structured/draft")
 async def yaoyao_structured_draft(request: YaoyaoStructuredDraftRequest) -> dict[str, object]:
     return await build_yaoyao_structured_draft(request)
+
+
+@app.post("/api/yaoyao/structured/render")
+async def yaoyao_structured_render(request: YaoyaoPageRenderRequest) -> dict[str, object]:
+    return await render_yaoyao_page_preview(request)
+
+
+@app.get("/api/yaoyao/preview-file")
+async def yaoyao_preview_file(path: str) -> FileResponse:
+    file_path = resolve_yaoyao_preview_file(path)
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Yaoyao preview image not found")
+    media_type = "image/png" if file_path.suffix.lower() == ".png" else "image/jpeg"
+    return FileResponse(file_path, media_type=media_type, filename=file_path.name)
+
+
+@app.post("/api/yaoyao/structured/export-excel")
+async def yaoyao_structured_export_excel(request: YaoyaoExcelExportRequest) -> dict[str, object]:
+    return export_yaoyao_excel(request)
+
+
+@app.get("/api/yaoyao/export/{file_id}")
+async def yaoyao_export_download(file_id: str) -> FileResponse:
+    file_path = resolve_yaoyao_export_file(file_id)
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Yaoyao export file not found")
+    return FileResponse(
+        file_path,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=file_path.name.split("_", 1)[-1],
+    )
 
 
 @app.post("/api/yaoyao/structured/confirm")

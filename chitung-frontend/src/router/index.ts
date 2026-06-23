@@ -25,7 +25,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'documents', name: 'docmate-documents', component: () => import('../pages/ShanshanDocPage.vue') },
       { path: 'forms', name: 'docmate-forms', component: () => import('../pages/SmartFormPage.vue') },
       { path: 'table-mapping', name: 'docmate-table-mapping', component: () => import('../pages/TableMappingPage.vue') },
-      { path: 'reports', name: 'docmate-reports', component: () => import('../pages/WorkbenchPage.vue') },
+      { path: 'reports', name: 'docmate-reports', component: () => import('../pages/ReportsPage.vue') },
     ],
   },
   {
@@ -46,9 +46,11 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: 'dashboard', redirect: '/center/settings' },
       { path: 'settings', name: 'center-settings', component: () => import('../pages/SystemSettingsPage.vue') },
+      { path: 'execution', name: 'center-execution', component: () => import('../pages/ExecutionCenterPage.vue') },
       { path: 'assistant', name: 'center-assistant', component: () => import('../pages/AIAssistantPage.vue') },
       { path: 'automation', name: 'center-automation', component: () => import('../pages/AutomationPage.vue') },
       { path: 'skills', name: 'center-skills', component: () => import('../pages/SkillsCompatPage.vue') },
+      { path: 'memory', name: 'center-memory', component: () => import('../pages/LongTermMemoryPage.vue') },
       { path: 'workflows', name: 'center-workflows', component: () => import('../pages/WorkflowsCompatPage.vue') },
     ],
   },

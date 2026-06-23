@@ -35,10 +35,10 @@ const panels: Record<string, PanelDef> = {
     label: '赤瞳守护者',
     tagline: '望风险',
     items: [
-      { icon: '📊', label: '视觉巡检总览', path: '/guardian/dashboard' },
+      { icon: '📊', label: '视觉巡检', path: '/guardian/dashboard' },
       { icon: '✅', label: '待确认事项', path: '/guardian/confirmations' },
       { icon: '📋', label: '隐患台账', path: '/guardian/hazards' },
-      { icon: '📷', label: '视觉巡检', path: '/guardian/patrol' },
+      { icon: '📷', label: 'CCTV', path: '/guardian/patrol' },
     ],
   },
   docmate: {
@@ -72,10 +72,12 @@ const panels: Record<string, PanelDef> = {
     tagline: '统全局',
     items: [
       { icon: '⚙️', label: '系统设置', path: '/center/settings' },
-      { icon: '🤖', label: 'AI助手', path: '/center/assistant' },
-      { icon: '⏱️', label: '自动化', path: '/center/automation' },
       { icon: '🧠', label: '技能', path: '/center/skills' },
       { icon: '🔀', label: '工作流', path: '/center/workflows' },
+      { icon: '⏱️', label: '自动化', path: '/center/automation' },
+      { icon: '🤖', label: 'AI助手', path: '/center/assistant' },
+      { icon: '📒', label: '长期记忆', path: '/center/memory' },
+      { icon: '📡', label: '执行中心', path: '/center/execution' },
     ],
   },
   yaoyao: {

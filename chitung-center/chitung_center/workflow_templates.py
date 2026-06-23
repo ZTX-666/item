@@ -112,6 +112,51 @@ WORKFLOW_TEMPLATES: dict[str, WorkflowTemplate] = {
             WorkflowStepTemplate("patrol_draft", "赤瞳守护者", None),
         ],
     ),
+    "workflow_daily_safety_briefing_auto": WorkflowTemplate(
+        workflow_name="workflow_daily_safety_briefing_auto",
+        title="每日安全简报自动化",
+        description="定时抓取外部讯息、汇总现场风险、生成每日安全简报草稿，并进入发送确认。",
+        intent="automation_daily_safety_briefing",
+        steps=[
+            WorkflowStepTemplate("fetch_external_info", "耀耀慧读", "fetch_hk_safety_updates"),
+            WorkflowStepTemplate("draft_briefing", "闪闪助手", "draft_daily_risk_briefing", requires_confirmation=True),
+            WorkflowStepTemplate("confirm_delivery", "赤瞳中台", None, requires_confirmation=True),
+        ],
+    ),
+    "workflow_p1_external_info_alert": WorkflowTemplate(
+        workflow_name="workflow_p1_external_info_alert",
+        title="P1 外部讯息提醒",
+        description="外部讯息监听命中 P0/P1 时，生成待确认事项，人工确认后再通知负责人。",
+        intent="automation_p1_external_info_alert",
+        steps=[
+            WorkflowStepTemplate("monitor_external_info", "耀耀慧读", "external_info_monitor"),
+            WorkflowStepTemplate("create_confirmation", "赤瞳中台", "create_pending_confirmation", requires_confirmation=True),
+            WorkflowStepTemplate("send_alert", "赤瞳中台", "send_feishu_card", requires_confirmation=True),
+        ],
+    ),
+    "workflow_visual_patrol_closed_loop": WorkflowTemplate(
+        workflow_name="workflow_visual_patrol_closed_loop",
+        title="视觉巡检闭环",
+        description="摄像头检测风险后生成隐患草稿、整改通知、复查任务和闭环确认。",
+        intent="automation_visual_patrol_closed_loop",
+        steps=[
+            WorkflowStepTemplate("capture_and_detect", "赤瞳守护者", "vlm_detect"),
+            WorkflowStepTemplate("draft_case", "赤瞳守护者", "build_visual_patrol_draft", requires_confirmation=True),
+            WorkflowStepTemplate("assign_rectification", "赤瞳中台", "generate_rectification_notice", requires_confirmation=True),
+            WorkflowStepTemplate("review_close", "赤瞳中台", "close_case_with_review", requires_confirmation=True),
+        ],
+    ),
+    "workflow_whatsapp_risk_ingestion": WorkflowTemplate(
+        workflow_name="workflow_whatsapp_risk_ingestion",
+        title="WhatsApp 风险消息入库",
+        description="持续读取 WhatsApp 本地归档，识别安全风险消息并转成隐患线索或待确认事项。",
+        intent="automation_whatsapp_risk_ingestion",
+        steps=[
+            WorkflowStepTemplate("read_whatsapp_archive", "赤瞳聆讯", "whatsapp_sql_query"),
+            WorkflowStepTemplate("classify_risk_message", "闪闪助手", None),
+            WorkflowStepTemplate("create_hazard_or_confirmation", "赤瞳中台", "create_pending_confirmation", requires_confirmation=True),
+        ],
+    ),
 }
 
 

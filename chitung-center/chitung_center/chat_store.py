@@ -225,6 +225,20 @@ class ChatStore:
             ).fetchall()
         return {"items": [self._session_row_to_dict(row) for row in rows]}
 
+    def list_messages_since(self, since_iso: str, *, limit: int = 500) -> list[dict[str, Any]]:
+        self.ensure_schema()
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM chat_messages
+                WHERE created_at >= ?
+                ORDER BY created_at ASC
+                LIMIT ?
+                """,
+                (since_iso, max(1, min(limit, 2000))),
+            ).fetchall()
+        return [self._message_row_to_dict(row) for row in rows]
+
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row

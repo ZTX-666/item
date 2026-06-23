@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { deleteSkill, getSkillDetail, getSkills, importSkill, saveSkillConfig, toggleSkill } from '../services/chitungApi'
+import { deleteSkill, getSkillDetail, getSkills, importSkill, saveSkillConfig, testSkill, toggleSkill } from '../services/chitungApi'
 import type { SkillDetail, SkillInfo } from '../types/domain'
 
 const skills = ref<SkillInfo[]>([])
@@ -12,6 +12,8 @@ const importName = ref('')
 const importContent = ref('')
 const configText = ref('')
 const isSavingConfig = ref(false)
+const isTestingSkill = ref(false)
+const testResult = ref<Record<string, unknown> | null>(null)
 
 const filteredSkills = computed(() => {
   const value = query.value.trim().toLowerCase()
@@ -37,6 +39,7 @@ async function openSkill(name: string) {
   try {
     selected.value = await getSkillDetail(name)
     configText.value = selected.value.config ? JSON.stringify(selected.value.config, null, 2) : ''
+    testResult.value = null
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   }
@@ -88,6 +91,45 @@ async function handleSaveConfig() {
   }
 }
 
+async function handleTestSkill() {
+  if (!selected.value || isTestingSkill.value) return
+  isTestingSkill.value = true
+  error.value = ''
+  try {
+    testResult.value = await testSkill(selected.value.name)
+    selected.value = await getSkillDetail(selected.value.name)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    isTestingSkill.value = false
+  }
+}
+
+function dependencyLabel(item: Record<string, unknown>): string {
+  const name = String(item.name || 'dependency')
+  if (item.available === false) return `${name}：不可用`
+  if (item.available === true) return `${name}：可用`
+  return `${name}：未声明`
+}
+
+function formatRunTime(value?: string | null): string {
+  if (!value) return '-'
+  try {
+    return new Date(value).toLocaleString('zh-CN')
+  } catch {
+    return value
+  }
+}
+
+function testResultText(): string {
+  const result = testResult.value?.result
+  if (result && typeof result === 'object') {
+    const message = (result as Record<string, unknown>).message
+    if (typeof message === 'string') return message
+  }
+  return testResult.value?.ok ? 'Skill 测试完成。' : 'Skill 测试失败。'
+}
+
 onMounted(refresh)
 </script>
 
@@ -115,8 +157,16 @@ onMounted(refresh)
       <p v-if="error" class="compat-error">{{ error }}</p>
       <div class="compat-card-grid">
         <article v-for="skill in filteredSkills" :key="skill.name" class="compat-card">
-          <strong @click="openSkill(skill.name)">{{ skill.name }}</strong>
-          <p>{{ skill.summary }}</p>
+          <strong @click="openSkill(skill.name)">{{ skill.display_name || skill.name }}</strong>
+          <p>{{ skill.description || skill.summary }}</p>
+          <div v-if="skill.triggers?.length" class="compat-tags">
+            <span v-for="trigger in skill.triggers.slice(0, 4)" :key="`${skill.name}-${trigger}`">{{ trigger }}</span>
+          </div>
+          <div class="compat-badges">
+            <span>{{ skill.enabled === false ? '已停用' : '已启用' }}</span>
+            <span>{{ skill.tools?.length || 0 }} 个依赖</span>
+            <span>{{ skill.workflow || '无绑定工作流' }}</span>
+          </div>
           <div class="compat-actions">
             <button class="mini-button" @click="openSkill(skill.name)">详情</button>
             <button class="mini-button" @click="handleToggle(skill)">
@@ -155,10 +205,40 @@ onMounted(refresh)
       <div class="panel__header">
         <div>
           <h2>{{ selected.name }}</h2>
-          <p>SKILL.md 详情</p>
+          <p>配置、依赖、调用记录和测试入口</p>
         </div>
-        <button class="mini-button" @click="selected = null">关闭</button>
+        <div class="compat-actions">
+          <button class="mini-button" :disabled="isTestingSkill" @click="handleTestSkill">
+            {{ isTestingSkill ? '测试中...' : '测试 Skill' }}
+          </button>
+          <button class="mini-button" @click="selected = null">关闭</button>
+        </div>
       </div>
+      <div class="skill-ops-grid">
+        <div class="skill-ops-card">
+          <h3>依赖状态</h3>
+          <p v-if="!selected.dependencies?.length">该 Skill 暂未声明工具依赖。</p>
+          <span
+            v-for="dep in selected.dependencies"
+            :key="String(dep.name)"
+            class="skill-dependency"
+            :class="{ 'skill-dependency--bad': dep.available === false }"
+          >
+            {{ dependencyLabel(dep) }}
+          </span>
+        </div>
+        <div class="skill-ops-card">
+          <h3>最近调用</h3>
+          <p v-if="!selected.recent_runs?.length">暂无统一任务记录。</p>
+          <div v-for="run in selected.recent_runs?.slice(0, 5)" :key="run.job_id" class="skill-run-row">
+            <strong>{{ run.title }}</strong>
+            <span>{{ run.status }} · {{ run.progress }}% · {{ formatRunTime(run.created_at) }}</span>
+          </div>
+        </div>
+      </div>
+      <p v-if="testResult" class="compat-test-result">
+        {{ testResultText() }}
+      </p>
       <pre class="compat-markdown">{{ selected.content }}</pre>
       <div class="compat-config">
         <div class="panel__header">
@@ -205,8 +285,82 @@ onMounted(refresh)
 
 .compat-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 10px 0;
+}
+
+.compat-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.compat-badges span,
+.skill-dependency {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.skill-ops-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.skill-ops-card {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.skill-ops-card h3 {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.skill-ops-card p,
+.skill-run-row span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.skill-dependency {
+  margin: 0 6px 6px 0;
+}
+
+.skill-dependency--bad {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: var(--brand-red-dark);
+}
+
+.skill-run-row {
+  border-top: 1px solid var(--border-light);
+  display: grid;
+  gap: 3px;
+  padding: 8px 0;
+}
+
+.skill-run-row:first-of-type {
+  border-top: 0;
+}
+
+.compat-test-result {
+  background: #eef7fb;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  color: #0b6f96;
+  margin: 10px 0;
+  padding: 10px 12px;
 }
 
 .compat-import {
@@ -228,6 +382,21 @@ onMounted(refresh)
 .compat-card p {
   color: var(--text-secondary);
   margin: 6px 0;
+}
+
+.compat-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.compat-tags span {
+  background: #eef2f8;
+  border-radius: 999px;
+  color: #344563;
+  font-size: 11px;
+  padding: 2px 8px;
 }
 
 .compat-card small {
