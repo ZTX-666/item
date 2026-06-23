@@ -22,13 +22,7 @@ from chitung_center.llm_gateway import llm_gateway
 SUPPORTED_SUFFIXES = {".pdf", ".docx", ".txt", ".md", ".markdown", ".html", ".htm"}
 BUILTIN_SAFETY_COLLECTION = "safety"
 BUILTIN_SAFETY_DOC_ID = "builtin-safety-management-rules"
-BUILTIN_SAFETY_RULES = [
-    "个人防护用品管理：进入施工现场人员必须正确佩戴安全帽，临边、高处、吊装、机械交叉作业区域应按风险佩戴反光衣、安全带等个人防护用品；发现未佩戴或佩戴不规范，应立即提醒整改并记录。",
-    "机械作业半径管理：挖掘机、吊机、车辆、升降设备等机械作业时，应设置警戒线、隔离围挡或专人指挥，非作业人员不得进入机械回转半径、吊臂覆盖范围和车辆盲区。",
-    "临边及高处作业管理：楼层边、洞口、斜坡、平台、脚手架等临边位置应设置稳固护栏、踢脚板、盖板或安全网；高处作业应有防坠落措施，严禁无防护站立或通行。",
-    "通道与围挡管理：施工通道、消防通道和人员出入口应保持畅通；材料堆放、临时管线、围挡缺失或警示不足导致人员绕行、跨越、靠近危险源时，应列为隐患。",
-    "隐患闭环管理：视觉巡检发现的风险应形成可复核描述，包含风险位置、风险对象、可能后果、整改建议和复查要求；高风险情况应先隔离危险区域，再安排责任单位整改。",
-]
+BUILTIN_SAFETY_FILE_NAME = "《中建香港安全管理辦法彙編》(202605+版).pdf"
 
 
 class RagServiceError(RuntimeError):
@@ -137,6 +131,8 @@ class RagService:
         return {"ok": True, "items": sorted(items, key=lambda item: item.get("created_at", ""), reverse=True)}
 
     def delete_document(self, doc_id: str) -> dict[str, Any]:
+        if doc_id.startswith("builtin-"):
+            raise RagServiceError("Built-in knowledge documents cannot be deleted.")
         meta = self._read_meta()
         if doc_id not in meta:
             raise RagServiceError(f"Document not found: {doc_id}")
@@ -258,31 +254,98 @@ class RagService:
 
     def ensure_builtin_safety_knowledge(self) -> None:
         meta = self._read_meta()
-        if BUILTIN_SAFETY_DOC_ID in meta:
+        entry = meta.get(BUILTIN_SAFETY_DOC_ID)
+        if isinstance(entry, dict) and entry.get("file_type") == "builtin":
             return
-        chunk_ids = [f"{BUILTIN_SAFETY_DOC_ID}:{idx}" for idx, _ in enumerate(BUILTIN_SAFETY_RULES)]
-        metadatas = [
-            {
-                "doc_id": BUILTIN_SAFETY_DOC_ID,
-                "file_name": "内置安全管理规定",
-                "file_type": "builtin",
-                "chunk_index": idx,
-                "collection": BUILTIN_SAFETY_COLLECTION,
-            }
-            for idx, _ in enumerate(BUILTIN_SAFETY_RULES)
-        ]
+        if entry and str(entry.get("file_name") or "") == "内置安全管理规定":
+            self._upgrade_legacy_builtin(meta, entry)
+            return
+        self._upgrade_legacy_uploaded_compilation(meta)
+
+    def _upgrade_legacy_builtin(self, meta: dict[str, dict[str, Any]], entry: dict[str, Any]) -> None:
+        source_id = self._find_uploaded_compilation_doc_id(meta)
+        if not source_id:
+            return
+        self._promote_uploaded_compilation_to_builtin(meta, source_id, entry.get("created_at"))
+
+    def _upgrade_legacy_uploaded_compilation(self, meta: dict[str, dict[str, Any]]) -> None:
+        source_id = self._find_uploaded_compilation_doc_id(meta)
+        if not source_id:
+            return
+        self._promote_uploaded_compilation_to_builtin(meta, source_id)
+
+    def _find_uploaded_compilation_doc_id(self, meta: dict[str, dict[str, Any]]) -> str | None:
+        for doc_id, item in meta.items():
+            if doc_id.startswith("builtin-"):
+                continue
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("file_name") or "") == BUILTIN_SAFETY_FILE_NAME:
+                return doc_id
+        return None
+
+    def _promote_uploaded_compilation_to_builtin(
+        self,
+        meta: dict[str, dict[str, Any]],
+        source_doc_id: str,
+        created_at: str | None = None,
+    ) -> None:
+        source = meta.get(source_doc_id)
+        if not isinstance(source, dict):
+            return
         try:
-            self._collection().upsert(ids=chunk_ids, documents=BUILTIN_SAFETY_RULES, metadatas=metadatas)
+            collection = self._collection()
+            rows = collection.get(where={"doc_id": source_doc_id}, include=["documents", "metadatas", "embeddings"])
+            source_ids = rows.get("ids") or []
+            if not source_ids:
+                return
+            documents = rows.get("documents") or []
+            metadatas = rows.get("metadatas") or []
+            embeddings = rows.get("embeddings")
+            collection.delete(where={"doc_id": BUILTIN_SAFETY_DOC_ID})
+            collection.delete(where={"doc_id": source_doc_id})
+            new_ids: list[str] = []
+            new_metadatas: list[dict[str, Any]] = []
+            for metadata in metadatas:
+                if not isinstance(metadata, dict):
+                    continue
+                chunk_index = int(metadata.get("chunk_index") or 0)
+                new_ids.append(f"{BUILTIN_SAFETY_DOC_ID}:{chunk_index}")
+                new_metadatas.append(
+                    {
+                        "doc_id": BUILTIN_SAFETY_DOC_ID,
+                        "file_name": BUILTIN_SAFETY_FILE_NAME,
+                        "file_type": "builtin",
+                        "chunk_index": chunk_index,
+                        "collection": BUILTIN_SAFETY_COLLECTION,
+                    }
+                )
+            upsert_kwargs: dict[str, Any] = {
+                "ids": new_ids,
+                "documents": documents,
+                "metadatas": new_metadatas,
+            }
+            if embeddings is not None:
+                upsert_kwargs["embeddings"] = embeddings
+            collection.upsert(**upsert_kwargs)
         except Exception:
             return
+
+        source_path = Path(str(source.get("stored_path") or ""))
+        target_path = self.upload_dir / f"{BUILTIN_SAFETY_DOC_ID}.pdf"
+        if source_path.exists() and source_path.resolve() != target_path.resolve():
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            target_path.write_bytes(source_path.read_bytes())
+
+        meta.pop(source_doc_id, None)
         meta[BUILTIN_SAFETY_DOC_ID] = {
             "doc_id": BUILTIN_SAFETY_DOC_ID,
-            "file_name": "内置安全管理规定",
+            "file_name": BUILTIN_SAFETY_FILE_NAME,
             "file_type": "builtin",
-            "chunk_count": len(BUILTIN_SAFETY_RULES),
+            "chunk_count": len(new_ids),
             "collection": BUILTIN_SAFETY_COLLECTION,
-            "stored_path": "",
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "stored_path": str(target_path if target_path.exists() else source_path),
+            "created_at": str(created_at or source.get("created_at") or datetime.now(timezone.utc).isoformat()),
         }
         self._write_meta(meta)
 
