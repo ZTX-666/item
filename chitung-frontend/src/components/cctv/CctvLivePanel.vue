@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<{
   showAction?: boolean
 }>(), {
   title: 'CCTV 实时画面',
-  subtitle: 'C-SMART 实时播放',
+  subtitle: 'EZVIZ 实时播放（11 路）',
   compact: false,
   actionLabel: '发起视觉巡检',
   busyLabel: '巡检中',

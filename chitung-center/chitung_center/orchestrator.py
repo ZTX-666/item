@@ -6,11 +6,12 @@ from chitung_center.audit import audit_logger
 from chitung_center.docmate_service import generate_changeset, preview_changeset, read_docx
 from chitung_center.external_monitor_skill_service import apply_external_monitor_skill
 from chitung_center.intent_router import INTENT_TOOL_DEFAULTS, route_intent_with_llm
-from chitung_center.job_service import create_job, mark_failed, mark_finished, mark_running
+from chitung_center.job_service import create_job, mark_failed, mark_finished, mark_running, start_background_job, update_progress
 from chitung_center.long_term_memory_service import summarize_today_into_memory
 from chitung_center.models import ActionCard, ChatMessageRequest, ChatMessageResponse, IntentResult
 from chitung_center.skill_service import enhance_with_skill
 from chitung_center.skills import skill_loader
+from chitung_center.coach_service import COACH_PROFILES, coach_by_skill_name, coach_profile_for_intent
 from chitung_center.workflow_engine import workflow_engine
 from chitung_center.workflow_templates import WorkflowTemplate, workflow_for_intent
 
@@ -26,6 +27,9 @@ class ChitungOrchestrator:
             if route.intent == "long_term_memory":
                 return await self._handle_long_term_memory_skill(request)
 
+            if route.intent in {profile.intent for profile in COACH_PROFILES.values()}:
+                return await self._handle_usage_coach_skill(request, route.intent)
+
             if route.intent == "external_info_monitor":
                 return await self._handle_external_monitor_skill(request)
 
@@ -38,6 +42,10 @@ class ChitungOrchestrator:
         else:
             if _is_long_term_memory_skill_request(request.message):
                 return await self._handle_long_term_memory_skill(request)
+
+            coach_intent = _match_usage_coach_request(request.message)
+            if coach_intent:
+                return await self._handle_usage_coach_skill(request, coach_intent)
 
             if _is_external_monitor_skill_request(request.message):
                 return await self._handle_external_monitor_skill(request)
@@ -72,6 +80,9 @@ class ChitungOrchestrator:
 
         if intent.intent == "docmate_edit":
             return await self._handle_docmate_edit(request, intent, template)
+
+        if template and intent.intent == "visual_detection":
+            return await self._handle_visual_patrol_background(request, intent, template)
 
         if template:
             job = create_job(
@@ -160,6 +171,71 @@ class ChitungOrchestrator:
             card_data=card_data,
             user_id=user_id,
             channel=channel,
+        )
+
+    async def _handle_visual_patrol_background(
+        self,
+        request: ChatMessageRequest,
+        intent: IntentResult,
+        template: WorkflowTemplate,
+    ) -> ChatMessageResponse:
+        from chitung_center.app_config_service import get_app_config
+        from chitung_center.workbench_video_detection_service import _resolve_cameras
+
+        enabled_cameras = [
+            cam for cam in get_app_config().get("cameras", []) if isinstance(cam, dict) and cam.get("enabled", True)
+        ]
+        selected = _resolve_cameras(detection_direction=request.message)
+        camera_count = len(selected) or len(enabled_cameras)
+
+        async def runner(job_id: str) -> dict[str, Any]:
+            update_progress(job_id, 15, f"正在巡检 {camera_count} 路摄像头（抽帧 + YOLO + VLM）...")
+            run = await workflow_engine.run_for_intent(intent.intent, request)
+            update_progress(job_id, 95, "视觉巡检完成，正在整理报告")
+            if not run.get("ok"):
+                raise RuntimeError(str(run.get("error") or run.get("reply") or "visual_patrol_failed"))
+            return run
+
+        job = start_background_job(
+            job_type="visual_patrol",
+            title=f"视觉巡检：{request.message[:48]}",
+            source_module="agent_orchestrator",
+            request={
+                "intent": intent.intent,
+                "workflow_name": template.workflow_name,
+                "message": request.message,
+                "camera_count": camera_count,
+            },
+            runner=runner,
+        )
+        job_id = str(job["job_id"])
+        audit_id = audit_logger.write(
+            "visual_patrol_background_started",
+            {"job_id": job_id, "camera_count": camera_count, "message": request.message[:120]},
+        )
+        reply = (
+            f"已提交视觉巡检后台任务，将巡检 {camera_count} 路摄像头（抽帧 → YOLO → VLM）。"
+            f"预计 2–5 分钟，任务号 {job_id}；完成后本对话会自动更新结果，也可在「执行中心」查看。"
+        )
+        return ChatMessageResponse(
+            reply=reply,
+            intent=intent,
+            cards=[
+                ActionCard(
+                    card_type="visual_patrol_job",
+                    title="视觉巡检进行中",
+                    summary=reply,
+                    actions=[{"id": "open_execution_center", "label": "打开执行中心"}],
+                    data={"job_id": job_id, "camera_count": camera_count},
+                )
+            ],
+            tool_results=[],
+            audit_id=audit_id,
+            agent_trace=[
+                {"stage": "plan", "status": "done", "title": "意图识别", "detail": intent.reason},
+                {"stage": "dispatch", "status": "done", "title": "后台任务已提交", "detail": job_id},
+                {"stage": "execute", "status": "running", "title": "视觉巡检执行中", "detail": f"{camera_count} 路摄像头"},
+            ],
         )
 
     async def _handle_docmate_edit(
@@ -369,6 +445,70 @@ class ChitungOrchestrator:
         )
 
 
+    async def _handle_usage_coach_skill(self, request: ChatMessageRequest, intent: str) -> ChatMessageResponse:
+        profile = coach_profile_for_intent(intent)
+        if not profile:
+            raise ValueError(f"unknown usage coach intent: {intent}")
+        result = await coach_by_skill_name(
+            profile.skill_name,
+            user_message=request.message,
+            session_id=request.session_id,
+            user_id=request.user_id,
+        )
+        reply = str(result.get("reply") or "我可以继续帮你梳理步骤。")
+        actions = [{"id": action_id, "label": label} for action_id, label in profile.open_actions]
+        audit_id = audit_logger.write(
+            "chat_message_handled",
+            {
+                "channel": request.channel,
+                "user_id": request.user_id,
+                "intent": profile.intent,
+                "tool_count": 0,
+                "workflow": False,
+                "handler": "usage_coach",
+                "coach_skill": profile.skill_name,
+                "mode": result.get("mode"),
+            },
+        )
+        return ChatMessageResponse(
+            reply=reply,
+            intent=IntentResult(
+                intent=profile.intent,  # type: ignore[arg-type]
+                confidence=0.97,
+                reason=f"Matched {profile.display_name}.",
+                suggested_tools=[],
+            ),
+            cards=[
+                ActionCard(
+                    card_type="usage_coach",
+                    title=profile.display_name,
+                    summary="纯对话指导，结合本地使用记录个性化建议。",
+                    actions=actions,
+                    data={
+                        "reserved_module": profile.domain,
+                        "coach_skill": profile.skill_name,
+                        "mode": result.get("mode"),
+                        "usage_summary": (result.get("usage") or {}).get("totals", {}),
+                        "follow_up_questions": result.get("follow_up_questions") or [],
+                    },
+                )
+            ],
+            tool_results=[],
+            audit_id=audit_id,
+            applied_skill={
+                "name": profile.skill_name,
+                "display_name": profile.display_name,
+                "reply": reply,
+                "mode": result.get("mode"),
+            },
+            agent_trace=[
+                {"stage": "plan", "status": "done", "title": "读取本地使用快照", "detail": profile.domain},
+                {"stage": "coach", "status": "done", "title": "生成指导回复", "detail": str(result.get("mode") or "llm_coach")},
+                {"stage": "result", "status": "done", "title": "等待用户追问", "detail": "不执行工具、不生成 Skill 文件"},
+            ],
+        )
+
+
     def _skill_disabled_response(self, request: ChatMessageRequest, skill_info) -> ChatMessageResponse:
         label = skill_info.display_name or skill_info.name
         audit_id = audit_logger.write(
@@ -466,6 +606,24 @@ def _is_long_term_memory_skill_request(message: str) -> bool:
         or "总结今日对话" in normalized
         or "總結今日對話" in normalized
     )
+
+
+def _match_usage_coach_request(message: str) -> str | None:
+    normalized = message.replace(" ", "").lower()
+    if "skill使用教练" in normalized or "skill教练" in normalized or ("使用技能" in normalized and "教练" in normalized and "skill" in normalized):
+        return "skill_usage_coach"
+    if "自动化使用教练" in normalized or "自动化教练" in normalized or ("自动化" in normalized and "教练" in normalized):
+        return "automation_usage_coach"
+    if (
+        "工作流使用教练" in normalized
+        or "工作流教练" in normalized
+        or "编排教练" in normalized
+        or "workflowcoach" in normalized
+        or ("工作流" in normalized and "教练" in normalized)
+        or "教我编排" in normalized
+    ):
+        return "workflow_usage_coach"
+    return None
 
 
 def _is_capability_question(message: str) -> bool:

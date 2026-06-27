@@ -1,0 +1,11 @@
+{
+  "display_name": "桌面助手",
+  "description": "桌面 Agent 常用能力合集：搜索、抓取、读文件、运行 Bash/PowerShell。",
+  "intents": ["desktop_assistant"],
+  "triggers": ["workbuddy", "桌面助手", "桌面自动化", "帮我查", "帮我读", "帮我运行"],
+  "example_prompts": [
+    "桌面助手：搜索香港酷热天气警告",
+    "桌面助手读取 agent-toolbox/workspace 下的日志",
+    "帮我运行 powershell 查看 8899 端口占用"
+  ]
+}

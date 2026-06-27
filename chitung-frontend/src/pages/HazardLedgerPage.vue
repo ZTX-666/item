@@ -103,12 +103,12 @@ onMounted(refresh)
       <div class="panel__header">
         <div>
           <h2>视觉检测历史</h2>
-          <p>来自工作台总览的视频检测，保留原始方向、润色提示词、标注图和详细结果。</p>
+          <p>来自视觉巡检的视频检测，保留原始方向、公司制度润色提示词、标注图和详细结果。</p>
         </div>
         <span class="camera-status camera-status--green">{{ videoDetectionReports.length }} 条</span>
       </div>
       <div v-if="!videoDetectionReports.length" class="visual-detection-history__empty">
-        暂无视觉检测报告。可先在工作台总览输入检测方向并开始检测。
+        暂无视觉检测报告。可先在视觉巡检页输入检测方向并开始检测。
       </div>
       <article
         v-for="report in videoDetectionReports"
@@ -136,7 +136,7 @@ onMounted(refresh)
             </div>
           </div>
           <p>{{ report.summary.text }}</p>
-          <small>润色提示词：{{ report.refined_prompt }}</small>
+          <small>公司制度润色：{{ report.refined_prompt }}</small>
           <small v-if="report.policy_context?.length">制度依据：{{ report.policy_context.slice(0, 2).join('；') }}</small>
           <div v-if="report.cameras?.length" class="visual-detection-camera-strip">
             <figure v-for="camera in report.cameras" :key="camera.camera_id">

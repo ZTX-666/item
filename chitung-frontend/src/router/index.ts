@@ -80,6 +80,11 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
+  scrollBehavior(_to, _from, savedPosition) {
+    if (savedPosition) return savedPosition
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    return { top: 0, behavior: smooth ? 'smooth' : 'auto' }
+  },
 })
 
 export default router

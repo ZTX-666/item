@@ -591,3 +591,36 @@ def test_aggregate_summary_flags_people_and_excavator_for_manual_review():
     assert "0 个高风险" not in summary["text"]
     assert summary["severity"] == "medium"
     assert summary["suggested_action"] == "请复核人员与机械作业区安全距离、隔离围挡和现场管控。"
+
+
+def test_patrol_scope_from_message_detects_site_wide_requests():
+    from chitung_center.workbench_video_detection_service import patrol_scope_from_message
+
+    assert patrol_scope_from_message("检查地盘11支摄像头，是否有人吸烟") == "all_enabled"
+    assert patrol_scope_from_message("全盘巡检 PPE") == "all_enabled"
+    assert patrol_scope_from_message("检测地盘吊运是否存在不安全行为") == "all_enabled"
+    assert patrol_scope_from_message("检查斜坡03有没有吸烟") == "default_single"
+
+
+def test_resolve_cameras_defaults_to_all_enabled_without_named_camera(monkeypatch):
+    from chitung_center.workbench_video_detection_service import _resolve_cameras
+
+    monkeypatch.setattr(
+        "chitung_center.workbench_video_detection_service.get_app_config",
+        lambda: {
+            "cameras": [
+                {"id": "cam-1", "name": "斜坡03", "enabled": True},
+                {"id": "cam-2", "name": "崗亭01", "enabled": True},
+                {"id": "cam-3", "name": "施工區域01", "enabled": True},
+            ]
+        },
+    )
+
+    all_cameras = _resolve_cameras(detection_direction="检测地盘吊运情况")
+    assert [camera["id"] for camera in all_cameras] == ["cam-1", "cam-2", "cam-3"]
+
+    single_camera = _resolve_cameras(detection_direction="检查斜坡03有没有吸烟")
+    assert [camera["id"] for camera in single_camera] == ["cam-1"]
+
+    explicit = _resolve_cameras(camera_ids=["cam-2"])
+    assert [camera["id"] for camera in explicit] == ["cam-2"]

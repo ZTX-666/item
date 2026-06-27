@@ -1050,6 +1050,13 @@ onUnmounted(() => {
         </div>
         <div class="module-actions">
           <button class="secondary-button" :disabled="authLoading" @click="pollAuth">刷新状态</button>
+          <button
+            :class="syncListenerRunning ? 'danger-button' : 'primary-button'"
+            :disabled="authLoading || syncLoading"
+            @click="toggleSync"
+          >
+            {{ syncListenerRunning ? '停止同步' : '开始同步' }}
+          </button>
           <button class="danger-button" :disabled="authLoading" @click="logoutLogin">退出登录</button>
         </div>
       </div>
@@ -1077,13 +1084,6 @@ onUnmounted(() => {
               获取配对码
             </button>
             <button class="secondary-button" :disabled="authLoading" @click="stopLogin">停止认证</button>
-            <button
-              :class="syncListenerRunning ? 'danger-button' : 'primary-button'"
-              :disabled="authLoading || syncLoading"
-              @click="toggleSync"
-            >
-              {{ syncListenerRunning ? '停止同步' : '开始同步' }}
-            </button>
           </div>
         </div>
         <div class="status-console">
@@ -1093,12 +1093,13 @@ onUnmounted(() => {
           </div>
           <div>
             <span>认证状态</span>
-            <strong>{{ authStatusText }}</strong>
+            <strong>{{ authStatusDisplay }}</strong>
           </div>
           <pre>{{ authLogs.length ? JSON.stringify(authLogs, null, 2) : '暂无认证日志。' }}</pre>
         </div>
       </div>
       <p v-if="authNotice" class="notice" :class="`notice--${authNotice.tone}`">{{ authNotice.text }}</p>
+      <p v-if="syncNotice" class="notice" :class="`notice--${syncNotice.tone}`">{{ syncNotice.text }}</p>
     </section>
 
     <section v-show="activeMainTab === 'browse'" id="browse" class="module-panel">
@@ -1510,9 +1511,10 @@ button:disabled {
 }
 
 .login-grid {
+  align-items: stretch;
   display: grid;
   gap: 12px;
-  grid-template-columns: 240px minmax(260px, 1fr) minmax(260px, 1fr);
+  grid-template-columns: minmax(240px, 280px) minmax(280px, 1fr) minmax(280px, 1fr);
 }
 
 .qr-stage,
@@ -1528,7 +1530,7 @@ button:disabled {
 
 .qr-stage {
   display: grid;
-  min-height: 240px;
+  min-height: 280px;
   place-items: center;
 }
 

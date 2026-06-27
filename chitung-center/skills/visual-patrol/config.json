@@ -1,11 +1,14 @@
 {
   "display_name": "视觉巡检",
-  "description": "CCTV、RTMP、图片或视频流的 YOLO/VLM 巡检，识别现场安全风险。",
+  "description": "CCTV、RTMP、图片或视频流的 YOLO/VLM 巡检；地盘级任务默认巡检全部已启用摄像头（当前 11 路）。",
   "intents": ["visual_detection"],
-  "triggers": ["摄像头", "cctv", "巡检", "照片", "视频", "识别", "rtmp", "vlm", "监控", "yolo"],
+  "triggers": ["摄像头", "cctv", "巡检", "照片", "视频", "识别", "rtmp", "vlm", "监控", "yolo", "地盘", "吸烟", "抽烟", "吊运"],
   "example_prompts": [
-    "检查 B2 摄像头有没有未戴安全帽",
-    "对这张现场照片做视觉识别",
-    "帮我巡检一下施工区监控"
-  ]
+    "检查地盘11支摄像头，是否有人吸烟",
+    "全盘巡检 PPE 和机械作业半径",
+    "检测地盘吊运是否存在不安全行为",
+    "检查 B2 摄像头有没有未戴安全帽"
+  ],
+  "default_patrol_scope": "all_enabled",
+  "expected_camera_count": 11
 }

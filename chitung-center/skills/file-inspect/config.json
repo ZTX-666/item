@@ -1,0 +1,11 @@
+{
+  "display_name": "本地文件读取",
+  "description": "读取代码、PDF、图片元信息、Jupyter、DOCX 等多格式本地文件。",
+  "intents": ["file_inspect"],
+  "triggers": ["读取文件", "打开文件", "查看文件", "读本地", "pdf", "docx", "ipynb"],
+  "example_prompts": [
+    "读取文件 E:\\ChinaOverSeaFinal\\agent-toolbox\\README.md",
+    "打开本地 PDF 报告并摘要",
+    "查看 workspace/logs/patrol.log"
+  ]
+}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -85,7 +86,7 @@ async def refine_detection_prompt(direction: str, cameras: list[dict[str, Any]] 
 
 
 async def preview_workbench_detection_prompt(request: WorkbenchVideoDetectionRequest) -> dict[str, Any]:
-    cameras = _resolve_cameras(request.camera_ids, request.camera_id)
+    cameras = _resolve_cameras(request.camera_ids, request.camera_id, detection_direction=request.detection_direction)
     if not cameras:
         return {"ok": False, "error": "No enabled camera was found.", "message": "未找到可用摄像头。"}
 
@@ -104,7 +105,7 @@ async def preview_workbench_detection_prompt(request: WorkbenchVideoDetectionReq
 
 
 async def run_workbench_video_detection(request: WorkbenchVideoDetectionRequest) -> dict[str, Any]:
-    cameras = _resolve_cameras(request.camera_ids, request.camera_id)
+    cameras = _resolve_cameras(request.camera_ids, request.camera_id, detection_direction=request.detection_direction)
     if not cameras:
         return {"ok": False, "error": "No enabled camera was found.", "message": "未找到可用摄像头。"}
 
@@ -123,19 +124,33 @@ async def run_workbench_video_detection(request: WorkbenchVideoDetectionRequest)
     camera_reports: list[dict[str, Any]] = []
     patrol_reports: list[dict[str, Any]] = []
     errors: list[dict[str, str]] = []
+    camera_ids = [str(camera.get("id")) for camera in cameras if str(camera.get("id")).strip()]
+    patrol_kwargs: dict[str, Any] = {
+        "vlm_enabled": request.vlm_enabled,
+        "inspection_prompt": refined_prompt,
+    }
+    if len(camera_ids) == 1:
+        patrol_kwargs["camera_id"] = camera_ids[0]
+    elif camera_ids:
+        patrol_kwargs["camera_ids"] = camera_ids
+
+    patrol_result = await run_guardian_patrol(**patrol_kwargs)
+    if not patrol_result.get("ok"):
+        message = str(patrol_result.get("error") or "视频检测失败。")
+        return {
+            "ok": False,
+            "error": message,
+            "message": message,
+            "prompt": prompt,
+            "camera_errors": [{"camera_id": "batch", "error": message}],
+        }
+
+    report = patrol_result.get("report") if isinstance(patrol_result.get("report"), dict) else {}
+    if report:
+        patrol_reports.append(report)
+
     for camera in cameras:
         camera_id = str(camera.get("id"))
-        patrol_result = await run_guardian_patrol(
-            camera_id=camera_id,
-            vlm_enabled=request.vlm_enabled,
-            inspection_prompt=refined_prompt,
-        )
-        if not patrol_result.get("ok"):
-            errors.append({"camera_id": camera_id, "error": str(patrol_result.get("error") or "视频检测失败。")})
-            continue
-
-        report = patrol_result.get("report") if isinstance(patrol_result.get("report"), dict) else {}
-        patrol_reports.append(report)
         camera_result = _select_camera_result(report, camera_id)
         if not camera_result:
             errors.append({"camera_id": camera_id, "error": "巡检完成，但没有返回该摄像头结果。"})
@@ -278,14 +293,28 @@ def _normalize_camera_list(cameras: list[dict[str, Any]] | dict[str, Any]) -> li
     return [camera for camera in cameras if isinstance(camera, dict)]
 
 
-def _resolve_cameras(camera_ids: list[str] | None = None, legacy_camera_id: str | None = None) -> list[dict[str, Any]]:
+def _resolve_cameras(
+    camera_ids: list[str] | None = None,
+    legacy_camera_id: str | None = None,
+    *,
+    detection_direction: str | None = None,
+) -> list[dict[str, Any]]:
     config = get_app_config()
     cameras = [cam for cam in config.get("cameras", []) if isinstance(cam, dict) and cam.get("enabled", True)]
     requested_ids = [str(item) for item in (camera_ids or []) if str(item).strip()]
     if not requested_ids and legacy_camera_id:
         requested_ids = [legacy_camera_id]
+    if not requested_ids and detection_direction:
+        requested_ids = _camera_ids_mentioned_in_text(detection_direction, cameras)
+    if not requested_ids and detection_direction:
+        scope = patrol_scope_from_message(detection_direction)
+        if scope == "all_enabled":
+            return cameras
+        if scope == "default_single":
+            return cameras[:1]
     if not requested_ids:
-        return cameras[:1]
+        # 视觉巡检技能默认：全部已启用摄像头（当前 11 路）
+        return cameras
 
     seen: set[str] = set()
     selected: list[dict[str, Any]] = []
@@ -298,6 +327,57 @@ def _resolve_cameras(camera_ids: list[str] | None = None, legacy_camera_id: str 
             selected.append(camera)
             seen.add(camera_id)
     return selected
+
+
+def patrol_scope_from_message(message: str) -> str:
+    """Classify patrol scope from natural language."""
+    text = (message or "").strip()
+    if not text:
+        return "default_single"
+
+    lowered = text.lower()
+    if re.search(r"(?:11|十一|\d+)\s*[支路个]", text) and any(token in text for token in ("摄像头", "摄像", "监控", "cctv")):
+        return "all_enabled"
+    if any(
+        marker in text
+        for marker in (
+            "全部摄像头",
+            "所有摄像头",
+            "各路摄像头",
+            "全路摄像头",
+            "逐个摄像头",
+            "每一路",
+            "全盘",
+        )
+    ):
+        return "all_enabled"
+    if "地盘" in text and any(token in text for token in ("摄像头", "监控", "cctv")):
+        return "all_enabled"
+    if "地盘" in text and any(token in text for token in ("检查", "巡检", "检测", "识别")):
+        return "all_enabled"
+    if any(token in text for token in ("吊运", "起吊", "吊车", "吊机")) and any(
+        token in text for token in ("检测", "巡检", "检查", "识别", "地盘", "摄像头", "监控")
+    ):
+        return "all_enabled"
+    if any(token in text for token in ("视觉巡检", "巡检", "检测", "识别")) and "摄像头" not in text:
+        # 技能触发语（如「检查吊运安全」）未点名单路时，默认全盘
+        return "all_enabled"
+    if any(token in lowered for token in ("all cameras", "every camera")):
+        return "all_enabled"
+    return "default_single"
+
+
+def _camera_ids_mentioned_in_text(message: str, cameras: list[dict[str, Any]]) -> list[str]:
+    text = message or ""
+    matched: list[str] = []
+    for camera in cameras:
+        camera_id = str(camera.get("id") or "")
+        camera_name = str(camera.get("name") or "")
+        if camera_name and camera_name in text:
+            matched.append(camera_id)
+        elif camera_id and camera_id in text:
+            matched.append(camera_id)
+    return list(dict.fromkeys(matched))
 
 
 def _select_camera_result(report: dict[str, Any], camera_id: str) -> dict[str, Any] | None:
@@ -362,13 +442,18 @@ def _build_aggregate_summary(direction: str, camera_reports: list[dict[str, Any]
     )
     camera_names = [str(camera.get("camera_name") or camera.get("camera_id")) for camera in camera_reports]
     camera_count = len(camera_reports)
+    enabled_count = len(
+        [cam for cam in get_app_config().get("cameras", []) if isinstance(cam, dict) and cam.get("enabled", True)]
+    )
+    total_cameras = enabled_count or camera_count
     detection_count = len(detections)
+    scope_text = f"{camera_count}/{total_cameras}" if total_cameras > 1 else str(camera_count)
     if detection_count:
         if machinery_review_needed:
-            text = f"已按“{direction}”完成 {camera_count} 路摄像头检测，共发现 {detection_count} 个需复核目标。"
+            text = f"已按“{direction}”完成 {scope_text} 路摄像头检测，共发现 {detection_count} 个需复核目标。"
         else:
             text = (
-                f"已按“{direction}”完成 {camera_count} 路摄像头检测，"
+                f"已按“{direction}”完成 {scope_text} 路摄像头检测，"
                 f"共发现 {detection_count} 个目标，{high_risk_count} 个高风险。"
             )
         if labels:
@@ -376,7 +461,9 @@ def _build_aggregate_summary(direction: str, camera_reports: list[dict[str, Any]
         if machinery_review_needed:
             text += " 画面同时出现人员与机械设备，需复核人员与机械作业区安全距离、隔离围挡和现场管控。"
     else:
-        text = f"已按“{direction}”完成 {camera_count} 路摄像头检测，未发现明确目标。"
+        text = f"已按“{direction}”完成 {scope_text} 路摄像头检测，未发现明确目标，当前画面中无明显异常或风险。"
+    if total_cameras > camera_count:
+        text += f" 另有 {total_cameras - camera_count} 路待补检。"
     suggested_action = (
         "请复核人员与机械作业区安全距离、隔离围挡和现场管控。"
         if machinery_review_needed

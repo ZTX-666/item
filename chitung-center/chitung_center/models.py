@@ -17,6 +17,15 @@ IntentName = Literal[
     "whatsapp_sql_query",
     "whatsapp_wacli_ops",
     "long_term_memory",
+    "web_search",
+    "url_fetch",
+    "run_bash",
+    "run_powershell",
+    "file_inspect",
+    "desktop_assistant",
+    "skill_usage_coach",
+    "workflow_usage_coach",
+    "automation_usage_coach",
     "general_chat",
 ]
 

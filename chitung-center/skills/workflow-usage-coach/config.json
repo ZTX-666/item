@@ -1,0 +1,23 @@
+{
+  "display_name": "工作流使用教练",
+  "description": "结合本地工作流 job 运行记录，纯对话教你选择、触发和验收 Chat 工作流；不生成 Skill、不执行工作流。",
+  "intents": ["workflow_usage_coach"],
+  "triggers": [
+    "工作流使用",
+    "工作流怎么",
+    "流程怎么跑",
+    "workflow coach",
+    "工作流教练",
+    "怎么触发工作流",
+    "工作流设计",
+    "串联流程"
+  ],
+  "example_prompts": [
+    "工作流使用教练，我最近跑过哪些流程？",
+    "视觉巡检发现隐患后怎么串到整改？",
+    "每日外部风险简报对应哪个 workflow？"
+  ],
+  "mode": "conversation_only",
+  "can_generate_skill": false,
+  "can_execute_tools": false
+}

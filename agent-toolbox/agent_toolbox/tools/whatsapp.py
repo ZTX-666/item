@@ -48,6 +48,15 @@ class WhatsAppSendTextRequest(BaseModel):
     confirmed_by: str | None = None
 
 
+class WhatsAppSendFileRequest(BaseModel):
+    chat: str = Field(min_length=1, description="WhatsApp recipient phone, JID, or chat name")
+    file_path: str = Field(min_length=1)
+    caption: str = ""
+    confirmed: bool = False
+    dry_run: bool = False
+    confirmed_by: str | None = None
+
+
 class WhatsAppAuthStartRequest(BaseModel):
     phone: str | None = Field(default=None, description="Hong Kong phone number, e.g. 91234567 or +85291234567")
     mode: str = Field(default="qr", description="qr or phone")
@@ -908,6 +917,80 @@ def send_text_confirmed(req: WhatsAppSendTextRequest) -> ToolResult:
         tool="whatsapp_send_text_confirmed",
         task_id=task_id,
         summary="WhatsApp 消息已发送。",
+        data=draft | {"command": command, "status": "sent", "stdout": stdout[:4000], "stderr": stderr[:4000]},
+    )
+
+
+def send_file_confirmed(req: WhatsAppSendFileRequest) -> ToolResult:
+    task_id = new_task_id("wa_send_file")
+    file_path = Path(req.file_path).expanduser()
+    if not file_path.exists() or not file_path.is_file():
+        return ToolResult(
+            ok=False,
+            tool="whatsapp_send_file_confirmed",
+            task_id=task_id,
+            summary=f"WhatsApp 附件不存在：{file_path}",
+            error="file_not_found",
+            data={"file_path": str(file_path), "chat": req.chat},
+        )
+    args = ["send", "file", "--to", req.chat, "--file", str(file_path)]
+    if req.caption.strip():
+        args.extend(["--caption", req.caption.strip()])
+    draft = {
+        "chat": req.chat,
+        "file_path": str(file_path),
+        "caption": req.caption,
+        "requires_human_confirmation": True,
+        "confirmed": req.confirmed,
+        "confirmed_by": req.confirmed_by,
+        "command": [settings.wacli_bin, *args],
+    }
+    if not req.confirmed:
+        return ToolResult(
+            ok=False,
+            tool="whatsapp_send_file_confirmed",
+            task_id=task_id,
+            summary="已生成 WhatsApp 文件发送草稿，需人工确认后才会发送。",
+            error="confirmed must be true",
+            data=draft,
+        )
+    if req.dry_run:
+        return ToolResult(
+            ok=True,
+            tool="whatsapp_send_file_confirmed",
+            task_id=task_id,
+            summary="WhatsApp 文件发送 dry-run 成功：未实际发送。",
+            data=draft | {"dry_run": True, "status": "dry_run"},
+        )
+    record_task_event(task_id, {"tool": "whatsapp_send_file_confirmed", "status": "running", "chat": req.chat})
+    try:
+        ok, code, stdout, stderr, command = _run_wacli(args, timeout=120)
+    except subprocess.TimeoutExpired as exc:
+        record_task_event(task_id, {"tool": "whatsapp_send_file_confirmed", "status": "failed", "error": "timeout"})
+        return ToolResult(
+            ok=False,
+            tool="whatsapp_send_file_confirmed",
+            task_id=task_id,
+            summary="WhatsApp 文件发送超时。",
+            error=str(exc),
+            data=draft,
+        )
+    if not ok:
+        record_task_event(task_id, {"tool": "whatsapp_send_file_confirmed", "status": "failed", "code": code})
+        return ToolResult(
+            ok=False,
+            tool="whatsapp_send_file_confirmed",
+            task_id=task_id,
+            summary="WhatsApp 文件发送失败，请确认 wacli 已登录且收件人正确。",
+            error=stderr or stdout or f"exit_code={code}",
+            data=draft | {"command": command, "exit_code": code, "stdout": stdout[:4000], "stderr": stderr[:4000]},
+        )
+    record_task_event(task_id, {"tool": "whatsapp_send_file_confirmed", "status": "done", "chat": req.chat})
+    return ToolResult(
+        ok=True,
+        tool="whatsapp_send_file_confirmed",
+        task_id=task_id,
+        summary="WhatsApp 文件已发送。",
         data=draft | {"command": command, "status": "sent", "stdout": stdout[:4000], "stderr": stderr[:4000]},
     )
 

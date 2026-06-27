@@ -1,0 +1,29 @@
+{
+  "display_name": "业界吊运主动响应",
+  "description": "外部吊运舆情确认后，润色 VLM 提示词、全盘 CCTV 专项巡检、生成检测报告并通过 WhatsApp 待确认发送。",
+  "intents": ["industry_lifting_incident_response", "lifting_safety_patrol"],
+  "triggers": [
+    "吊运",
+    "调运",
+    "起吊",
+    "吊车",
+    "吊机",
+    "lifting",
+    "crane",
+    "业界事故",
+    "主动响应",
+    "11支",
+    "11路",
+    "地盘摄像头",
+    "全盘巡检"
+  ],
+  "example_prompts": [
+    "检测地盘11支CCTV是否存在不安全吊运行为",
+    "业界吊运事故后全盘摄像头专项巡检",
+    "对全部摄像头执行吊运专项 VLM 检测并发送报告"
+  ],
+  "default_patrol_scope": "all_enabled",
+  "expected_camera_count": 11,
+  "default_whatsapp_to": "+85284941215",
+  "detection_direction_template": "检测地盘全部已启用摄像头是否存在不安全吊运行为：吊机作业、警戒区、人员进入吊运半径、吊索绑扎、司索指挥、交叉作业与 PPE。"
+}

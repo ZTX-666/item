@@ -217,20 +217,36 @@ class _StoredUpload:
 @app.on_event("startup")
 async def startup_external_monitor() -> None:
     from chitung_center.asset_service import ensure_schema as ensure_asset_schema
+    from chitung_center.automation_scheduler_service import automation_scheduler
     from chitung_center.job_service import ensure_schema as ensure_job_schema
 
     ensure_job_schema()
     ensure_asset_schema()
-    external_monitor_scheduler.start()
+    if not settings.disable_background_schedulers:
+        external_monitor_scheduler.start()
+        automation_scheduler.start()
 
 
 @app.on_event("shutdown")
 async def shutdown_external_monitor() -> None:
+    from chitung_center.automation_scheduler_service import automation_scheduler
+
     await external_monitor_scheduler.stop()
+    await automation_scheduler.stop()
 
 
 @app.get("/health")
 async def health() -> dict[str, object]:
+    """Lightweight liveness probe — must stay fast even when toolbox is busy."""
+    return {
+        "ok": True,
+        "service": "chitung-center",
+        "llm_configured": settings.llm_configured,
+    }
+
+
+@app.get("/health/full")
+async def health_full() -> dict[str, object]:
     toolbox = await toolbox_client.health()
     return {
         "ok": True,

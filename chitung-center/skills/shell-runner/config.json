@@ -1,0 +1,11 @@
+{
+  "display_name": "Bash 命令执行",
+  "description": "在沙箱 workspace 中执行 Bash/Shell/Python 命令与脚本。",
+  "intents": ["run_bash"],
+  "triggers": ["bash", "shell", "运行脚本", "执行命令", "终端", "linux"],
+  "example_prompts": [
+    "运行 bash：ls -la",
+    "执行命令 python scripts/check_env.py",
+    "bash：pip list | findstr fastapi"
+  ]
+}

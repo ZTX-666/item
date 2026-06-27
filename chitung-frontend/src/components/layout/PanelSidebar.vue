@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLocale } from '../../composables/useLocale'
+import { prefetchRoute } from '../../router/routePrefetch'
 import guardianLogo from '../../assets/logos/guardian.png'
 import docmateLogo from '../../assets/logos/docmate.png'
 import lingxunLogo from '../../assets/logos/lingxun.png'
@@ -96,10 +97,19 @@ const panels: Record<string, PanelDef> = {
 const route = useRoute()
 const router = useRouter()
 const currentPanel = computed(() => panels[props.activePanel] || panels.guardian)
+const pendingPath = ref('')
 
 function isActive(path: string): boolean {
   if (path === '/center/automation' && route.path.startsWith('/automation')) return true
   return route.path === path
+}
+
+function navigate(path: string) {
+  if (isActive(path)) return
+  pendingPath.value = path
+  router.push(path).finally(() => {
+    if (pendingPath.value === path) pendingPath.value = ''
+  })
 }
 </script>
 
@@ -118,8 +128,12 @@ function isActive(path: string): boolean {
         v-for="item in currentPanel.items"
         :key="item.path"
         class="panel-sidebar__item"
-        :class="{ 'panel-sidebar__item--active': isActive(item.path) }"
-        @click="router.push(item.path)"
+        :class="{
+          'panel-sidebar__item--active': isActive(item.path),
+          'panel-sidebar__item--pending': pendingPath === item.path,
+        }"
+        @mouseenter="prefetchRoute(item.path)"
+        @click="navigate(item.path)"
       >
         <span class="panel-sidebar__item-icon">{{ item.icon }}</span>
         <span class="panel-sidebar__item-label">{{ display(item.label) }}</span>
@@ -203,8 +217,28 @@ function isActive(path: string): boolean {
   padding: 9px 12px;
   position: relative;
   text-align: left;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease-out);
   width: 100%;
+}
+
+.panel-sidebar__item:active:not(.panel-sidebar__item--active) {
+  transform: scale(0.985);
+}
+
+.panel-sidebar__item--pending {
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.panel-sidebar__item--pending::after {
+  animation: nav-pulse 0.9s ease-in-out infinite;
+  background: var(--rail-accent);
+  border-radius: var(--radius-round);
+  content: '';
+  height: 6px;
+  position: absolute;
+  right: 12px;
+  width: 6px;
 }
 
 .panel-sidebar__item:hover {

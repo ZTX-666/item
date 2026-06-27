@@ -111,5 +111,9 @@ class Settings:
     secureeye_max_concurrency: int = _int_env("SECUREEYE_MAX_CONCURRENCY", 4)
     yolo_conf_threshold: float = _float_env("YOLO_CONF_THRESHOLD", 0.45)
 
+    desktop_automation_enabled: bool = _str_env("DESKTOP_AUTOMATION_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
+    desktop_http_timeout_seconds: int = _int_env("DESKTOP_HTTP_TIMEOUT_SECONDS", 20)
+    desktop_shell_timeout_seconds: int = _int_env("DESKTOP_SHELL_TIMEOUT_SECONDS", 120)
+
 
 settings = Settings()

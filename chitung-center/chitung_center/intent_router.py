@@ -37,6 +37,51 @@ RULES: list[tuple[str, list[str], list[str]]] = [
     ("knowledge_query", ["制度", "规程", "办法", "要求", "安全管理"], ["search_policy_clauses"]),
     ("external_info_monitor", ["外部讯息", "外部信息", "外部讯息监听", "外部信息监听", "监听外部"], ["external_info_monitor"]),
     ("long_term_memory", ["长期记忆", "長期記憶", "记住今天", "总结今日对话", "總結今日對話"], ["long_term_memory_summarize_today"]),
+    (
+        "web_search",
+        ["网页搜索", "网上搜索", "搜索一下", "搜一下", "google", "bing", "百度", "查询最新", "实时搜索", "web search"],
+        ["web_search"],
+    ),
+    (
+        "url_fetch",
+        ["抓取网页", "网页抓取", "抓取链接", "读取网页", "打开链接", "url抓取", "fetch url", "爬取", "提取网页"],
+        ["fetch_url_content"],
+    ),
+    (
+        "run_bash",
+        ["bash", "shell", "运行脚本", "执行命令", "终端命令", "linux命令", "运行bash", "执行bash"],
+        ["run_bash_command"],
+    ),
+    (
+        "run_powershell",
+        ["powershell", "ps1", "windows命令", "注册表", "服务管理", "运行powershell", "执行powershell"],
+        ["run_powershell_command"],
+    ),
+    (
+        "file_inspect",
+        ["读取文件", "打开文件", "查看文件", "读本地", "read file", "pdf", "docx", "jupyter", "ipynb", "office文件"],
+        ["read_local_file"],
+    ),
+    (
+        "desktop_assistant",
+        ["workbuddy", "桌面助手", "桌面自动化", "本地文件", "系统命令", "网页内容", "帮我查", "帮我读", "帮我运行"],
+        ["web_search", "fetch_url_content", "read_local_file", "run_bash_command", "run_powershell_command"],
+    ),
+    (
+        "skill_usage_coach",
+        ["skill使用", "skill 使用", "技能怎么用", "怎么用skill", "skill教练", "技能教练", "触发技能", "skill管理"],
+        [],
+    ),
+    (
+        "workflow_usage_coach",
+        ["工作流使用", "工作流怎么", "流程怎么跑", "工作流教练", "怎么触发工作流", "工作流设计", "串联流程", "编排教练"],
+        [],
+    ),
+    (
+        "automation_usage_coach",
+        ["自动化使用", "自动化怎么配", "定时任务", "自动化教练", "怎么编排自动化", "rrule", "cron"],
+        [],
+    ),
 ]
 
 INTENT_TOOL_DEFAULTS: dict[str, list[str]] = {name: tools for name, _keywords, tools in RULES} | {"general_chat": []}
@@ -145,6 +190,15 @@ def _router_system_prompt() -> str:
             "whatsapp_wacli_ops": "WhatsApp wacli 只读命令、登录状态、消息搜索、聊天/群组/联系人诊断",
             "external_info_monitor": "外部讯息监听：关键词、来源、频率、立即监听",
             "long_term_memory": "总结今日对话并写入长期记忆 Markdown",
+            "web_search": "实时网页搜索，获取最新资讯、规范或新闻",
+            "url_fetch": "抓取指定 URL 页面并提取正文或链接",
+            "run_bash": "在沙箱 workspace 中执行 Bash/Shell/Python 脚本",
+            "run_powershell": "在 Windows 沙箱中执行 PowerShell 命令",
+            "file_inspect": "读取本地代码、PDF、图片、Jupyter、Office 等文件",
+            "desktop_assistant": "桌面助手：搜索、抓取、读文件、运行命令的综合入口",
+            "skill_usage_coach": "Skill 选用、触发与管理教学；只对话，结合本地 Skill 使用记录",
+            "workflow_usage_coach": "工作流选型、触发与验收教学；只对话，结合本地 workflow job 记录",
+            "automation_usage_coach": "自动化配置、定时与排错教学；只对话，结合本地 automation 记录",
             "general_chat": "闲聊、无法归类、需要澄清的问题",
         },
         "skill_catalog": catalog,

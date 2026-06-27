@@ -1,0 +1,24 @@
+{
+  "display_name": "Skill 使用教练",
+  "description": "结合本地 Skill 安装与运行记录，纯对话教你选用、触发和管理内置 Skill；不生成 Skill 文件、不执行工具。",
+  "intents": ["skill_usage_coach"],
+  "triggers": [
+    "skill使用",
+    "skill 使用",
+    "技能怎么用",
+    "怎么用skill",
+    "使用技能",
+    "skill教练",
+    "技能教练",
+    "触发技能",
+    "skill管理"
+  ],
+  "example_prompts": [
+    "Skill 使用教练，我有哪些 Skill 最近用过？",
+    "制度知识问答这个 Skill 怎么触发？",
+    "Skill 和工作流有什么区别？"
+  ],
+  "mode": "conversation_only",
+  "can_generate_skill": false,
+  "can_execute_tools": false
+}

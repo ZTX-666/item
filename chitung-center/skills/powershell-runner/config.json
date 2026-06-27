@@ -1,0 +1,10 @@
+{
+  "display_name": "PowerShell 命令执行",
+  "description": "操作 Windows 系统、服务与注册表（只读优先），用于本地运维诊断。",
+  "intents": ["run_powershell"],
+  "triggers": ["powershell", "ps1", "windows命令", "注册表", "服务"],
+  "example_prompts": [
+    "运行 powershell：Get-Service | Where-Object {$_.Status -eq 'Running'} | Select-Object -First 10",
+    "powershell：Get-ChildItem Env: | Select-String CHITUNG"
+  ]
+}

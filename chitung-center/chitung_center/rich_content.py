@@ -246,8 +246,10 @@ def build_video_detection_rich_blocks(report: dict[str, Any]) -> list[dict[str, 
         camera_name = str(camera.get("camera_name") or camera.get("camera_id") or "摄像头")
         for key, label in (("annotated_url", "标注图"), ("snapshot_url", "截图")):
             raw = str(camera.get(key) or camera.get(key.replace("_url", "_path")) or "").strip()
+            if raw in {"", key, key.replace("_url", "_path")}:
+                continue
             url = normalize_asset_ref(raw)
-            if not url or url in seen_urls:
+            if not url or url in seen_urls or url.endswith(key):
                 continue
             seen_urls.add(url)
             blocks.append(

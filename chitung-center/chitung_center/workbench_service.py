@@ -1,20 +1,30 @@
 from __future__ import annotations
 
+import asyncio
+import time
 from typing import Any
 
 from chitung_center.config import settings
 from chitung_center.toolbox_client import toolbox_client
 
+_SUMMARY_CACHE: dict[str, Any] | None = None
+_SUMMARY_CACHE_AT = 0.0
+_SUMMARY_CACHE_TTL_SECONDS = 12.0
+
 
 async def build_workbench_summary() -> dict[str, Any]:
-    toolbox_health = await toolbox_client.health()
-    toolbox_ready = _required_toolbox_ready(toolbox_health)
-    metrics_result = await _call_tool("get_dashboard_metrics", {"include_samples": True})
-    cases_result = await _call_tool("query_pending_actions", {"limit": 6})
-    confirmations_result = await _call_tool(
-        "query_pending_confirmations",
-        {"status": "pending", "limit": 6},
+    global _SUMMARY_CACHE, _SUMMARY_CACHE_AT
+    now = time.monotonic()
+    if _SUMMARY_CACHE is not None and now - _SUMMARY_CACHE_AT < _SUMMARY_CACHE_TTL_SECONDS:
+        return _SUMMARY_CACHE
+
+    toolbox_health, metrics_result, cases_result, confirmations_result = await asyncio.gather(
+        toolbox_client.health(),
+        _call_tool("get_dashboard_metrics", {"include_samples": True}),
+        _call_tool("query_pending_actions", {"limit": 6}),
+        _call_tool("query_pending_confirmations", {"status": "pending", "limit": 6}),
     )
+    toolbox_ready = _required_toolbox_ready(toolbox_health)
 
     metrics_data = _tool_data(metrics_result)
     cases = _items(cases_result)
@@ -23,7 +33,7 @@ async def build_workbench_summary() -> dict[str, Any]:
     if not cases:
         cases = sample_cases
 
-    return {
+    summary = {
         "status": {
             "center_ok": True,
             "toolbox_ok": toolbox_ready,
@@ -39,6 +49,9 @@ async def build_workbench_summary() -> dict[str, Any]:
             {"id": "confirm", "label": "等待确认", "status": "pending"},
         ],
     }
+    _SUMMARY_CACHE = summary
+    _SUMMARY_CACHE_AT = now
+    return summary
 
 
 async def update_hazard_status(case_id: int, status: str, notes: str | None = None) -> dict[str, Any]:

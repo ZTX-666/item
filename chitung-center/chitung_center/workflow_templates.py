@@ -112,6 +112,60 @@ WORKFLOW_TEMPLATES: dict[str, WorkflowTemplate] = {
             WorkflowStepTemplate("patrol_draft", "赤瞳守护者", None),
         ],
     ),
+    "workflow_web_search": WorkflowTemplate(
+        workflow_name="workflow_web_search",
+        title="网页搜索",
+        description="实时搜索互联网获取最新安全资讯与参考信息。",
+        intent="web_search",
+        steps=[
+            WorkflowStepTemplate("web_search", "桌面助手", "web_search"),
+        ],
+    ),
+    "workflow_url_fetch": WorkflowTemplate(
+        workflow_name="workflow_url_fetch",
+        title="网页内容抓取",
+        description="抓取公开 URL 并提取正文或链接列表。",
+        intent="url_fetch",
+        steps=[
+            WorkflowStepTemplate("fetch_url", "桌面助手", "fetch_url_content"),
+        ],
+    ),
+    "workflow_run_bash": WorkflowTemplate(
+        workflow_name="workflow_run_bash",
+        title="Bash 命令执行",
+        description="在 workspace 沙箱中执行 Bash/Shell 命令。",
+        intent="run_bash",
+        steps=[
+            WorkflowStepTemplate("run_bash", "桌面助手", "run_bash_command", requires_confirmation=True),
+        ],
+    ),
+    "workflow_run_powershell": WorkflowTemplate(
+        workflow_name="workflow_run_powershell",
+        title="PowerShell 命令执行",
+        description="在 Windows 沙箱中执行 PowerShell 命令。",
+        intent="run_powershell",
+        steps=[
+            WorkflowStepTemplate("run_powershell", "桌面助手", "run_powershell_command", requires_confirmation=True),
+        ],
+    ),
+    "workflow_file_inspect": WorkflowTemplate(
+        workflow_name="workflow_file_inspect",
+        title="本地文件读取",
+        description="读取 workspace 内代码、PDF、DOCX、Jupyter 等文件。",
+        intent="file_inspect",
+        steps=[
+            WorkflowStepTemplate("read_file", "桌面助手", "read_local_file"),
+        ],
+    ),
+    "workflow_desktop_assistant": WorkflowTemplate(
+        workflow_name="workflow_desktop_assistant",
+        title="桌面助手",
+        description="根据用户描述自动选择搜索、抓取、读文件或运行命令。",
+        intent="desktop_assistant",
+        steps=[
+            WorkflowStepTemplate("desktop_route", "桌面助手", None),
+        ],
+    ),
     "workflow_daily_safety_briefing_auto": WorkflowTemplate(
         workflow_name="workflow_daily_safety_briefing_auto",
         title="每日安全简报自动化",
@@ -157,6 +211,33 @@ WORKFLOW_TEMPLATES: dict[str, WorkflowTemplate] = {
             WorkflowStepTemplate("create_hazard_or_confirmation", "赤瞳中台", "create_pending_confirmation", requires_confirmation=True),
         ],
     ),
+    "workflow_industry_lifting_incident_response": WorkflowTemplate(
+        workflow_name="workflow_industry_lifting_incident_response",
+        title="业界吊运事故主动响应",
+        description="外部吊运风险确认后，自动提炼检测提示词、摄像头专项巡检、生成检测报告与警示图文，并通过 wacli WhatsApp 待确认发送。",
+        intent="industry_lifting_incident_response",
+        steps=[
+            WorkflowStepTemplate("search_policy", "耀耀慧读", "search_policy_clauses"),
+            WorkflowStepTemplate("refine_prompt", "赤瞳守护者", "refine_detection_prompt"),
+            WorkflowStepTemplate("patrol_cameras", "赤瞳守护者", "workbench_video_detection"),
+            WorkflowStepTemplate("create_case", "赤瞳中台", "create_safety_case"),
+            WorkflowStepTemplate("generate_alert_bundle", "闪闪助手", "generate_safety_alert_bundle"),
+            WorkflowStepTemplate("rectification_notice", "赤瞳中台", "generate_rectification_notice", requires_confirmation=True),
+            WorkflowStepTemplate("notify_whatsapp", "赤瞳灵讯", "send_whatsapp_message", requires_confirmation=True),
+        ],
+    ),
+    "workflow_lifting_safety_patrol": WorkflowTemplate(
+        workflow_name="workflow_lifting_safety_patrol",
+        title="吊运专项智能巡检",
+        description="吊运计划、吊运事故新闻或人工发起时的专项视觉巡检与警示材料生成（与业界事故主动响应共用引擎）。",
+        intent="lifting_safety_patrol",
+        steps=[
+            WorkflowStepTemplate("search_policy", "耀耀慧读", "search_policy_clauses"),
+            WorkflowStepTemplate("patrol_cameras", "赤瞳守护者", "workbench_video_detection"),
+            WorkflowStepTemplate("generate_alert_bundle", "闪闪助手", "generate_safety_alert_bundle"),
+            WorkflowStepTemplate("notify_whatsapp", "赤瞳灵讯", "send_whatsapp_message", requires_confirmation=True),
+        ],
+    ),
 }
 
 
@@ -170,6 +251,14 @@ INTENT_TO_WORKFLOW: dict[str, str] = {
     "whatsapp_sql_query": "workflow_whatsapp_sql_query",
     "whatsapp_wacli_ops": "workflow_whatsapp_wacli_ops",
     "visual_detection": "workflow_visual_patrol",
+    "web_search": "workflow_web_search",
+    "url_fetch": "workflow_url_fetch",
+    "run_bash": "workflow_run_bash",
+    "run_powershell": "workflow_run_powershell",
+    "file_inspect": "workflow_file_inspect",
+    "desktop_assistant": "workflow_desktop_assistant",
+    "industry_lifting_incident_response": "workflow_industry_lifting_incident_response",
+    "lifting_safety_patrol": "workflow_lifting_safety_patrol",
 }
 
 

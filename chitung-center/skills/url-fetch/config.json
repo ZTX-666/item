@@ -1,0 +1,10 @@
+{
+  "display_name": "网页内容抓取",
+  "description": "抓取任意公开 URL，提取标题、正文摘要与关键链接。",
+  "intents": ["url_fetch"],
+  "triggers": ["抓取网页", "网页抓取", "读取网页", "打开链接", "url", "爬取"],
+  "example_prompts": [
+    "抓取 https://www.labour.gov.hk 最新新闻",
+    "读取这个链接的内容：https://example.com/report"
+  ]
+}

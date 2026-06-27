@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     table_mapping_node_bin: str = "node"
     table_mapping_timeout_seconds: int = 180
 
+    # Demo / presentation: skip auto patrol + external monitor schedulers on startup.
+    disable_background_schedulers: bool = False
+
+    lifting_alert_whatsapp_to: str = "+85284941215"
+
     feishu_app_id: str = ""
     feishu_app_secret: str = ""
     feishu_verification_token: str = ""

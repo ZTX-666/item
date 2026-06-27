@@ -1,0 +1,23 @@
+{
+  "display_name": "自动化使用教练",
+  "description": "结合本地自动化模板与 job 记录，纯对话教你配置定时任务、RRULE 和验收；不生成 Skill、不直接启动自动化。",
+  "intents": ["automation_usage_coach"],
+  "triggers": [
+    "自动化使用",
+    "自动化怎么配",
+    "定时任务",
+    "自动化教练",
+    "automation coach",
+    "怎么编排自动化",
+    "cron",
+    "rrule"
+  ],
+  "example_prompts": [
+    "自动化使用教练，我想做每日安全简报定时任务",
+    "自动化和工作流有什么区别？",
+    "为什么自动化保存了但不运行？"
+  ],
+  "mode": "conversation_only",
+  "can_generate_skill": false,
+  "can_execute_tools": false
+}

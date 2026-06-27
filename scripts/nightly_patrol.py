@@ -1180,11 +1180,12 @@ async def patrol_camera(
 
     for index, snapshot_url in enumerate(snapshot_urls, start=1):
         log.info(f"  使用C-SMART稳定截图截帧({index}/{len(snapshot_urls)})...")
-        snapshot_ok = download_http_image(
+        snapshot_ok = await asyncio.to_thread(
+            download_http_image,
             snapshot_url,
             snapshot_path,
-            timeout=SNAPSHOT_HTTP_TIMEOUT,
-            retries=SNAPSHOT_HTTP_RETRIES,
+            SNAPSHOT_HTTP_TIMEOUT,
+            SNAPSHOT_HTTP_RETRIES,
         )
         result.capture_attempts.append(
             {"method": "csmart_screenshot", "url": snapshot_url, "ok": bool(snapshot_ok)}
@@ -1204,7 +1205,7 @@ async def patrol_camera(
 
     if not snapshot_path.exists() or snapshot_path.stat().st_size <= 0:
         log.info(f"  视频流截帧中... (超时{RTMP_CAPTURE_TIMEOUT}s)")
-        rtmp_ok = capture_rtmp_frame(camera["rtmp_url"], snapshot_path)
+        rtmp_ok = await asyncio.to_thread(capture_rtmp_frame, camera["rtmp_url"], snapshot_path)
         result.capture_attempts.append(
             {"method": "stream", "url": str(camera.get("rtmp_url") or ""), "ok": bool(rtmp_ok)}
         )
@@ -1222,7 +1223,8 @@ async def patrol_camera(
         test_img = _get_test_image_fallback(cam_id)
         if test_img:
             import shutil
-            shutil.copy2(test_img, str(snapshot_path))
+
+            await asyncio.to_thread(shutil.copy2, test_img, str(snapshot_path))
             fallback_name = Path(test_img).name
             result.snapshot_source = "fallback"
             result.fallback_used = True
@@ -1244,7 +1246,7 @@ async def patrol_camera(
     # 2. YOLO 检测
     t0 = time.perf_counter()
     try:
-        detections = run_yolo_detection(str(snapshot_path))
+        detections = await asyncio.to_thread(run_yolo_detection, str(snapshot_path))
     except Exception as e:
         result.error = f"YOLO检测失败: {e}"
         log.warning(f"  ✗ {result.error}")
@@ -1295,7 +1297,7 @@ async def patrol_camera(
 
     # 4. 绘制标注图
     annotated_path = output_dir / f"{cam_id}_annotated.jpg"
-    draw_annotations(str(snapshot_path), detections, str(annotated_path), cam_name)
+    await asyncio.to_thread(draw_annotations, str(snapshot_path), detections, str(annotated_path), cam_name)
     result.annotated_path = str(annotated_path)
     log.info(f"  ✓ 标注图已保存: {annotated_path.name}")
 
@@ -1306,6 +1308,7 @@ async def patrol_camera(
 async def run_patrol(
     vlm_enabled: bool = True,
     camera_filter: str | None = None,
+    camera_filters: list[str] | None = None,
     inspection_prompt: str | None = None,
 ) -> dict[str, Any]:
     """执行完整巡检"""
@@ -1314,7 +1317,13 @@ async def run_patrol(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     cameras = get_cameras_with_fresh_rtmp()
-    if camera_filter:
+    if camera_filters:
+        filter_set = {str(item).strip() for item in camera_filters if str(item).strip()}
+        cameras = [c for c in cameras if c["id"] in filter_set or c["name"] in filter_set]
+        if not cameras:
+            log.error(f"未找到摄像头: {sorted(filter_set)}")
+            return {"error": f"Cameras not found: {sorted(filter_set)}"}
+    elif camera_filter:
         cameras = [c for c in cameras if c["id"] == camera_filter or c["name"] == camera_filter]
         if not cameras:
             log.error(f"未找到摄像头: {camera_filter}")
@@ -1330,15 +1339,20 @@ async def run_patrol(
     log.info(f"输出目录: {output_dir}")
     log.info(f"═══════════════════════════════")
 
-    results: list[CameraResult] = []
-    for camera in cameras:
-        result = await patrol_camera(
-            camera,
-            output_dir,
-            vlm_enabled=vlm_enabled,
-            inspection_prompt=inspection_prompt or "",
-        )
-        results.append(result)
+    concurrency = max(1, int(os.getenv("PATROL_CAMERA_CONCURRENCY", "3")))
+    semaphore = asyncio.Semaphore(concurrency)
+    log.info(f"摄像头并发: {concurrency}")
+
+    async def _patrol_one(camera: dict[str, Any]) -> CameraResult:
+        async with semaphore:
+            return await patrol_camera(
+                camera,
+                output_dir,
+                vlm_enabled=vlm_enabled,
+                inspection_prompt=inspection_prompt or "",
+            )
+
+    results = list(await asyncio.gather(*[_patrol_one(camera) for camera in cameras]))
 
     # 汇总
     success_count = sum(1 for r in results if r.success)

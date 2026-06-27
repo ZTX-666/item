@@ -3,758 +3,330 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>赤瞳技术架构 - 核心 AI 技术解决方案</title>
+  <title>赤瞳平台 · 技术架构与能力清单（2026-06-24）</title>
   <style>
     :root {
-      --blue-900: #11366f;
-      --blue-800: #174a96;
-      --blue-700: #2364c4;
-      --blue-100: #eaf2ff;
-      --blue-50: #f6f9ff;
-      --red-700: #d71920;
-      --red-600: #ed1c24;
-      --ink: #17233d;
-      --muted: #596981;
-      --line: rgba(29, 76, 145, 0.18);
-      --card: rgba(255, 255, 255, 0.92);
-      --shadow: 0 18px 46px rgba(17, 54, 111, 0.16);
+      --blue-900: #0f2f66;
+      --blue-700: #1f5fbf;
+      --red-600: #d71920;
+      --ink: #152238;
+      --muted: #5a6b82;
+      --line: #c8d6ea;
+      --bg: #f7faff;
     }
-
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       color: var(--ink);
       font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
-      background:
-        radial-gradient(circle at 14% 8%, rgba(69, 128, 227, 0.22), transparent 28%),
-        radial-gradient(circle at 90% 5%, rgba(237, 28, 36, 0.10), transparent 30%),
-        linear-gradient(180deg, #f8fbff 0%, #eef5ff 52%, #ffffff 100%);
-      line-height: 1.55;
+      font-size: 9.5pt;
+      line-height: 1.38;
+      background: var(--bg);
     }
-
+    @page { size: A4; margin: 11mm 12mm; }
+    @media print {
+      body { background: #fff; font-size: 9pt; }
+      .page { box-shadow: none; margin: 0; padding: 0; max-width: none; page-break-after: always; }
+      .page:last-child { page-break-after: auto; }
+      a { color: inherit; text-decoration: none; }
+    }
     .page {
-      width: min(1440px, 96vw);
+      width: 210mm;
+      min-height: 277mm;
       margin: 0 auto;
-      padding: 28px 20px 44px;
+      padding: 10mm 11mm;
+      background: #fff;
+      box-shadow: 0 8px 28px rgba(15,47,102,.12);
     }
-
-    .hero {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 28px;
-      align-items: end;
-      margin-bottom: 18px;
-    }
-
-    .eyebrow {
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      padding: 6px 12px;
-      color: #ffffff;
-      font-size: 13px;
-      letter-spacing: 0.08em;
-      background: linear-gradient(90deg, var(--blue-800), var(--red-600));
-      border-radius: 999px;
-      box-shadow: 0 8px 24px rgba(35, 100, 196, 0.20);
-    }
-
     h1 {
-      margin: 12px 0 6px;
+      margin: 0 0 4px;
+      font-size: 20pt;
       color: var(--blue-900);
-      font-size: clamp(34px, 4vw, 56px);
-      line-height: 1.08;
-      letter-spacing: 0.04em;
+      letter-spacing: .04em;
     }
-
-    .subtitle {
-      max-width: 920px;
-      margin: 0;
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      margin-bottom: 10px;
       color: var(--muted);
-      font-size: 17px;
+      font-size: 8.5pt;
     }
-
-    .stack-tags {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 8px;
-      max-width: 560px;
-    }
-
-    .tag {
-      padding: 8px 11px;
-      color: var(--blue-900);
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 8pt;
       font-weight: 700;
-      font-size: 13px;
-      background: #ffffff;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      box-shadow: 0 8px 18px rgba(17, 54, 111, 0.08);
-      white-space: nowrap;
+      color: #fff;
+      background: linear-gradient(90deg, var(--blue-700), var(--red-600));
     }
-
-    .architecture {
-      display: grid;
-      grid-template-columns: 1fr 280px;
-      gap: 28px;
-      align-items: stretch;
-      margin-top: 24px;
-    }
-
-    .platform {
-      padding: 24px;
-      color: #ffffff;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
-        linear-gradient(135deg, #2e68bd, #173d82);
-      border: 1px solid rgba(255, 255, 255, 0.28);
-      border-radius: 28px;
-      box-shadow: var(--shadow);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .platform::after {
-      content: "";
-      position: absolute;
-      inset: auto -60px -80px 42%;
-      height: 180px;
-      background: radial-gradient(circle, rgba(255, 255, 255, 0.16), transparent 70%);
-      pointer-events: none;
-    }
-
-    .platform-title,
-    .bot-title,
-    .section-title {
-      margin: 0 0 16px;
-      font-size: 26px;
-      line-height: 1.2;
-      text-align: center;
-      letter-spacing: 0.08em;
-    }
-
-    .module-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 18px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .module,
-    .center-bus,
-    .bot-card,
-    .capability,
-    .talk-card,
-    .evidence-card {
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(226, 237, 255, 0.92));
-      border: 1px solid rgba(255, 255, 255, 0.65);
-      border-radius: 22px;
-      box-shadow: 0 12px 28px rgba(13, 44, 102, 0.18);
-    }
-
-    .module {
-      min-height: 248px;
-      padding: 18px;
-      color: var(--ink);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-
-    .module h3,
-    .center-bus h3,
-    .bot-card h3,
-    .capability h3,
-    .talk-card h3,
-    .evidence-card h3 {
-      margin: 0 0 10px;
+    h2 {
+      margin: 10px 0 5px;
+      padding-bottom: 3px;
+      font-size: 11pt;
       color: var(--blue-900);
-      font-size: 20px;
-      line-height: 1.25;
+      border-bottom: 2px solid var(--line);
     }
-
-    .module .role {
-      display: inline-flex;
-      width: fit-content;
-      margin-bottom: 12px;
-      padding: 4px 9px;
-      color: #ffffff;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      background: var(--blue-900);
-      border-radius: 8px;
-    }
-
-    .module p,
-    .center-bus p,
-    .bot-card p,
-    .capability p,
-    .talk-card p,
-    .evidence-card p {
-      margin: 0;
-      color: #31435f;
-      font-size: 14px;
-    }
-
-    .chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 7px;
-      margin-top: 14px;
-    }
-
-    .chip {
-      padding: 5px 8px;
-      color: #173d82;
-      font-size: 12px;
-      font-weight: 700;
-      background: rgba(35, 100, 196, 0.10);
-      border: 1px solid rgba(35, 100, 196, 0.18);
-      border-radius: 999px;
-    }
-
-    .center-bus {
-      margin-top: 18px;
-      padding: 18px 22px;
-      color: var(--ink);
-      position: relative;
-      z-index: 1;
-    }
-
-    .center-bus h3 {
-      text-align: center;
-    }
-
-    .center-points {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 14px;
-    }
-
-    .center-points span {
-      padding: 9px 10px;
-      color: var(--blue-900);
-      font-size: 13px;
-      font-weight: 800;
-      text-align: center;
-      background: rgba(35, 100, 196, 0.09);
-      border-radius: 12px;
-    }
-
-    .bridge {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .bridge::before,
-    .bridge::after {
-      content: "";
-      position: absolute;
-      width: 52px;
-      height: 14px;
-      background: var(--blue-700);
-      clip-path: polygon(0 22%, 72% 22%, 72% 0, 100% 50%, 72% 100%, 72% 78%, 0 78%);
-      box-shadow: 0 4px 10px rgba(13, 44, 102, 0.18);
-    }
-
-    .bridge::before {
-      transform: translateY(-16px);
-    }
-
-    .bridge::after {
-      transform: translateY(16px) rotate(180deg);
-    }
-
-    .bot {
-      padding: 22px 16px;
-      color: #ffffff;
-      background: linear-gradient(180deg, var(--red-600), #b90912);
-      border-radius: 24px;
-      box-shadow: var(--shadow);
-    }
-
-    .bot-title {
-      margin-bottom: 20px;
-      color: #ffffff;
-    }
-
-    .bot-list {
-      display: grid;
-      gap: 16px;
-    }
-
-    .bot-card {
-      padding: 18px 16px;
-      text-align: center;
-    }
-
-    .bot-card h3 {
-      color: #071c5d;
-      font-size: 17px;
-    }
-
-    .bot-card p {
-      font-size: 13px;
-    }
-
-    .capability-row {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 22px;
-      margin-top: 22px;
-    }
-
-    .capability {
-      min-height: 190px;
-      padding: 20px;
-      border-radius: 20px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .capability::before {
-      content: attr(data-label);
-      position: absolute;
-      top: 12px;
-      right: 16px;
-      color: rgba(17, 54, 111, 0.10);
-      font-size: 42px;
-      font-weight: 900;
-      letter-spacing: -0.05em;
-    }
-
-    .capability h3 {
-      position: relative;
-      z-index: 1;
-    }
-
-    .capability ul,
-    .talk-card ul,
-    .evidence-card ul {
-      margin: 12px 0 0;
-      padding: 0;
-      list-style: none;
-    }
-
-    .capability li,
-    .talk-card li,
-    .evidence-card li {
-      position: relative;
-      margin-top: 8px;
-      padding-left: 16px;
-      color: #31435f;
-      font-size: 13px;
-    }
-
-    .capability li::before,
-    .talk-card li::before,
-    .evidence-card li::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0.62em;
-      width: 6px;
-      height: 6px;
-      background: var(--blue-700);
-      border-radius: 999px;
-    }
-
-    .section {
-      margin-top: 28px;
-      padding: 24px;
-      background: rgba(255, 255, 255, 0.72);
-      border: 1px solid var(--line);
-      border-radius: 26px;
-      box-shadow: 0 14px 34px rgba(17, 54, 111, 0.08);
-    }
-
-    .section-title {
-      color: var(--blue-900);
-      text-align: left;
-      letter-spacing: 0.04em;
-    }
-
-    .flow {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .flow-step {
-      min-height: 118px;
-      padding: 14px;
-      background: #ffffff;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      position: relative;
-    }
-
-    .flow-step:not(:last-child)::after {
-      content: ">";
-      position: absolute;
-      right: -11px;
-      top: 42%;
+    h3 {
+      margin: 7px 0 3px;
+      font-size: 9.5pt;
       color: var(--blue-700);
-      font-size: 22px;
-      font-weight: 900;
-      z-index: 2;
     }
-
-    .flow-step strong {
-      display: block;
-      color: var(--blue-900);
-      font-size: 15px;
-      margin-bottom: 7px;
-    }
-
-    .flow-step span {
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .talk-grid,
-    .evidence-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
-      margin-top: 16px;
-    }
-
-    .talk-card,
-    .evidence-card {
-      padding: 18px;
-      box-shadow: none;
-      background: #ffffff;
+    p { margin: 4px 0; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px 8px; }
+    .card {
       border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 9px;
+      background: #fbfdff;
     }
-
-    .talk-card h3,
-    .evidence-card h3 {
-      font-size: 18px;
+    .card strong { color: var(--blue-900); font-size: 9.5pt; }
+    .card small { color: var(--muted); display: block; margin-top: 2px; }
+    .arch {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 7.8pt;
+      line-height: 1.32;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #0f2347;
+      color: #dce9ff;
+      white-space: pre;
+      overflow: hidden;
     }
-
-    .footer-note {
-      margin-top: 18px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.2pt;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 3px 5px;
+      vertical-align: top;
+    }
+    th {
+      background: #eaf2ff;
+      color: var(--blue-900);
+      font-weight: 700;
+      text-align: left;
+    }
+    tr:nth-child(even) td { background: #f8fbff; }
+    .mono { font-family: Consolas, monospace; font-size: 7.6pt; }
+    .opt li { margin: 2px 0; }
+    .footer {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--line);
+      font-size: 8pt;
       color: var(--muted);
-      font-size: 13px;
-      text-align: right;
     }
-
-    @media (max-width: 1120px) {
-      .architecture,
-      .hero {
-        grid-template-columns: 1fr;
-      }
-
-      .bridge {
-        height: 46px;
-      }
-
-      .bridge::before,
-      .bridge::after {
-        transform: rotate(90deg) translateX(-8px);
-      }
-
-      .bridge::after {
-        transform: rotate(270deg) translateX(-8px);
-      }
-
-      .module-grid,
-      .capability-row,
-      .center-points {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .flow,
-      .talk-grid,
-      .evidence-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 720px) {
-      .page {
-        width: 100%;
-        padding: 20px 12px 34px;
-      }
-
-      .platform,
-      .section {
-        padding: 16px;
-      }
-
-      .module-grid,
-      .capability-row,
-      .center-points,
-      .flow,
-      .talk-grid,
-      .evidence-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .flow-step:not(:last-child)::after {
-        display: none;
-      }
-    }
+    ul.compact { margin: 3px 0; padding-left: 16px; }
+    ul.compact li { margin: 1px 0; }
   </style>
 </head>
 <body>
-  <main class="page">
-    <header class="hero">
-      <div>
-        <div class="eyebrow">核心 AI 技术解决方案 · 技术架构展示版</div>
-        <h1>赤瞳守护者整体技术架构</h1>
-        <p class="subtitle">
-          以 FastAPI 智能中台为核心，融合大语言模型、RAG 知识增强、视觉大模型、多模态 OCR、事件驱动机器人和 Agent 工具编排，形成可观测、可审计、可扩展的现场 AI 原生平台。
-        </p>
-      </div>
-      <div class="stack-tags" aria-label="技术栈">
-        <span class="tag">Electron + Vue 3 微前端工作台</span>
-        <span class="tag">FastAPI Async Orchestration</span>
-        <span class="tag">OpenAI-Compatible LLM Gateway</span>
-        <span class="tag">Hybrid RAG + Vector Store</span>
-        <span class="tag">YOLO + VLM 多模态识别</span>
-        <span class="tag">AgentToolbox / MCP Tools</span>
-        <span class="tag">SQLite Event Sourcing</span>
-        <span class="tag">Feishu Long Connection / Webhook</span>
-      </div>
-    </header>
 
-    <section class="architecture" aria-label="赤瞳总体架构图">
-      <div class="platform">
-        <h2 class="platform-title">赤瞳 4+1 AI 技术板块</h2>
-        <div class="module-grid">
-          <article class="module">
-            <div>
-              <span class="role">Computer Vision Pipeline</span>
-              <h3>赤瞳守护者</h3>
-              <p>构建 RTMP 视频流采样、图像预处理、YOLO 目标检测、VLM 场景理解和风险标签融合管线，支持批量摄像头异步检测、证据图片留存和结构化事件输出。</p>
-            </div>
-            <div class="chips">
-              <span class="chip">RTMP Frame Capture</span>
-              <span class="chip">YOLO Detector</span>
-              <span class="chip">Vision-Language Model</span>
-              <span class="chip">Visual Event Normalization</span>
-            </div>
-          </article>
+<!-- ========== PAGE 1 ========== -->
+<section class="page">
+  <span class="badge">Version4 · 演示版</span>
+  <h1>赤瞳平台 · 技术架构与能力清单</h1>
+  <div class="meta">
+    <span>统一根目录：<strong>E:\ChinaOverSeaFinal</strong></span>
+    <span>更新：2026-06-24</span>
+    <span>启动：<span class="mono">scripts\启动赤瞳平台.bat</span></span>
+    <span>自检：<span class="mono">scripts\演示前检查.bat</span></span>
+  </div>
 
-          <article class="module">
-            <div>
-              <span class="role">Message Intelligence Layer</span>
-              <h3>赤瞳灵讯</h3>
-              <p>基于 wacli 本地消息库、只读 SQL 沙箱、触发词解析和 RAG 上下文注入，实现群聊语义检索、消息事件归档、机器人问答和跨会话上下文增强。</p>
-            </div>
-            <div class="chips">
-              <span class="chip">wacli SQLite Adapter</span>
-              <span class="chip">Read-only SQL Sandbox</span>
-              <span class="chip">Trigger Parser</span>
-              <span class="chip">RAG Context Injection</span>
-            </div>
-          </article>
+  <h2>一、总体架构</h2>
+  <div class="arch">┌─────────────────────────────────────────────────────────────┐
+│  Electron 桌面 + Vue3/Vite 前端  (:5173)                     │
+│  五大板块 UI · 闪闪助手 Chatbot · Diff 预览 · 待确认闭环       │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ REST / SSE
+        ┌───────────────────┴───────────────────┐
+        ▼                                       ▼
+┌───────────────────┐                 ┌───────────────────┐
+│ chitung-center    │  HTTP 工具调用   │ agent-toolbox     │
+│ FastAPI  :8999    │◄──────────────►│ FastAPI  :8899    │
+│ 编排·Skill·工作流  │                 │ RTMP·VLM·WhatsApp │
+│ RAG·Job·自动化调度 │                 │ 飞书·爬虫·桌面沙箱  │
+└─────────┬─────────┘                 └─────────┬─────────┘
+          │                                     │
+          ▼                                     ▼
+  SQLite platform.db                    nightly_patrol / VLM
+  Chroma RAG · audit.jsonl              rtmp_snapshot · wacli
+          │                                     │
+          └──────────────┬──────────────────────┘
+                         ▼
+              cctv-gateway Node :3457 · 11 路 RTMP CCTV
+              whatsapp-archive :8787 · wacli.db 本地归档</div>
 
-          <article class="module">
-            <div>
-              <span class="role">Document AI Engine</span>
-              <h3>闪闪文档</h3>
-              <p>采用 DOCX 结构化解析、LLM JSON 生成、字段映射、模板填充和 changeset 差异引擎，把非结构化公文转为可预览、可回滚、可确认的文档操作流。</p>
-            </div>
-            <div class="chips">
-              <span class="chip">DOCX AST Parsing</span>
-              <span class="chip">LLM JSON Schema</span>
-              <span class="chip">Changeset Diff Engine</span>
-              <span class="chip">Template Field Mapping</span>
-            </div>
-          </article>
+  <h2>二、运行时服务与数据</h2>
+  <table>
+    <tr><th>组件</th><th>端口/路径</th><th>技术</th><th>职责</th></tr>
+    <tr><td>前端工作台</td><td class="mono">127.0.0.1:5173</td><td>Vue3 + TS + Electron</td><td>五板块导航、Chatbot、Diff、表单与报告 UI</td></tr>
+    <tr><td>赤瞳中台</td><td class="mono">:8999</td><td>FastAPI + SQLite</td><td>Intent 路由、Orchestrator、Workflow Engine、Job、RAG API</td></tr>
+    <tr><td>Agent 工具箱</td><td class="mono">:8899</td><td>FastAPI + subprocess</td><td>RTMP 截图、VLM 检测、WhatsApp/wacli、飞书、HK 安全源爬虫</td></tr>
+    <tr><td>CCTV Gateway</td><td class="mono">:3457</td><td>Node.js</td><td>摄像头列表、健康检查、RTMP 代理</td></tr>
+    <tr><td>LLM</td><td>智谱 BigModel</td><td>GLM-5.1 / GLM-4.5V</td><td>对话、RAG 生成、VLM 视觉检测、DocMate 改稿</td></tr>
+    <tr><td>知识库</td><td class="mono">data/rag_chroma</td><td>Chroma + Embedding</td><td>9 文档 · 内置《安全管理辦法彙編》576 分块</td></tr>
+    <tr><td>平台库</td><td class="mono">chitung_platform.db</td><td>SQLite WAL</td><td>隐患、确认、Job、自动化任务、外部讯息</td></tr>
+    <tr><td>CCTV</td><td class="mono">app_config.json</td><td>11 路 Ezviz RTMP</td><td>默认全盘视觉巡检（未点名时全启用路）</td></tr>
+  </table>
 
-          <article class="module">
-            <div>
-              <span class="role">Knowledge & Risk Graph</span>
-              <h3>耀耀慧读</h3>
-              <p>融合 OCR、表格抽取、向量嵌入、ChromaDB 检索和外部信息爬取，将制度、证书、天气、监管新闻转成可召回知识片段与结构化风险信号。</p>
-            </div>
-            <div class="chips">
-              <span class="chip">RapidOCR / PyMuPDF</span>
-              <span class="chip">Embedding Retrieval</span>
-              <span class="chip">ChromaDB Vector Store</span>
-              <span class="chip">External Risk Crawler</span>
-            </div>
-          </article>
-        </div>
+  <h2>三、五大产品板块（前端路由）</h2>
+  <div class="grid-2">
+    <div class="card">
+      <strong>① 赤瞳守护者 · 望风险</strong>
+      <small>/guardian/*</small>
+      <ul class="compact">
+        <li><b>视觉巡检</b> — 工作台：Prompt 润色 → 11 路检测 → 中间过程/最终结果/活跃隐患</li>
+        <li><b>待确认事项</b> — 人机协同：WhatsApp 发送、整改通知、外部 P1 告警</li>
+        <li><b>隐患台账</b> — 线索归档、状态跟踪、整改闭环</li>
+        <li><b>CCTV</b> — 摄像头预览与单路检测入口</li>
+      </ul>
+    </div>
+    <div class="card">
+      <strong>② 闪闪文档 · 书文档</strong>
+      <small>/docmate/*</small>
+      <ul class="compact">
+        <li><b>文档审阅</b> — DocMate：粘性选区、Diff 预览、采纳/拒绝（LLM 主进程）</li>
+        <li><b>智能填表</b> — 制度表格模板检索与预填</li>
+        <li><b>表格映射</b> — Node 自动填表脚本映射</li>
+        <li><b>报告生成</b> — 社区/工地报告 DOCX 生成</li>
+      </ul>
+    </div>
+    <div class="card">
+      <strong>③ 赤瞳聆讯 · 闻动态</strong>
+      <small>/lingxun/*</small>
+      <ul class="compact">
+        <li><b>WhatsApp 运维</b> — QR/配对码登录、<b>开始同步</b>（右上角）、wacli 状态</li>
+        <li><b>数据浏览</b> — 本地 chats/messages 归档浏览</li>
+        <li><b>SQL 查询</b> — wacli.db 只读 SELECT</li>
+        <li><b>命令工具</b> — 安全只读 wacli 诊断命令</li>
+      </ul>
+    </div>
+    <div class="card">
+      <strong>④ 赤瞳中台 · 统全局</strong>
+      <small>/center/*</small>
+      <ul class="compact">
+        <li><b>系统设置</b> — LLM Key、摄像头、项目参数、诊断</li>
+        <li><b>技能 / 工作流</b> — 20 Skill · 19 Workflow 模板管理</li>
+        <li><b>自动化</b> — 定时任务（含 6h 吊运专项 11 路巡检）</li>
+        <li><b>AI 助手 / 长期记忆 / 执行中心</b> — 对话、Markdown 记忆、Job 追踪</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card" style="margin-top:6px">
+    <strong>⑤ 耀耀慧读 · 问制度</strong> <small>/yaoyao/*</small>
+    <ul class="compact" style="columns:2">
+      <li><b>结构化输入</b> — 耀耀灰度结构化字段导出</li>
+      <li><b>耀耀知识</b> — RAG 文档上传、分块、问答</li>
+      <li><b>外部讯息</b> — 17+ 官方/媒体源监听、P0/P1 分级、每日风险简报素材</li>
+    </ul>
+  </div>
 
-        <article class="center-bus">
-          <h3>赤瞳中台：Agentic Orchestration + Human-in-the-loop Governance</h3>
-          <p>
-            中台将桌面端、机器人、Webhook 和后台任务统一抽象为 ChatMessage / WorkflowRun / ToolCall 事件，采用规则优先 + LLM fallback 的混合意图路由，动态匹配 Skill、Workflow 与 AgentToolbox 工具，并通过幂等键、人审队列、审计日志和 Job Store 实现企业级 AI 治理。
-          </p>
-          <div class="center-points">
-            <span>Hybrid Intent Router</span>
-            <span>Async Workflow Engine</span>
-            <span>Tool Calling Gateway</span>
-            <span>Audit Observability</span>
-          </div>
-        </article>
-      </div>
+  <h2>四、核心 AI 链路</h2>
+  <div class="grid-3">
+    <div class="card"><strong>Intent 路由</strong><small>skills.py + intent_router → 合规问句优先 knowledge_query</small></div>
+    <div class="card"><strong>编排器</strong><small>orchestrator → workflow_engine.run_for_intent</small></div>
+    <div class="card"><strong>视觉巡检</strong><small>RTMP 截图 → GLM-4.5V → 标注图 + SQLite 持久化</small></div>
+    <div class="card"><strong>RAG</strong><small>Chroma 检索 + LLM 生成 · 制度条款引用</small></div>
+    <div class="card"><strong>人机协同</strong><small>confirmation_service · 待确认后再 WhatsApp/飞书</small></div>
+    <div class="card"><strong>自动化</strong><small>automation_scheduler · RRULE · 后台 Job</small></div>
+  </div>
+</section>
 
-      <div class="bridge" aria-hidden="true"></div>
+<!-- ========== PAGE 2 ========== -->
+<section class="page">
+  <h2>五、已安装 Skill（20 个）</h2>
+  <table>
+    <tr><th>目录</th><th>显示名</th><th>Intent</th><th>说明</th></tr>
+    <tr><td class="mono">hazard-intake</td><td>隐患 intake</td><td>hazard_intake</td><td>聊天/照片/VLM 结果 → 隐患线索 + 整改卡片</td></tr>
+    <tr><td class="mono">knowledge-query</td><td>制度知识问答</td><td>knowledge_query</td><td>本地 RAG 制度/规程问答</td></tr>
+    <tr><td class="mono">visual-patrol</td><td>视觉巡检</td><td>visual_detection</td><td>11 路 CCTV · RTMP/VLM/YOLO 巡检</td></tr>
+    <tr><td class="mono">daily-risk-briefing</td><td>每日风险简报</td><td>weather_news_risk</td><td>HKO + 17 源抓取 → 外部风险简报</td></tr>
+    <tr><td class="mono">external-info-monitor</td><td>外部讯息监听</td><td>external_info_monitor</td><td>关键词/频率/来源配置 + 即时触发</td></tr>
+    <tr><td class="mono">industry-lifting-response</td><td>业界吊运主动响应</td><td>industry_lifting_*</td><td>舆情确认 → 全盘巡检 → 报告 → WhatsApp</td></tr>
+    <tr><td class="mono">shanshan-doc</td><td>智能填表</td><td>document_form</td><td>制度表格模板搜索与草稿</td></tr>
+    <tr><td class="mono">docmate-edit</td><td>DocMate 文档编辑</td><td>docmate_edit</td><td>DOCX 上传 · Diff · 人工确认提交</td></tr>
+    <tr><td class="mono">whatsapp-sql-query</td><td>WhatsApp 数据库查询</td><td>whatsapp_sql_query</td><td>wacli.db 只读 SQL</td></tr>
+    <tr><td class="mono">whatsapp-wacli-ops</td><td>WhatsApp wacli 运维</td><td>whatsapp_wacli_ops</td><td>登录/搜索/群组只读诊断</td></tr>
+    <tr><td class="mono">long-term-memory</td><td>长期记忆</td><td>long_term_memory</td><td>对话摘要 → Markdown 持久化</td></tr>
+    <tr><td class="mono">workbuddy-assistant</td><td>桌面助手</td><td>desktop_assistant</td><td>自动路由：搜索/抓取/读文件/命令</td></tr>
+    <tr><td class="mono">web-search</td><td>网页搜索</td><td>web_search</td><td>实时互联网搜索</td></tr>
+    <tr><td class="mono">url-fetch</td><td>网页内容抓取</td><td>url_fetch</td><td>URL 正文与链接提取</td></tr>
+    <tr><td class="mono">file-inspect</td><td>本地文件读取</td><td>file_inspect</td><td>PDF/DOCX/IPYNB/代码等</td></tr>
+    <tr><td class="mono">shell-runner</td><td>Bash 命令执行</td><td>run_bash</td><td>workspace 沙箱（需确认）</td></tr>
+    <tr><td class="mono">powershell-runner</td><td>PowerShell 执行</td><td>run_powershell</td><td>Windows 运维诊断（需确认）</td></tr>
+    <tr><td class="mono">skill-usage-coach</td><td>Skill 使用教练</td><td>skill_usage_coach</td><td>纯对话教学 · 不执行工具</td></tr>
+    <tr><td class="mono">workflow-usage-coach</td><td>工作流使用教练</td><td>workflow_usage_coach</td><td>纯对话教学 · 不执行工作流</td></tr>
+    <tr><td class="mono">automation-usage-coach</td><td>自动化使用教练</td><td>automation_usage_coach</td><td>纯对话教学 · 不启动自动化</td></tr>
+  </table>
 
-      <aside class="bot" aria-label="飞书机器人">
-        <h2 class="bot-title">飞书 / 中海通机器人</h2>
-        <div class="bot-list">
-          <article class="bot-card">
-            <h3>信息交互<br />指令发送</h3>
-            <p>支持飞书长连接与 HTTP Webhook，事件回调经签名校验、解密、mention 过滤后进入统一 Agent 路由。</p>
-          </article>
-          <article class="bot-card">
-            <h3>更新表格<br />同步数据</h3>
-            <p>通过 OpenAPI Adapter 发送文本、图片、文件和交互卡片，可对接企业系统数据同步与表格更新接口。</p>
-          </article>
-          <article class="bot-card">
-            <h3>风险管控<br />闭环执行</h3>
-            <p>交互卡片 action 回传到确认服务，结合权限校验、审批状态机、幂等执行和审计回放完成闭环控制。</p>
-          </article>
-        </div>
-      </aside>
-    </section>
+  <h2>六、工作流模板（19 个 · workflow_templates.py）</h2>
+  <table>
+    <tr><th>workflow_name</th><th>标题</th><th>关联 Intent / 板块</th></tr>
+    <tr><td class="mono">workflow_hazard_intake</td><td>隐患线索 intake</td><td>hazard_intake · 守护者</td></tr>
+    <tr><td class="mono">workflow_knowledge_query</td><td>制度条款检索</td><td>knowledge_query · 耀耀</td></tr>
+    <tr><td class="mono">workflow_visual_patrol</td><td>视觉巡检</td><td>visual_detection · 守护者</td></tr>
+    <tr><td class="mono">workflow_daily_risk_briefing</td><td>每日外部风险简报</td><td>weather_news_risk · 耀耀</td></tr>
+    <tr><td class="mono">workflow_weather_query</td><td>香港天气查询</td><td>weather_query</td></tr>
+    <tr><td class="mono">workflow_form_filling</td><td>智能表格填报</td><td>document_form · 闪闪</td></tr>
+    <tr><td class="mono">workflow_docmate_edit</td><td>DocMate 文档编辑</td><td>docmate_edit · 闪闪</td></tr>
+    <tr><td class="mono">workflow_whatsapp_sql_query</td><td>WhatsApp SQLite 查询</td><td>whatsapp_sql_query · 聆讯</td></tr>
+    <tr><td class="mono">workflow_whatsapp_wacli_ops</td><td>WhatsApp wacli 运维</td><td>whatsapp_wacli_ops · 聆讯</td></tr>
+    <tr><td class="mono">workflow_web_search / url_fetch</td><td>网页搜索 / 抓取</td><td>web_search / url_fetch · 桌面助手</td></tr>
+    <tr><td class="mono">workflow_run_bash / run_powershell</td><td>Shell / PowerShell</td><td>需人工确认 · 沙箱</td></tr>
+    <tr><td class="mono">workflow_file_inspect</td><td>本地文件读取</td><td>file_inspect</td></tr>
+    <tr><td class="mono">workflow_desktop_assistant</td><td>桌面助手</td><td>desktop_assistant · 自动选工具</td></tr>
+    <tr><td class="mono">workflow_daily_safety_briefing_auto</td><td>每日安全简报自动化</td><td>定时 · 确认后发送</td></tr>
+    <tr><td class="mono">workflow_p1_external_info_alert</td><td>P1 外部讯息提醒</td><td>P0/P1 → 待确认 → 飞书</td></tr>
+    <tr><td class="mono">workflow_visual_patrol_closed_loop</td><td>视觉巡检闭环</td><td>检测 → 草稿 → 整改 → 复查</td></tr>
+    <tr><td class="mono">workflow_whatsapp_risk_ingestion</td><td>WhatsApp 风险入库</td><td>归档消息 → 分类 → 隐患/确认</td></tr>
+    <tr><td class="mono">workflow_industry_lifting_incident_response</td><td>业界吊运事故主动响应</td><td>制度检索 → 11 路巡检 → 报告 → WhatsApp</td></tr>
+    <tr><td class="mono">workflow_lifting_safety_patrol</td><td>吊运专项智能巡检</td><td>自动化默认 6h · 11 路 CCTV</td></tr>
+  </table>
 
-    <section class="capability-row" aria-label="四类底座能力">
-      <article class="capability" data-label="Skill">
-        <h3>Skill 相关能力</h3>
-        <p>把业务专家经验沉淀成可配置的技能说明和工具依赖。</p>
-        <ul>
-          <li>技能目录覆盖隐患 intake、视觉巡检、知识问答、文档编辑、外部风险监听。</li>
-          <li>前端可查看启停状态、依赖健康检查和最近运行记录。</li>
-          <li>替代临时口头经验传递，让不同场景调用同一套标准化能力。</li>
-        </ul>
-      </article>
+  <h2>七、运行优化建议（演示前优先）</h2>
+  <div class="grid-2">
+    <div class="card">
+      <strong>稳定性</strong>
+      <ul class="opt compact">
+        <li>仅使用 <span class="mono">E:\ChinaOverSeaFinal</span>，禁用有空格旧目录</li>
+        <li>双击 <span class="mono">启动赤瞳平台.bat</span>，勿从 IDE 终端跑 bat</li>
+        <li>中台无响应时运行 <span class="mono">scripts\restart_center.bat</span></li>
+        <li>演示前跑 <span class="mono">演示前检查.bat</span>（19 项全 PASS）</li>
+        <li>WhatsApp 演示前先「开始同步」，确认 wacli 已登录</li>
+      </ul>
+    </div>
+    <div class="card">
+      <strong>性能</strong>
+      <ul class="opt compact">
+        <li>11 路巡检耗时较长：演示可点名 1–2 路摄像头缩短</li>
+        <li><span class="mono">SECUREEYE_MAX_CONCURRENCY=2</span> 可加速 VLM（默认 1）</li>
+        <li>演示期间可在自动化页暂停 6h 吊运任务，避免并发 Job</li>
+        <li>LLM/VLM 超时可调 <span class="mono">agent_toolbox_timeout_seconds</span></li>
+        <li>首次 RAG 问答略慢，可先问一条预热向量库</li>
+      </ul>
+    </div>
+  </div>
 
-      <article class="capability" data-label="Flow">
-        <h3>Workflow 相关能力</h3>
-        <p>把多步作业变成可追踪的自动流程。</p>
-        <ul>
-          <li>模板化定义“天气抓取、风险持久化、简报生成、发送确认”等步骤。</li>
-          <li>每一步记录运行状态、工具结果和审计事件，便于复盘。</li>
-          <li>替代人工跨系统复制粘贴和反复催办。</li>
-        </ul>
-      </article>
+  <h2>八、Agent 工具箱主要工具</h2>
+  <p class="mono" style="font-size:7.8pt;line-height:1.45">
+    rtmp_snapshot · vlm_detect · generate_report · whatsapp_* (auth/sync/send/search) ·
+    fetch_hko_weather · fetch_hk_safety_updates · persist_external_risk_items ·
+    search_policy_clauses · search_form_templates · feishu_openapi_bot ·
+    web_search · fetch_url_content · read_local_file · run_powershell_command ·
+    safety_policy_templates · safety_platform_database
+  </p>
 
-      <article class="capability" data-label="Auto">
-        <h3>自动化相关能力</h3>
-        <p>让固定频率和高风险触发任务自动产生草稿。</p>
-        <ul>
-          <li>外部讯息 Scheduler 可定时拉取天气、监管、安全新闻。</li>
-          <li>视觉巡检支持批量摄像头检测并输出候选隐患和图片证据。</li>
-          <li>所有关键动作先进入待确认，保证自动化可控。</li>
-        </ul>
-      </article>
+  <div class="footer">
+    赤瞳 Version4 · 中建香港工地安全 AI 协同平台 · 打印：浏览器 Ctrl+P → A4 纵向 · 文档路径：
+    <span class="mono">docs/chitung-technical-architecture.html</span>
+  </div>
+</section>
 
-      <article class="capability" data-label="Agent">
-        <h3>Agent 相关能力</h3>
-        <p>让 AI 负责理解意图、选择工具、生成解释和下一步建议。</p>
-        <ul>
-          <li>LLM Gateway 统一脱敏、压缩上下文和 JSON 格式输出。</li>
-          <li>Agent Trace 在前端展示计划、工具调用和结果阶段。</li>
-          <li>替代人工判断“该找哪个系统、填哪个表、发给谁”。</li>
-        </ul>
-      </article>
-    </section>
-
-    <section class="section">
-      <h2 class="section-title">落地流程：从现场问题到闭环执行</h2>
-      <div class="flow">
-        <div class="flow-step">
-          <strong>1. 多入口采集</strong>
-          <span>桌面工作台、飞书机器人、WhatsApp 群、摄像头、文档上传。</span>
-        </div>
-        <div class="flow-step">
-          <strong>2. 意图识别</strong>
-          <span>规则优先识别业务场景，复杂表达交给 LLM 结构化判断。</span>
-        </div>
-        <div class="flow-step">
-          <strong>3. 知识增强</strong>
-          <span>结合制度文档、历史台账、外部风险和群消息上下文。</span>
-        </div>
-        <div class="flow-step">
-          <strong>4. 工具执行</strong>
-          <span>AgentToolbox 调用 OCR、VLM、DOCX、飞书、WhatsApp、SQLite。</span>
-        </div>
-        <div class="flow-step">
-          <strong>5. 人工确认</strong>
-          <span>外发、写文件、创建和关闭隐患前统一生成确认卡片。</span>
-        </div>
-        <div class="flow-step">
-          <strong>6. 审计闭环</strong>
-          <span>Job、Workflow Run、Audit Event 保留全过程证据。</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2 class="section-title">2 分钟技术讲解词</h2>
-      <div class="talk-grid">
-        <article class="talk-card">
-          <h3>解决什么痛点</h3>
-          <ul>
-            <li>过去安全信息散落在摄像头、群消息、文档表格和人工台账中，靠人盯屏、翻群、填表、催办。</li>
-            <li>赤瞳把这些入口统一接入中台，让 AI 先整理成候选结论，再交给人确认。</li>
-          </ul>
-        </article>
-        <article class="talk-card">
-          <h3>技术怎么运作</h3>
-          <ul>
-            <li>中台先识别意图，再调 Skill/Workflow，按需调用 VLM、OCR、RAG、LLM、DOCX、通讯工具。</li>
-            <li>AI 不直接替人做最终决策，而是生成草稿、卡片、Diff 和风险建议。</li>
-          </ul>
-        </article>
-        <article class="talk-card">
-          <h3>创新与落地性</h3>
-          <ul>
-            <li>系统不是单点模型演示，而是连接现有群聊、飞书、本地数据库和文档模板的业务闭环。</li>
-            <li>人审确认和审计记录保证现场可控，适合项目部逐步上线。</li>
-          </ul>
-        </article>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2 class="section-title">代码实现对应关系</h2>
-      <div class="evidence-grid">
-        <article class="evidence-card">
-          <h3>中台与 API</h3>
-          <p><strong>chitung-center</strong> 暴露健康检查、聊天、技能、工作流、视觉巡检、文档、RAG、确认和机器人事件接口。</p>
-          <ul>
-            <li>核心文件：app.py、orchestrator.py、intent_router.py、workflow_engine.py。</li>
-            <li>安全控制：confirmation_service.py、audit.py、job_service.py。</li>
-          </ul>
-        </article>
-        <article class="evidence-card">
-          <h3>桌面工作台</h3>
-          <p><strong>chitung-frontend</strong> 使用 Vue Router 分为 guardian、docmate、lingxun、center、yaoyao、automation 等页面域。</p>
-          <ul>
-            <li>核心页面：VisualPatrolPage、WhatsAppOpsPage、AIAssistantPage、AutomationPage。</li>
-            <li>统一 API 客户端：chitungApi.ts。</li>
-          </ul>
-        </article>
-        <article class="evidence-card">
-          <h3>工具执行层</h3>
-          <p><strong>agent-toolbox</strong> 封装本地工具，提供 HTTP Tools API 和 MCP Adapter。</p>
-          <ul>
-            <li>工具类别：VLM、OCR、RTMP、DOCX、飞书、WhatsApp、表格、报表、SQLite。</li>
-            <li>中台通过 toolbox_client 统一调用，保留工具审计。</li>
-          </ul>
-        </article>
-      </div>
-      <p class="footer-note">文件生成日期：2026-06-23 · 可直接用浏览器打开或嵌入汇报材料</p>
-    </section>
-  </main>
 </body>
 </html>

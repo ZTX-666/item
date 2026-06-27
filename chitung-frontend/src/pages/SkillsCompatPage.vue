@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { deleteSkill, getSkillDetail, getSkills, importSkill, saveSkillConfig, testSkill, toggleSkill } from '../services/chitungApi'
+import { useBusyAction } from '../composables/useBusyAction'
+import { useToast } from '../composables/useToast'
 import type { SkillDetail, SkillInfo } from '../types/domain'
 
 const skills = ref<SkillInfo[]>([])
 const selected = ref<SkillDetail | null>(null)
-const loading = ref(false)
-const query = ref('')
 const error = ref('')
 const importName = ref('')
 const importContent = ref('')
@@ -14,6 +15,9 @@ const configText = ref('')
 const isSavingConfig = ref(false)
 const isTestingSkill = ref(false)
 const testResult = ref<Record<string, unknown> | null>(null)
+const query = ref('')
+const toast = useToast()
+const { busy: loading, showBusy, run: runBusy } = useBusyAction()
 
 const filteredSkills = computed(() => {
   const value = query.value.trim().toLowerCase()
@@ -24,15 +28,15 @@ const filteredSkills = computed(() => {
 })
 
 async function refresh() {
-  loading.value = true
-  error.value = ''
-  try {
-    skills.value = await getSkills()
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    loading.value = false
-  }
+  await runBusy(async () => {
+    error.value = ''
+    try {
+      skills.value = await getSkills()
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : String(err)
+      toast.error('技能列表刷新失败')
+    }
+  })
 }
 
 async function openSkill(name: string) {
@@ -46,11 +50,15 @@ async function openSkill(name: string) {
 }
 
 async function handleToggle(skill: SkillInfo) {
+  const previous = skill.enabled !== false
+  skill.enabled = !previous
   try {
-    await toggleSkill(skill.name, !skill.enabled)
-    await refresh()
+    await toggleSkill(skill.name, !previous)
+    toast.success(previous ? '技能已停用' : '技能已启用')
   } catch (err) {
+    skill.enabled = previous
     error.value = err instanceof Error ? err.message : String(err)
+    toast.error('切换失败，请重试')
   }
 }
 
@@ -131,6 +139,18 @@ function testResultText(): string {
 }
 
 onMounted(refresh)
+
+const route = useRoute()
+
+watch(
+  () => route.query.skill,
+  async (skillName) => {
+    if (typeof skillName === 'string' && skillName.trim()) {
+      await openSkill(skillName.trim())
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -141,8 +161,14 @@ onMounted(refresh)
         <h1>Skill 技能</h1>
         <p>管理中台 Skill.md：列表、详情、启停、导入和外部 Skill 删除。</p>
       </div>
-      <button class="primary-soft-button" :disabled="loading" @click="refresh">
-        {{ loading ? '刷新中...' : '刷新' }}
+      <button
+        class="primary-soft-button"
+        :class="{ 'is-busy': showBusy }"
+        :disabled="loading"
+        :aria-busy="showBusy"
+        @click="refresh"
+      >
+        {{ showBusy ? '刷新中...' : '刷新' }}
       </button>
     </section>
 

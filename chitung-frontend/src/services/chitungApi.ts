@@ -62,6 +62,46 @@ import type {
 const CENTER_BASE_URL =
   import.meta.env.VITE_CHITUNG_CENTER_URL?.replace(/\/$/, '') || 'http://127.0.0.1:8999'
 
+const CENTER_FETCH_RETRIES = 3
+const CENTER_FETCH_RETRY_DELAY_MS = 900
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+async function centerFetch(
+  input: string,
+  init?: RequestInit,
+  options?: { retries?: number; timeoutMs?: number },
+): Promise<Response> {
+  const retries = options?.retries ?? CENTER_FETCH_RETRIES
+  const timeoutMs = options?.timeoutMs ?? 20000
+  let lastError: unknown
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const response = await fetch(input, { ...init, signal: controller.signal })
+      window.clearTimeout(timer)
+      if ((response.status >= 502 || response.status === 429) && attempt < retries) {
+        await sleep(CENTER_FETCH_RETRY_DELAY_MS * (attempt + 1))
+        continue
+      }
+      return response
+    } catch (error) {
+      window.clearTimeout(timer)
+      lastError = error
+      if (attempt < retries) {
+        await sleep(CENTER_FETCH_RETRY_DELAY_MS * (attempt + 1))
+        continue
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError ?? 'Center request failed'))
+}
+
 async function ensureOk(response: Response, message: string) {
   if (response.ok) return
   let detail = ''
@@ -83,7 +123,7 @@ export interface SendMessageRequest {
 }
 
 export async function sendChatMessage(request: SendMessageRequest): Promise<ChatResponse> {
-  const response = await fetch(`${CENTER_BASE_URL}/api/chat/message`, {
+  const response = await centerFetch(`${CENTER_BASE_URL}/api/chat/message`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -92,7 +132,7 @@ export async function sendChatMessage(request: SendMessageRequest): Promise<Chat
       session_id: request.sessionId || undefined,
       metadata: request.context ?? {},
     }),
-  })
+  }, { timeoutMs: 120000, retries: 2 })
 
   await ensureOk(response, 'Chitung Center request failed')
 
@@ -453,8 +493,14 @@ export async function listExternalInfoEvents(limit = 30, lookbackHours?: number)
 }
 
 export async function getHealth(): Promise<Record<string, unknown>> {
-  const response = await fetch(`${CENTER_BASE_URL}/health`)
+  const response = await centerFetch(`${CENTER_BASE_URL}/health`, undefined, { timeoutMs: 12000, retries: 2 })
   await ensureOk(response, 'Health check failed')
+  return response.json() as Promise<Record<string, unknown>>
+}
+
+export async function getFullHealth(): Promise<Record<string, unknown>> {
+  const response = await centerFetch(`${CENTER_BASE_URL}/health/full`, undefined, { timeoutMs: 12000, retries: 2 })
+  await ensureOk(response, 'Full health check failed')
   return response.json() as Promise<Record<string, unknown>>
 }
 
@@ -505,7 +551,7 @@ export async function testSkill(name: string): Promise<Record<string, unknown>> 
 }
 
 export async function getWorkbenchSummary(): Promise<WorkbenchSummary> {
-  const response = await fetch(`${CENTER_BASE_URL}/api/workbench/summary`)
+  const response = await centerFetch(`${CENTER_BASE_URL}/api/workbench/summary`, undefined, { timeoutMs: 25000, retries: 2 })
   await ensureOk(response, 'Workbench summary failed')
   return response.json() as Promise<WorkbenchSummary>
 }

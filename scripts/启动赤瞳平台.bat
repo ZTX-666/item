@@ -1,137 +1,284 @@
 @echo off
+
 chcp 65001 >nul
+
 setlocal EnableDelayedExpansion
 
+
+
 rem 赤瞳 — Windows 一键启动（开发模式）
-rem 双击本脚本：启动后端 + Electron 桌面工作台
+
+rem 统一工作目录：E:\ChinaOverSeaFinal（路径无空格）
+
+
 
 set "ROOT=%~dp0.."
+
 set "TOOLBOX=%ROOT%\agent-toolbox"
+
 set "CENTER=%ROOT%\chitung-center"
+
 set "FRONTEND=%ROOT%\chitung-frontend"
+
 set "CCTV_GATEWAY=%ROOT%\cctv-gateway"
+set "WHATSAPP_ARCHIVE=%ROOT%\whatsapp-archive\app-server"
+
+
 
 echo.
+
 echo ========================================
+
 echo   赤瞳
+
 echo ========================================
+
 echo 项目目录: %ROOT%
+
 echo.
+
+
 
 if not exist "%FRONTEND%\node_modules\" (
+
   echo [1/5] 首次运行，安装前端依赖...
+
   pushd "%FRONTEND%"
+
   call npm install
+
   if errorlevel 1 goto :fail
+
   popd
+
 ) else (
+
   echo [1/5] 前端依赖已就绪
+
 )
+
+
 
 if not exist "%TOOLBOX%\.venv\Scripts\python.exe" (
+
   echo [安装] 创建 agent-toolbox 虚拟环境...
+
   pushd "%TOOLBOX%"
+
   python -m venv .venv
+
   call .venv\Scripts\pip.exe install fastapi "uvicorn[standard]" pydantic pydantic-settings python-dotenv requests httpx pillow pypdfium2 python-docx pycryptodome eval_type_backport
+
   if errorlevel 1 goto :fail
+
   popd
+
 )
+
+
 
 if not exist "%CENTER%\.venv\Scripts\python.exe" (
+
   echo [安装] 创建 chitung-center 虚拟环境...
+
   pushd "%CENTER%"
+
   python -m venv .venv
+
   call .venv\Scripts\pip.exe install -r requirements.txt
+
   if errorlevel 1 goto :fail
+
   popd
+
 )
+
+
 
 if not exist "%TOOLBOX%\.env" (
+
   call "%~dp0write_local_env.bat" "%ROOT%"
+
 )
+
 if not exist "%FRONTEND%\.env" copy /Y "%FRONTEND%\.env.example" "%FRONTEND%\.env" >nul
 
-echo [2/5] 启动 agent-toolbox (:8899)...
-curl -sf http://127.0.0.1:8899/health >nul 2>&1
-if errorlevel 1 (
-  start "agent-toolbox" /MIN cmd /c "cd /d \"%TOOLBOX%\" && .venv\Scripts\python.exe run_server.py"
-)
 
-echo [3/5] 启动 chitung-center (:8999)...
-curl -sf http://127.0.0.1:8999/health >nul 2>&1
-if errorlevel 1 (
-  start "chitung-center" /MIN cmd /c "cd /d \"%CENTER%\" && .venv\Scripts\python.exe run_server.py"
-)
 
-echo [4/5] 启动 CCTV gateway (:3457)...
+echo [2/5] 重启 agent-toolbox (:8899)...
+
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8899" ^| findstr "LISTENING"') do taskkill /F /PID %%P >nul 2>&1
+
+ping -n 2 127.0.0.1 >nul
+
+start "agent-toolbox" /MIN /D "%TOOLBOX%" cmd /c ".venv\Scripts\python.exe run_server.py"
+
+
+
+echo [3/5] 重启 chitung-center (:8999)...
+
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8999" ^| findstr "LISTENING"') do taskkill /F /PID %%P >nul 2>&1
+
+ping -n 2 127.0.0.1 >nul
+
+start "chitung-center" /MIN /D "%CENTER%" cmd /c ".venv\Scripts\python.exe run_server.py"
+
+
+
+echo [4/5] 启动 CCTV gateway (:3457) 与 WhatsApp Archive (:8787)...
+
 curl -sf http://127.0.0.1:3457/api/health >nul 2>&1
+
 if errorlevel 1 (
-  start "cctv-gateway" /MIN cmd /c "cd /d \"%CCTV_GATEWAY%\" && node --env-file-if-exists=.env src/server.cjs"
+
+  start "cctv-gateway" /MIN /D "%CCTV_GATEWAY%" cmd /c "node --env-file-if-exists=.env src/server.cjs"
+
 )
 
-echo 等待后端与 CCTV 网关就绪...
+curl -sf http://127.0.0.1:8787/api/health >nul 2>&1
+
+if errorlevel 1 (
+
+  if exist "%WHATSAPP_ARCHIVE%\package.json" (
+
+    start "whatsapp-archive" /MIN /D "%WHATSAPP_ARCHIVE%" cmd /c "npm run start"
+
+  )
+
+)
+
+
+
+echo 等待后端与 CCTV 网关就绪（最多 60 秒）...
+
 set /a WAIT=0
+
 :wait_center
-curl -sf http://127.0.0.1:8999/health >nul 2>&1
+
+curl -sf http://127.0.0.1:8899/health >nul 2>&1
+
 if errorlevel 1 goto :wait_retry
+
+curl -sf http://127.0.0.1:8999/health >nul 2>&1
+
+if errorlevel 1 goto :wait_retry
+
 curl -sf http://127.0.0.1:3457/api/health >nul 2>&1
+
 if not errorlevel 1 goto :backends_ready
+
 :wait_retry
+
 set /a WAIT+=1
-if !WAIT! GEQ 45 goto :backends_timeout
-timeout /t 1 /nobreak >nul
+
+if !WAIT! GEQ 60 goto :backends_timeout
+
+ping -n 2 127.0.0.1 >nul
+
 goto :wait_center
 
+
+
 :backends_timeout
-echo [警告] 中台启动较慢，桌面应用仍将尝试打开...
+
+echo [警告] 后端启动较慢，桌面应用仍将尝试打开...
+
 goto :launch_desktop
 
+
+
 :backends_ready
+
 echo [OK] 后端已就绪
+
 echo   工具箱: http://127.0.0.1:8899
+
 echo   中台:   http://127.0.0.1:8999
+
 echo   CCTV:   http://127.0.0.1:3457/api/health
+
 echo.
+
+
 
 :launch_desktop
+
 echo [5/5] 打开赤瞳工作台...
-rem 释放可能被占用的 5173 端口，确保只启动一个前端服务
+
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":5173" ^| findstr "LISTENING"') do (
+
   taskkill /F /PID %%P >nul 2>&1
+
 )
-pushd "%FRONTEND%"
-start "chitung-vite" /MIN cmd /c "npm run dev -- --host 127.0.0.1 --port 5173 --strictPort"
+
+start "chitung-vite" /MIN /D "%FRONTEND%" cmd /c "npm run dev -- --host 127.0.0.1 --port 5173 --strictPort"
+
 echo 等待前端页面就绪...
+
 set /a FRONTEND_WAIT=0
+
 :wait_frontend
+
 curl -sf http://127.0.0.1:5173 >nul 2>&1
+
 if not errorlevel 1 goto :frontend_ready
+
 set /a FRONTEND_WAIT+=1
+
 if !FRONTEND_WAIT! GEQ 30 goto :frontend_timeout
-timeout /t 1 /nobreak >nul
+
+ping -n 2 127.0.0.1 >nul
+
 goto :wait_frontend
 
+
+
 :frontend_ready
+
 echo 前端已就绪，启动 Electron 桌面应用...
+
 if not exist "%FRONTEND%\node_modules\.bin\electron.cmd" (
+
   echo [错误] 未找到 Electron 运行文件，请先确认前端依赖安装完成
+
   goto :fail
+
 )
-start "chitung-desktop" cmd /c "set VITE_DEV_SERVER_URL=http://127.0.0.1:5173&& set CHITUNG_AUTOSTART_SERVICES=false&& node_modules\.bin\electron.cmd ."
+
+start "chitung-desktop" /D "%FRONTEND%" cmd /c "set VITE_DEV_SERVER_URL=http://127.0.0.1:5173&& set CHITUNG_AUTOSTART_SERVICES=false&& node_modules\.bin\electron.cmd ."
+
 goto :after_frontend
 
+
+
 :frontend_timeout
+
 echo [警告] 前端服务启动较慢，暂不打开浏览器。请重新运行本脚本或检查 Vite 输出。
 
+
+
 :after_frontend
-popd
+
+popd 2>nul
+
 goto :end
 
+
+
 :fail
+
 echo.
+
 echo [错误] 启动失败，请确认已安装 Python 3.11+ 与 Node.js 18+
+
 pause
+
 exit /b 1
 
+
+
 :end
+
 endlocal
+
+

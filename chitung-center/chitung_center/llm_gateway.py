@@ -88,5 +88,43 @@ class LlmGateway:
         audit_logger.write("llm_document_call_completed", {"model": settings.llm_model})
         return data
 
+    async def complete_chat(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        *,
+        max_tokens: int = 4096,
+    ) -> dict[str, Any]:
+        audit_logger.write(
+            "llm_chat_call_requested",
+            {
+                "configured": settings.llm_configured,
+                "model": settings.llm_model,
+                "message_count": len(messages),
+            },
+        )
+        if not settings.llm_configured:
+            return {"available": False, "reason": "LLM is not configured."}
+
+        payload_messages = [{"role": "system", "content": system_prompt}]
+        for item in messages:
+            role = str(item.get("role") or "").strip()
+            content = compact_context(sanitize_for_llm(str(item.get("content") or "")))
+            if role in {"user", "assistant"} and content:
+                payload_messages.append({"role": role, "content": content})
+
+        headers = {"Authorization": f"Bearer {settings.llm_api_key}"}
+        payload = {
+            "model": settings.llm_model,
+            "messages": payload_messages,
+        }
+        _augment_payload(payload, max_tokens=max_tokens)
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            response = await client.post(settings.llm_base_url.rstrip("/"), headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+        audit_logger.write("llm_chat_call_completed", {"model": settings.llm_model})
+        return data
+
 
 llm_gateway = LlmGateway()

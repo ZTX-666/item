@@ -18,6 +18,16 @@ def source_module_for_skill(name: str) -> str:
         "docmate-edit": "docmate",
         "knowledge-query": "rag",
         "long-term-memory": "long_term_memory",
+        "web-search": "desktop_automation",
+        "url-fetch": "desktop_automation",
+        "shell-runner": "desktop_automation",
+        "powershell-runner": "desktop_automation",
+        "file-inspect": "desktop_automation",
+        "workbuddy-assistant": "desktop_assistant",
+        "industry-lifting-response": "industry_lifting",
+        "skill-usage-coach": "skill_usage_coach",
+        "workflow-usage-coach": "workflow_usage_coach",
+        "automation-usage-coach": "automation_usage_coach",
     }
     return mapping.get(name, f"skill:{name}")
 

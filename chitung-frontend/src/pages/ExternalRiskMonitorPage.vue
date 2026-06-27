@@ -65,6 +65,25 @@ const historyReports = ref<ExternalRiskBriefingReport[]>([])
 const showHistory = ref(false)
 const historyError = ref('')
 
+const totalCollected = computed(() => stats.value?.total ?? cards.value.length)
+
+const usageTrail = computed(() =>
+  monitorRuns.value.slice(0, 6).map((run) => ({
+    id: run.run_id,
+    title: run.status === 'success' ? '监听完成' : run.status,
+    time: formatDate(run.started_at),
+    detail: `新增卡片 ${run.card_count} · 原始讯息 ${run.new_raw_count} · 告警 ${run.alert_count}`,
+  })),
+)
+
+const headerUsageText = computed(() => {
+  const parts: string[] = []
+  if (totalCollected.value) parts.push(`累计采集 ${totalCollected.value} 张卡片`)
+  if (monitorRuns.value.length) parts.push(`最近 ${monitorRuns.value.length} 次运行`)
+  if (historyReports.value.length) parts.push(`${historyReports.value.length} 份历史简报`)
+  return parts.length ? parts.join(' · ') : '暂无采集记录，可点击「立即监听」或等待常驻调度'
+})
+
 // ── Dashboard stats ──────────────────────────────────────────────
 const activeWeatherCount = computed(() => {
   return cards.value.filter((c) => c.source_category === 'weather').length
@@ -261,6 +280,9 @@ async function loadBriefingHistory() {
   historyError.value = ''
   try {
     historyReports.value = await listExternalRiskBriefingReports(20)
+    if (historyReports.value.length) {
+      showHistory.value = true
+    }
   } catch (err) {
     historyError.value = err instanceof Error ? err.message : String(err)
   }
@@ -356,6 +378,7 @@ onBeforeUnmount(() => {
       <div class="risk-header__left">
         <h1 class="risk-header__title">外部讯息监听</h1>
         <p class="risk-header__datetime">{{ currentDateTime }}</p>
+        <p class="risk-header__usage">{{ headerUsageText }}</p>
       </div>
       <div class="risk-header__actions">
         <span class="listen-pill" :class="{ 'listen-pill--paused': !isAutoListening }">
@@ -437,6 +460,20 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <p v-else class="monitor-empty">暂无聚合事件</p>
+      </div>
+    </section>
+
+    <section v-if="usageTrail.length" class="usage-trail">
+      <div class="usage-trail__header">
+        <h2>最近采集痕迹</h2>
+        <span>近 {{ usageTrail.length }} 次监听运行</span>
+      </div>
+      <div class="usage-trail__list">
+        <article v-for="item in usageTrail" :key="item.id" class="usage-trail__item">
+          <strong>{{ item.title }}</strong>
+          <span>{{ item.time }}</span>
+          <small>{{ item.detail }}</small>
+        </article>
       </div>
     </section>
 
@@ -525,9 +562,15 @@ onBeforeUnmount(() => {
 
     <!-- ── Card Grid ───────────────────────────────────────── -->
     <section class="card-grid-area">
+      <div class="card-grid-area__header">
+        <h2>已采集讯息卡片 ({{ totalCollected }})</h2>
+        <span>展示天气、官方监管与白名单媒体的结构化风险卡片</span>
+      </div>
       <p v-if="cardsError" class="error-msg">{{ cardsError }}</p>
       <div v-if="cards.length === 0 && !loading" class="empty-state">
-        暂无外部讯息卡片数据。点击“立即监听”触发数据采集。
+        当前筛选下暂无卡片。
+        <template v-if="totalCollected">请调整筛选条件，或点击「立即监听」采集最新讯息。</template>
+        <template v-else>点击「立即监听」开始首次采集。</template>
       </div>
       <div class="card-grid">
         <article
@@ -726,6 +769,85 @@ onBeforeUnmount(() => {
   font-size: 14px;
   color: #8892a6;
   margin: 4px 0 0;
+}
+
+.risk-header__usage {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--risk-muted);
+}
+
+.usage-trail {
+  background: var(--risk-surface);
+  border: 1px solid var(--risk-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 20px;
+  padding: 14px 16px;
+}
+
+.usage-trail__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.usage-trail__header h2 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--risk-text);
+}
+
+.usage-trail__header span {
+  color: var(--risk-faint);
+  font-size: 12px;
+}
+
+.usage-trail__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.usage-trail__item {
+  background: var(--risk-surface-soft);
+  border: 1px solid var(--risk-border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+}
+
+.usage-trail__item strong {
+  color: var(--risk-text);
+  font-size: 13px;
+}
+
+.usage-trail__item span,
+.usage-trail__item small {
+  color: var(--risk-faint);
+  font-size: 12px;
+}
+
+.card-grid-area__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.card-grid-area__header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--risk-text);
+}
+
+.card-grid-area__header span {
+  color: var(--risk-faint);
+  font-size: 12px;
 }
 
 .risk-header__refresh {

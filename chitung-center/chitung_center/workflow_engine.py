@@ -97,6 +97,24 @@ class WorkflowEngine:
             reply, tool_results, cards = await self._run_whatsapp_wacli_ops(request, workflow_run_id)
         elif workflow_name == "workflow_visual_patrol":
             reply, tool_results, cards = await self._run_visual_patrol(request, workflow_run_id)
+        elif workflow_name == "workflow_web_search":
+            reply, tool_results, cards = await self._run_web_search(request, workflow_run_id)
+        elif workflow_name == "workflow_url_fetch":
+            reply, tool_results, cards = await self._run_url_fetch(request, workflow_run_id)
+        elif workflow_name == "workflow_run_bash":
+            reply, tool_results, cards = await self._run_run_bash(request, workflow_run_id)
+        elif workflow_name == "workflow_run_powershell":
+            reply, tool_results, cards = await self._run_run_powershell(request, workflow_run_id)
+        elif workflow_name == "workflow_file_inspect":
+            reply, tool_results, cards = await self._run_file_inspect(request, workflow_run_id)
+        elif workflow_name == "workflow_desktop_assistant":
+            reply, tool_results, cards = await self._run_desktop_assistant(request, workflow_run_id)
+        elif workflow_name in {"workflow_industry_lifting_incident_response", "workflow_lifting_safety_patrol"}:
+            from chitung_center.lifting_incident_response_service import run_lifting_incident_response
+
+            reply, tool_results, cards = await run_lifting_incident_response(request, workflow_run_id)
+        elif workflow_name == "workflow_p1_external_info_alert":
+            reply, tool_results, cards = await self._run_p1_external_info_alert(request, workflow_run_id)
         else:
             reply = f"Workflow {workflow_name} is registered but not implemented."
 
@@ -197,15 +215,39 @@ class WorkflowEngine:
         request: ChatMessageRequest,
         workflow_run_id: str,
     ) -> tuple[str, list[dict[str, Any]], list[ActionCard]]:
+        from chitung_center.external_monitor_catalog import effective_category_urls
+
         results: list[dict[str, Any]] = []
-        sources = request.metadata.get("sources")
+        sources = request.metadata.get("sources") or ["weather", "official", "media"]
+        if not isinstance(sources, list):
+            sources = ["weather", "official", "media"]
         keywords = request.metadata.get("keywords")
         area = str(request.metadata.get("area") or "")
         lookback_hours = max(1, int(request.metadata.get("lookback_hours") or 24))
+        monitor_mode = bool(request.metadata.get("monitor_mode")) or request.metadata.get("entry") == "external_info_monitor_scheduler"
+        raw_urls = request.metadata.get("category_urls")
+        if not isinstance(raw_urls, dict):
+            raw_urls = effective_category_urls(request.metadata.get("source_urls"))
+        category_urls = {
+            key: [str(item).strip() for item in (raw_urls.get(key) or []) if str(item).strip()]
+            for key in ("official", "media", "weather")
+            if key in sources
+        }
+        custom_weather = [str(item).strip() for item in ((request.metadata.get("source_urls") or {}).get("weather") or []) if str(item).strip()]
+        if custom_weather:
+            category_urls["weather"] = custom_weather
+        category_urls = {key: value for key, value in category_urls.items() if value}
         source_ids = _source_ids_for_external_monitor(sources)
-        update_payload: dict[str, Any] = {"limit_per_source": 5, "lookback_hours": lookback_hours}
-        if source_ids:
-            update_payload["sources"] = source_ids
+        update_payload: dict[str, Any] = {
+            "limit_per_source": 30 if monitor_mode else 5,
+            "lookback_hours": lookback_hours,
+            "monitor_mode": monitor_mode,
+        }
+        if category_urls:
+            update_payload["category_urls"] = category_urls
+            update_payload["enabled_categories"] = list(category_urls.keys())
+        elif source_ids:
+            update_payload["sources"] = [item for item in source_ids if item not in {"hko", "hko_weather"}]
         if isinstance(keywords, list) and keywords:
             update_payload["keywords"] = [str(item) for item in keywords if str(item).strip()]
         weather_step = await _start_step(workflow_run_id, "fetch_weather", "赤瞳守护者", "fetch_hko_weather")
@@ -213,10 +255,44 @@ class WorkflowEngine:
         await _finish_step(weather_step, weather)
         results.append(weather)
 
-        updates_step = await _start_step(workflow_run_id, "fetch_updates", "赤瞳守护者", "fetch_hk_safety_updates")
-        updates = await _safe_tool("fetch_hk_safety_updates", update_payload)
-        await _finish_step(updates_step, updates)
-        results.append(updates)
+        if category_urls or "official" in sources or "media" in sources:
+            updates_step = await _start_step(workflow_run_id, "fetch_updates", "赤瞳守护者", "fetch_hk_safety_updates")
+            updates = await _safe_tool("fetch_hk_safety_updates", update_payload)
+            await _finish_step(updates_step, updates)
+            results.append(updates)
+        else:
+            updates = {"ok": True, "source": "hk_safety_updates", "items": [], "summary": {}, "errors": []}
+
+        llm_enabled = bool(request.metadata.get("llm_enrich_enabled"))
+        if llm_enabled and (updates.get("items") or []):
+            enrich_step = await _start_step(workflow_run_id, "llm_enrich", "赤瞳守护者", "llm_enrich_external_risk")
+            from chitung_center.external_monitor_llm_service import enrich_safety_updates, _items_to_cards
+            from chitung_center.risk_card_store import persist_risk_cards
+
+            enriched = await enrich_safety_updates(
+                updates,
+                keywords=update_payload.get("keywords") if isinstance(update_payload.get("keywords"), list) else None,
+                area=area,
+                max_items=int(request.metadata.get("llm_enrich_max_items") or 25),
+                media_strict=True,
+            )
+            await _finish_step(enrich_step, enriched)
+            updates = enriched
+            results[-1] = enriched
+            llm_cards = _items_to_cards(enriched.get("items") or [])
+            if llm_cards:
+                persist_risk_cards(llm_cards)
+        elif updates.get("items"):
+            from chitung_center.external_monitor_llm_service import cluster_items
+
+            clustered_items = cluster_items(updates.get("items") or [])
+            updates = {
+                **updates,
+                "items": clustered_items,
+                "summary": {**(updates.get("summary") or {}), "cluster_count": len(clustered_items), "llm_enrich_enabled": False},
+            }
+            if results and results[-1].get("source") == "hk_safety_updates":
+                results[-1] = updates
 
         persist_step = await _start_step(workflow_run_id, "persist_risks", "赤瞳守护者", "persist_external_risk_items")
         persist = await _safe_tool(
@@ -559,6 +635,114 @@ class WorkflowEngine:
             return summary_text or "视频巡检执行失败。", [tool_result], cards
         return summary_text or "视频巡检已完成，结果已写入本地 SQLite。", [tool_result], cards
 
+    async def _run_web_search(
+        self,
+        request: ChatMessageRequest,
+        workflow_run_id: str,
+    ) -> tuple[str, list[dict[str, Any]], list[ActionCard]]:
+        query = _extract_search_query(request.message)
+        step = await _start_step(workflow_run_id, "web_search", "桌面助手", "web_search")
+        result = await _safe_tool("web_search", {"query": query, "limit": 8})
+        await _finish_step(step, result)
+        reply = _format_web_search_reply(result, query)
+        cards = [_desktop_result_card(workflow_run_id, "网页搜索结果", reply, result)]
+        return reply, [result], cards
+
+    async def _run_url_fetch(
+        self,
+        request: ChatMessageRequest,
+        workflow_run_id: str,
+    ) -> tuple[str, list[dict[str, Any]], list[ActionCard]]:
+        url = _extract_url(request.message)
+        if not url:
+            return "请提供要抓取的 http/https 链接。", [], []
+        step = await _start_step(workflow_run_id, "fetch_url", "桌面助手", "fetch_url_content")
+        result = await _safe_tool("fetch_url_content", {"url": url, "extract_mode": "readable"})
+        await _finish_step(step, result)
+        reply = _format_url_fetch_reply(result, url)
+        cards = [_desktop_result_card(workflow_run_id, "网页抓取结果", reply, result)]
+        return reply, [result], cards
+
+    async def _run_run_bash(
+        self,
+        request: ChatMessageRequest,
+        workflow_run_id: str,
+    ) -> tuple[str, list[dict[str, Any]], list[ActionCard]]:
+        command = _extract_shell_command(request.message, shell="bash")
+        if not command:
+            return "请提供要执行的 Bash 命令，例如：运行 bash：ls -la", [], []
+        step = await _start_step(workflow_run_id, "run_bash", "桌面助手", "run_bash_command")
+        result = await _safe_tool("run_bash_command", {"command": command})
+        await _finish_step(step, result)
+        reply = _format_shell_reply(result, "Bash")
+        cards = [_desktop_result_card(workflow_run_id, "Bash 执行结果", reply, result)]
+        return reply, [result], cards
+
+    async def _run_run_powershell(
+        self,
+        request: ChatMessageRequest,
+        workflow_run_id: str,
+    ) -> tuple[str, list[dict[str, Any]], list[ActionCard]]:
+        command = _extract_shell_command(request.message, shell="powershell")
+        if not command:
+            return "请提供要执行的 PowerShell 命令，例如：运行 powershell：Get-Process | Select-Object -First 5", [], []
+        step = await _start_step(workflow_run_id, "run_powershell", "桌面助手", "run_powershell_command")
+        result = await _safe_tool("run_powershell_command", {"command": command})
+        await _finish_step(step, result)
+        reply = _format_shell_reply(result, "PowerShell")
+        cards = [_desktop_result_card(workflow_run_id, "PowerShell 执行结果", reply, result)]
+        return reply, [result], cards
+
+    async def _run_file_inspect(
+        self,
+        request: ChatMessageRequest,
+        workflow_run_id: str,
+    ) -> tuple[str, list[dict[str, Any]], list[ActionCard]]:
+        path = _extract_file_path(request.message)
+        if not path:
+            return "请提供要读取的本地文件路径。", [], []
+        step = await _start_step(workflow_run_id, "read_file", "桌面助手", "read_local_file")
+        result = await _safe_tool("read_local_file", {"path": path})
+        await _finish_step(step, result)
+        reply = _format_file_read_reply(result, path)
+        cards = [_desktop_result_card(workflow_run_id, "文件读取结果", reply, result)]
+        return reply, [result], cards
+
+    async def _run_desktop_assistant(
+        self,
+        request: ChatMessageRequest,
+        workflow_run_id: str,
+    ) -> tuple[str, list[dict[str, Any]], list[ActionCard]]:
+        plan = _desktop_assistant_plan(request.message)
+        if plan["intent"] == "url_fetch":
+            return await self._run_url_fetch(request, workflow_run_id)
+        if plan["intent"] == "run_bash":
+            return await self._run_run_bash(request, workflow_run_id)
+        if plan["intent"] == "run_powershell":
+            return await self._run_run_powershell(request, workflow_run_id)
+        if plan["intent"] == "file_inspect":
+            return await self._run_file_inspect(request, workflow_run_id)
+        return await self._run_web_search(request, workflow_run_id)
+
+    async def _run_p1_external_info_alert(
+        self,
+        request: ChatMessageRequest,
+        workflow_run_id: str,
+    ) -> tuple[str, list[dict[str, Any]], list[ActionCard]]:
+        sub_request = ChatMessageRequest(
+            message=request.message or "抓取外部讯息并生成 P1 提醒",
+            channel=request.channel,
+            user_id=request.user_id,
+            metadata={
+                **request.metadata,
+                "monitor_mode": True,
+                "entry": "workflow_p1_external_info_alert",
+            },
+        )
+        reply, tool_results, cards = await self._run_daily_risk_briefing(sub_request, workflow_run_id)
+        suffix = " P0/P1 讯息会进入待确认；吊运类讯息批准后自动执行专项巡检与警示材料生成（WhatsApp 外发前需再次确认）。"
+        return (reply + suffix).strip(), tool_results, cards
+
 
 workflow_engine = WorkflowEngine()
 
@@ -578,12 +762,13 @@ def _source_ids_for_external_monitor(value: Any) -> list[str]:
             "cic",
         ],
         "media": [
+            "hk101",
             "hk01",
             "sing_tao",
             "ming_pao",
             "oriental_daily",
-            "hkcd",
             "rthk",
+            "hkcd",
             "am730",
             "bastille_post",
             "dotdot_news",
@@ -602,6 +787,153 @@ async def _safe_tool(tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:
         return await toolbox_client.call_tool(tool_name, payload)
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "tool_name": tool_name, "error": str(exc)}
+
+
+def _extract_url(message: str) -> str:
+    match = re.search(r"https?://[^\s\"'<>]+", message)
+    return match.group(0).rstrip(".,;") if match else ""
+
+
+def _extract_file_path(message: str) -> str:
+    quoted = re.findall(r"[\"']([^\"']+)[\"']", message)
+    for item in quoted:
+        if re.search(r"[\\/]|\.[a-zA-Z0-9]{1,8}$", item):
+            return item.strip()
+    drive_match = re.search(r"[A-Za-z]:\\[^\s\"']+", message)
+    if drive_match:
+        return drive_match.group(0).strip()
+    unix_match = re.search(r"(?:^|\s)(/[^\s\"']+)", message)
+    if unix_match:
+        return unix_match.group(1).strip()
+    for token in re.split(r"\s+", message.strip()):
+        if re.search(r"[\\/]", token) and len(token) > 3:
+            return token.strip("\"'，。；")
+    return ""
+
+
+def _extract_search_query(message: str) -> str:
+    cleaned = message.strip()
+    for prefix in (
+        "网页搜索",
+        "网上搜索",
+        "搜索一下",
+        "搜一下",
+        "帮我查",
+        "查询",
+        "搜索",
+        "web search",
+    ):
+        if cleaned.lower().startswith(prefix.lower()):
+            cleaned = cleaned[len(prefix) :].strip(" ：:，,")
+            break
+    return cleaned or message.strip()
+
+
+def _extract_shell_command(message: str, *, shell: str) -> str:
+    text = message.strip()
+    prefixes = [
+        f"运行 {shell}",
+        f"执行 {shell}",
+        f"{shell}：",
+        f"{shell}:",
+        "运行命令",
+        "执行命令",
+    ]
+    for prefix in prefixes:
+        if text.lower().startswith(prefix.lower()):
+            return text[len(prefix) :].strip(" ：:，,")
+    if shell == "powershell" and ("get-" in text.lower() or "set-" in text.lower() or "$" in text):
+        return text
+    if shell == "bash" and any(token in text for token in ["ls ", "python ", "cat ", "grep ", "echo ", "pip "]):
+        return text
+    code_block = re.search(r"```(?:bash|shell|powershell|ps1)?\s*([\s\S]+?)```", text, flags=re.IGNORECASE)
+    if code_block:
+        return code_block.group(1).strip()
+    return ""
+
+
+def _desktop_assistant_plan(message: str) -> dict[str, str]:
+    lowered = message.lower()
+    if _extract_url(message):
+        return {"intent": "url_fetch", "tool": "fetch_url_content"}
+    if _extract_file_path(message):
+        return {"intent": "file_inspect", "tool": "read_local_file"}
+    if any(token in lowered for token in ["powershell", "ps1", "get-process", "get-service", "注册表"]):
+        return {"intent": "run_powershell", "tool": "run_powershell_command"}
+    if any(token in lowered for token in ["bash", "shell", "python ", "pip ", "ls ", "grep "]):
+        return {"intent": "run_bash", "tool": "run_bash_command"}
+    return {"intent": "web_search", "tool": "web_search"}
+
+
+def _desktop_result_card(
+    workflow_run_id: str,
+    title: str,
+    summary: str,
+    result: dict[str, Any],
+) -> ActionCard:
+    return ActionCard(
+        card_type="desktop_tool_result",
+        title=title,
+        summary=summary[:500],
+        actions=[{"id": "open_execution_center", "label": "查看执行详情"}],
+        data={"workflow_run_id": workflow_run_id, "result": result},
+    )
+
+
+def _format_web_search_reply(result: dict[str, Any], query: str) -> str:
+    if result.get("ok") is False:
+        return f"网页搜索失败：{result.get('error') or '未知错误'}"
+    rows = result.get("results") if isinstance(result.get("results"), list) else []
+    if not rows:
+        return f"未找到与「{query}」相关的公开搜索结果。"
+    lines = [f"已搜索「{query}」，找到 {len(rows)} 条结果："]
+    for index, row in enumerate(rows[:5], start=1):
+        if not isinstance(row, dict):
+            continue
+        lines.append(f"{index}. {row.get('title') or '无标题'} — {row.get('url') or ''}")
+        snippet = str(row.get("snippet") or "").strip()
+        if snippet:
+            lines.append(f"   {snippet[:160]}")
+    return "\n".join(lines)
+
+
+def _format_url_fetch_reply(result: dict[str, Any], url: str) -> str:
+    if result.get("ok") is False:
+        return f"网页抓取失败：{result.get('error') or '未知错误'}"
+    title = str(result.get("title") or "").strip()
+    content = str(result.get("content") or "").strip()
+    preview = content[:600] + ("..." if len(content) > 600 else "")
+    prefix = f"已抓取 {url}"
+    if title:
+        prefix += f"（{title}）"
+    return f"{prefix}\n\n{preview or '页面无可读正文。'}"
+
+
+def _format_shell_reply(result: dict[str, Any], shell_name: str) -> str:
+    if result.get("ok") is False:
+        detail = result.get("stderr") or result.get("error") or "未知错误"
+        return f"{shell_name} 执行失败：{detail}"
+    stdout = str(result.get("stdout") or "").strip()
+    stderr = str(result.get("stderr") or "").strip()
+    chunks = [f"{shell_name} 执行完成（exit={result.get('exit_code', 0)}）。"]
+    if stdout:
+        chunks.append(stdout[:1200])
+    if stderr:
+        chunks.append(f"[stderr]\n{stderr[:600]}")
+    return "\n\n".join(chunks)
+
+
+def _format_file_read_reply(result: dict[str, Any], path: str) -> str:
+    if result.get("ok") is False:
+        return f"读取文件失败：{result.get('error') or '未知错误'}"
+    kind = str(result.get("kind") or "file")
+    if kind == "directory":
+        entries = result.get("entries") if isinstance(result.get("entries"), list) else []
+        names = ", ".join(str(item.get("name")) for item in entries[:12] if isinstance(item, dict))
+        return f"目录 {path} 共 {result.get('entry_count', len(entries))} 项：{names}"
+    content = str(result.get("content") or result.get("note") or "").strip()
+    preview = content[:800] + ("..." if len(content) > 800 else "")
+    return f"已读取 {path}（{kind}）\n\n{preview or '文件为空。'}"
 
 
 async def _start_step(

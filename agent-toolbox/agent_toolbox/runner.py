@@ -15,7 +15,7 @@ class CommandError(RuntimeError):
 
 
 def run_command(command: list[str], cwd: Path | None = None, timeout: int = 300) -> subprocess.CompletedProcess[str]:
-    kwargs = {
+    kwargs: dict[str, object] = {
         "cwd": str(cwd) if cwd else None,
         "capture_output": True,
         "text": True,
@@ -24,7 +24,7 @@ def run_command(command: list[str], cwd: Path | None = None, timeout: int = 300)
         "errors": "replace",
     }
     if os.name == "nt":
-        kwargs["windows_hide"] = True
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
     result = subprocess.run(command, **kwargs)
     if result.returncode != 0:
         raise CommandError(command, result.returncode, result.stdout, result.stderr)

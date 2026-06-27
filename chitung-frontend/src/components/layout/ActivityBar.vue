@@ -5,6 +5,7 @@ import lingxunLogo from '../../assets/logos/lingxun.png'
 import centerLogo from '../../assets/logos/center.png'
 import yaoyaoLogo from '../../assets/logos/yaoyao.png'
 import assistantAvatar from '../../assets/logos/assistant-avatar.png'
+import { prefetchPanel } from '../../router/routePrefetch'
 
 defineProps<{
   activePanel: string
@@ -18,8 +19,8 @@ const panels = [
   { id: 'guardian', logo: guardianLogo, label: '赤瞳守護者' },
   { id: 'docmate', logo: docmateLogo, label: '閃閃文檔' },
   { id: 'lingxun', logo: lingxunLogo, label: '赤瞳聆訊' },
-  { id: 'center', logo: centerLogo, label: '赤瞳中台' },
   { id: 'yaoyao', logo: yaoyaoLogo, label: '耀耀慧讀' },
+  { id: 'center', logo: centerLogo, label: '赤瞳中台' },
 ]
 
 const assistantLogo = assistantAvatar
@@ -34,6 +35,7 @@ const assistantLogo = assistantAvatar
         class="activity-bar__item"
         :class="{ 'activity-bar__item--active': activePanel === panel.id }"
         :title="panel.label"
+        @mouseenter="prefetchPanel(panel.id)"
         @click="emit('select', panel.id)"
       >
         <img class="activity-bar__logo" :src="panel.logo" :alt="panel.label" />
@@ -87,8 +89,12 @@ const assistantLogo = assistantAvatar
   margin: 0 8px;
   padding: 8px 0;
   position: relative;
-  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease-out);
   width: 56px;
+}
+
+.activity-bar__item:active {
+  transform: scale(0.94);
 }
 
 .activity-bar__item:hover {

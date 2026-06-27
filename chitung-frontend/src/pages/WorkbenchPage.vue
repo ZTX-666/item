@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import ActiveHazards from '../components/cards/ActiveHazards.vue'
 import ActivityFeed from '../components/cards/ActivityFeed.vue'
 import ActionReviewCards from '../components/cards/ActionReviewCards.vue'
@@ -7,6 +7,8 @@ import CctvLivePanel from '../components/cctv/CctvLivePanel.vue'
 import CommandBar from '../components/layout/CommandBar.vue'
 import ProgressChain from '../components/workflow/ProgressChain.vue'
 import { useAppNavigation } from '../composables/useAppNavigation'
+import { useLocale } from '../composables/useLocale'
+import { usePlatformConnection } from '../composables/usePlatformConnection'
 import {
   draftVisualPatrol,
   getAppConfig,
@@ -40,6 +42,8 @@ type ReviewCard = {
 type VideoDetectionPhase = 'idle' | 'prompting' | 'ready' | 'detecting' | 'done' | 'error'
 
 const { goTo, goToPendingConfirmations } = useAppNavigation()
+const { display } = useLocale()
+const { connected, reconnecting } = usePlatformConnection()
 
 const hazards = ref<HazardCase[]>([])
 const workbenchStatus = ref<WorkbenchStatus | null>(null)
@@ -75,7 +79,13 @@ const videoDetectionPhase = ref<VideoDetectionPhase>('idle')
 const currentVideoDetectionReport = ref<WorkbenchVideoDetectionReport | null>(null)
 
 const centerStatusText = computed(() => {
-  if (!workbenchStatus.value?.center_ok) {
+  if (reconnecting.value && connected.value) {
+    return '中台繁忙 · 后台任务执行中'
+  }
+  if (reconnecting.value) {
+    return '中台重连中…'
+  }
+  if (!connected.value || !workbenchStatus.value?.center_ok) {
     return '中台未连接 · 工具层待启动'
   }
 
@@ -139,7 +149,13 @@ onMounted(async () => {
     selectedVideoCameraIds.value = enabledCameras.value[0]?.id ? [enabledCameras.value[0].id] : []
     await refreshWorkbenchSummary()
   } catch (error) {
-    aiMessages.value.unshift(`赤瞳：后端连接失败：${error instanceof Error ? error.message : String(error)}`)
+    aiMessages.value.unshift(`赤瞳守护者：后端连接失败：${error instanceof Error ? error.message : String(error)}`)
+  }
+})
+
+watch(connected, (isConnected, wasConnected) => {
+  if (isConnected && !wasConnected) {
+    void refreshWorkbenchSummary()
   }
 })
 
@@ -160,7 +176,7 @@ async function handleCommand(payload: { message: string; area: string }) {
         entry: 'workbench_command_bar',
       },
     })
-    aiMessages.value.unshift(`赤瞳：${response.message}`)
+    aiMessages.value.unshift(`赤瞳守护者：${response.message}`)
     reviewCards.value = ((response.payload?.cards as ReviewCard[] | undefined) ?? []).map((card) => ({
       card_type: card.card_type,
       title: card.title,
@@ -175,7 +191,7 @@ async function handleCommand(payload: { message: string; area: string }) {
       { id: 'confirm', label: '等待确认', status: response.type === 'review_card' ? 'active' : 'pending' },
     ]
   } catch (error) {
-    aiMessages.value.unshift(`赤瞳：暂时无法连接中台：${error instanceof Error ? error.message : String(error)}`)
+    aiMessages.value.unshift(`赤瞳守护者：暂时无法连接中台：${error instanceof Error ? error.message : String(error)}`)
     workflowSteps.value = [
       { id: 'intent', label: '识别意图', status: 'done' },
       { id: 'tool', label: '调用工具', status: 'active' },
@@ -194,7 +210,7 @@ async function handleReviewCardAction(actionId: string, card: ReviewCard) {
       cardData: card.data ?? {},
     })
     const message = typeof result.message === 'string' ? result.message : '卡片动作已提交。'
-    aiMessages.value.unshift(`赤瞳：${message}`)
+    aiMessages.value.unshift(`赤瞳守护者：${message}`)
     const navigateTo = typeof result.navigate_to === 'string' ? result.navigate_to : ''
     if (navigateTo === 'pending-confirmations' || result.confirmation) {
       goToPendingConfirmations()
@@ -207,7 +223,7 @@ async function handleReviewCardAction(actionId: string, card: ReviewCard) {
     }
     await refreshWorkbenchSummary()
   } catch (error) {
-    aiMessages.value.unshift(`赤瞳：卡片动作失败：${error instanceof Error ? error.message : String(error)}`)
+    aiMessages.value.unshift(`赤瞳守护者：卡片动作失败：${error instanceof Error ? error.message : String(error)}`)
   } finally {
     isCardActionBusy.value = false
   }
@@ -215,16 +231,16 @@ async function handleReviewCardAction(actionId: string, card: ReviewCard) {
 
 async function handleConfirmHazard(caseId: string) {
   if (!/^\d+$/.test(caseId)) {
-    aiMessages.value.unshift('赤瞳：当前为演示隐患，启动中台和工具层后可执行确认。')
+    aiMessages.value.unshift('赤瞳守护者：当前为演示隐患，启动中台和工具层后可执行确认。')
     return
   }
 
   try {
     await updateHazardStatus(caseId, 'confirmed')
-    aiMessages.value.unshift(`赤瞳：已确认隐患 #${caseId}，台账已刷新。`)
+    aiMessages.value.unshift(`赤瞳守护者：已确认隐患 #${caseId}，台账已刷新。`)
     await refreshWorkbenchSummary()
   } catch (error) {
-    aiMessages.value.unshift(`赤瞳：隐患确认失败：${error instanceof Error ? error.message : String(error)}`)
+    aiMessages.value.unshift(`赤瞳守护者：隐患确认失败：${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -251,9 +267,9 @@ async function handleVisualPatrol(cameraId?: string) {
       { id: 'vlm', label: 'VLM 检测', status: 'done' },
       { id: 'confirm', label: '人工确认', status: 'active' },
     ]
-    aiMessages.value.unshift(draft.message || '赤瞳：视觉巡检已生成隐患候选，请进入视觉巡检页确认。')
+    aiMessages.value.unshift(draft.message || '赤瞳守护者：视觉巡检已生成隐患候选，请进入视觉巡检页确认。')
   } catch (error) {
-    aiMessages.value.unshift(`赤瞳：视觉巡检失败：${error instanceof Error ? error.message : String(error)}`)
+    aiMessages.value.unshift(`赤瞳守护者：视觉巡检失败：${error instanceof Error ? error.message : String(error)}`)
     workflowSteps.value = [
       { id: 'snapshot', label: 'RTMP 截图', status: 'active' },
       { id: 'vlm', label: 'VLM 检测', status: 'pending' },
@@ -319,12 +335,12 @@ async function handleRefineVideoPrompt() {
       { id: 'report', label: '生成简报', status: 'pending' },
     ]
     videoDetectionPhase.value = 'ready'
-    aiMessages.value.unshift(`赤瞳：已生成可编辑检测提示词，覆盖 ${selectedVideoCameraIds.value.length} 路摄像头。`)
+    aiMessages.value.unshift(`赤瞳守护者：已生成可编辑检测提示词，覆盖 ${selectedVideoCameraIds.value.length} 路摄像头。`)
     return true
   } catch (error) {
     videoDetectionError.value = error instanceof Error ? error.message : String(error)
     videoDetectionPhase.value = 'error'
-    aiMessages.value.unshift(`赤瞳：提示词润色失败：${videoDetectionError.value}`)
+    aiMessages.value.unshift(`赤瞳守护者：提示词润色失败：${videoDetectionError.value}`)
     return false
   } finally {
     isPromptRefining.value = false
@@ -370,7 +386,7 @@ async function handleWorkbenchVideoDetection() {
     }
     currentVideoDetectionReport.value = report
     videoDetectionPhase.value = 'done'
-    aiMessages.value.unshift(`赤瞳：${report.summary.text}`)
+    aiMessages.value.unshift(`赤瞳守护者：${report.summary.text}`)
     workflowSteps.value = [
       { id: 'prompt', label: '确认检测提示词', status: 'done' },
       { id: 'detect', label: 'YOLO+GLM 检测', status: 'done' },
@@ -380,7 +396,7 @@ async function handleWorkbenchVideoDetection() {
   } catch (error) {
     videoDetectionError.value = error instanceof Error ? error.message : String(error)
     videoDetectionPhase.value = 'error'
-    aiMessages.value.unshift(`赤瞳：视频检测失败：${videoDetectionError.value}`)
+    aiMessages.value.unshift(`赤瞳守护者：视频检测失败：${videoDetectionError.value}`)
     workflowSteps.value = [
       { id: 'prompt', label: '润色检测提示词', status: 'done' },
       { id: 'detect', label: 'YOLO+GLM 检测', status: 'active' },
@@ -393,7 +409,7 @@ async function handleWorkbenchVideoDetection() {
 
 async function handleCaseWorkflow(action: 'rectification-notice' | 'contractor-confirm' | 'close-review', caseId: string) {
   if (!/^\d+$/.test(caseId)) {
-    aiMessages.value.unshift('赤瞳：当前为演示隐患，真实台账记录才可执行闭环动作。')
+    aiMessages.value.unshift('赤瞳守护者：当前为演示隐患，真实台账记录才可执行闭环动作。')
     return
   }
 
@@ -416,10 +432,10 @@ async function handleCaseWorkflow(action: 'rectification-notice' | 'contractor-c
         status: 'draft',
       }
     }
-    aiMessages.value.unshift(`赤瞳：${String(result.message || '隐患闭环动作已完成')}`)
+    aiMessages.value.unshift(`赤瞳守护者：${String(result.message || '隐患闭环动作已完成')}`)
     await refreshWorkbenchSummary()
   } catch (error) {
-    aiMessages.value.unshift(`赤瞳：隐患闭环动作失败：${error instanceof Error ? error.message : String(error)}`)
+    aiMessages.value.unshift(`赤瞳守护者：隐患闭环动作失败：${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -440,10 +456,10 @@ async function confirmNotificationDraft() {
       notes: `Notification draft confirmed for ${notificationDraft.value.contractor}.`,
     })
     notificationDraft.value = { ...notificationDraft.value, status: 'confirmed' }
-    aiMessages.value.unshift(`赤瞳：整改通知已确认：${String(sendResult.message || '发送结果已回写。')}`)
+    aiMessages.value.unshift(`赤瞳守护者：整改通知已确认：${String(sendResult.message || '发送结果已回写。')}`)
     await refreshWorkbenchSummary()
   } catch (error) {
-    aiMessages.value.unshift(`赤瞳：整改通知确认失败：${error instanceof Error ? error.message : String(error)}`)
+    aiMessages.value.unshift(`赤瞳守护者：整改通知确认失败：${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -454,7 +470,7 @@ async function confirmNotificationDraft() {
     <section class="hero-panel">
       <div>
         <p class="eyebrow">Chitung Workbench</p>
-        <h1>赤瞳</h1>
+        <h1>{{ display('赤瞳守护者') }}</h1>
         <p>用一个工作台连接隐患、视频、聊天、表格、外部讯息和 AI 确认闭环。</p>
       </div>
       <div class="hero-panel__status">
@@ -560,6 +576,7 @@ async function confirmNotificationDraft() {
       </div>
 
       <div class="video-detection-workflow__bottom">
+        <div class="workflow-column workflow-column--left">
         <section class="panel video-detection-process">
           <div class="panel__header">
             <div>
@@ -616,6 +633,16 @@ async function confirmNotificationDraft() {
           </div>
         </section>
 
+        <ActiveHazards
+          class="workflow-panel-spaced"
+          :hazards="hazards"
+          @confirm="handleConfirmHazard"
+          @workflow="handleCaseWorkflow"
+          @view-all="goTo('hazard-ledger')"
+        />
+        </div>
+
+        <div class="workflow-column workflow-column--right">
         <section class="panel video-detection-final">
           <div class="panel__header">
             <div>
@@ -665,29 +692,25 @@ async function confirmNotificationDraft() {
             <p>选择摄像头并确认 prompt 后，最终结论、目标数和证据入口会显示在这里。</p>
           </div>
         </section>
+
+        <section class="panel workflow-panel-spaced">
+          <div class="panel__header">
+            <div>
+              <h2>AI 执行进度</h2>
+              <p>{{ isSending ? '正在等待中台响应' : '展示最近一次工具链状态' }}</p>
+            </div>
+          </div>
+          <ProgressChain :steps="workflowSteps" />
+          <div class="ai-message-list">
+            <p v-for="msg in aiMessages.slice(0, 3)" :key="msg">{{ msg }}</p>
+          </div>
+        </section>
+        </div>
       </div>
     </section>
 
-    <section class="workbench-grid">
-      <ActiveHazards
-        :hazards="hazards"
-        @confirm="handleConfirmHazard"
-        @workflow="handleCaseWorkflow"
-        @view-all="goTo('hazard-ledger')"
-      />
-      <section class="panel">
-        <div class="panel__header">
-          <div>
-            <h2>AI 执行进度</h2>
-            <p>{{ isSending ? '正在等待中台响应' : '展示最近一次工具链状态' }}</p>
-          </div>
-        </div>
-        <ProgressChain :steps="workflowSteps" />
-        <div class="ai-message-list">
-          <p v-for="msg in aiMessages.slice(0, 3)" :key="msg">{{ msg }}</p>
-        </div>
-      </section>
-      <section v-if="notificationDraft" class="panel notification-draft-panel">
+    <section v-if="notificationDraft" class="workbench-grid workbench-grid--single">
+      <section class="panel notification-draft-panel">
         <div class="panel__header">
           <div>
             <h2>整改通知确认卡</h2>
@@ -729,6 +752,17 @@ async function confirmNotificationDraft() {
 
 .video-detection-workflow__bottom {
   grid-template-columns: minmax(420px, 1fr) minmax(420px, 1fr);
+}
+
+.workflow-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.workflow-panel-spaced {
+  flex: 1;
 }
 
 .video-detection-panel,

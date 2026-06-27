@@ -192,9 +192,15 @@ def _rewrite_paths(summary: dict[str, Any]) -> dict[str, Any]:
     return summary
 
 
+def _run_patrol_in_thread(nightly: Any, patrol_kwargs: dict[str, Any]) -> dict[str, Any]:
+    """Run patrol in a worker thread so YOLO/RTMP work cannot block FastAPI."""
+    return asyncio.run(nightly.run_patrol(**patrol_kwargs))
+
+
 async def run_guardian_patrol(
     *,
     camera_id: str | None = None,
+    camera_ids: list[str] | None = None,
     vlm_enabled: bool = True,
     inspection_prompt: str | None = None,
 ) -> dict[str, Any]:
@@ -203,17 +209,29 @@ async def run_guardian_patrol(
     if not cameras:
         return {"ok": False, "error": "No enabled cameras in app config."}
 
+    selected_ids = [str(item).strip() for item in (camera_ids or []) if str(item).strip()]
+    patrol_count = len(selected_ids) if selected_ids else (1 if camera_id else len(cameras))
     audit_id = audit_logger.write(
         "visual_guardian_patrol_started",
-        {"camera_id": camera_id, "vlm_enabled": vlm_enabled, "camera_count": len(cameras)},
+        {
+            "camera_id": camera_id,
+            "camera_ids": selected_ids,
+            "vlm_enabled": vlm_enabled,
+            "camera_count": patrol_count,
+        },
     )
 
+    patrol_kwargs: dict[str, Any] = {
+        "vlm_enabled": vlm_enabled,
+        "inspection_prompt": inspection_prompt,
+    }
+    if selected_ids:
+        patrol_kwargs["camera_filters"] = selected_ids
+    elif camera_id:
+        patrol_kwargs["camera_filter"] = camera_id
+
     try:
-        summary = await nightly.run_patrol(
-            vlm_enabled=vlm_enabled,
-            camera_filter=camera_id,
-            inspection_prompt=inspection_prompt,
-        )
+        summary = await asyncio.to_thread(_run_patrol_in_thread, nightly, patrol_kwargs)
     except Exception as exc:  # noqa: BLE001
         audit_logger.write("visual_guardian_patrol_failed", {"error": str(exc), "audit_id": audit_id})
         return {"ok": False, "error": str(exc), "audit_id": audit_id}

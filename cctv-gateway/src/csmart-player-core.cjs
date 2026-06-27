@@ -183,6 +183,7 @@ function createCsmartIframePlayerHtml(options = {}) {
   const gatewayBaseUrl = String(options.gatewayBaseUrl || '').replace(/\/$/, '');
   const apiPrefix = gatewayBaseUrl || '';
   const refreshIntervalMs = Number(options.refreshIntervalMs || 55 * 60 * 1000);
+  const hasBearer = Boolean(options.hasBearer);
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -243,6 +244,7 @@ function createCsmartIframePlayerHtml(options = {}) {
       .thumbnail-tile:nth-child(n) { grid-column: auto; grid-row: auto; }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/flv.js@1.6.2/dist/flv.min.js"><\/script>
 </head>
 <body>
   <header>
@@ -268,6 +270,7 @@ function createCsmartIframePlayerHtml(options = {}) {
     const PLAYER_URL = ${JSON.stringify(playerUrl)};
     const API_PREFIX = ${JSON.stringify(apiPrefix)};
     const REFRESH_INTERVAL_MS = ${refreshIntervalMs};
+    const HAS_BEARER = ${hasBearer ? 'true' : 'false'};
     const pageParams = new URLSearchParams(window.location.search);
     const embeddedMode = pageParams.get('embedded') === '1';
     const liveMode = pageParams.get('live') === '1';
@@ -280,9 +283,19 @@ function createCsmartIframePlayerHtml(options = {}) {
     let channels = [];
     let currentLayout = 11;
     let selectedChannelNumber = ${defaultChannelNo};
+    const activePlayers = new Set();
+
+    function disposePlayers() {
+      for (const player of activePlayers) {
+        try {
+          if (player && typeof player.destroy === 'function') player.destroy();
+        } catch (_) {}
+      }
+      activePlayers.clear();
+    }
 
     document.body.classList.toggle('is-embedded', embeddedMode);
-    window.__cctvStats = { mode: 'csmart-iframe', ready: false, channels: 0, layout: currentLayout, activeChannel: selectedChannelNumber, errors: [] };
+    window.__cctvStats = { mode: 'csmart-iframe', ready: false, channels: 0, layout: currentLayout, activeChannel: selectedChannelNumber, errors: [], playback: 'unknown' };
 
     function setStatus(message) {
       statusEl.textContent = message;
@@ -347,6 +360,10 @@ function createCsmartIframePlayerHtml(options = {}) {
       return item.screenshot || item.snapshot || item.snapshot_url || item.snapshotUrl || item.captureUrl || '';
     }
 
+    function flvSrc(item) {
+      return String(item.flv || item.flvUrl || item.flv_url || '').trim();
+    }
+
     function initIframe(iframe, item) {
       const listStr = JSON.stringify([item]);
       let initSent = false;
@@ -358,6 +375,94 @@ function createCsmartIframePlayerHtml(options = {}) {
       };
       iframe.addEventListener('load', () => setTimeout(() => send('load'), 600));
       setTimeout(() => send('fallback'), 2500);
+    }
+
+    function createFlvPlayer(item, options = {}) {
+      const video = document.createElement('video');
+      video.className = 'tile-media';
+      video.muted = true;
+      video.autoplay = true;
+      video.playsInline = true;
+      video.setAttribute('playsinline', 'true');
+      const src = flvSrc(item);
+      if (!src) {
+        if (options.fallbackToSnapshot) {
+          return createSnapshotPoller(item, options.snapshotIntervalMs || 5000);
+        }
+        const placeholder = document.createElement('div');
+        placeholder.className = 'tile-placeholder';
+        placeholder.textContent = '暂无 FLV 地址';
+        return placeholder;
+      }
+      const fallbackToSnapshot = () => {
+        if (!options.fallbackToSnapshot) return;
+        window.__cctvStats.playback = 'snapshot-poll';
+        video.replaceWith(createSnapshotPoller(item, options.snapshotIntervalMs || 5000));
+      };
+      if (typeof flvjs !== 'undefined' && flvjs.isSupported()) {
+        const player = flvjs.createPlayer({ type: 'flv', url: src, isLive: true, hasAudio: false }, { enableWorker: false, lazyLoad: false, stashInitialSize: 128 });
+        player.attachMediaElement(video);
+        player.on(flvjs.Events.ERROR, () => fallbackToSnapshot());
+        player.load();
+        player.play().catch(() => fallbackToSnapshot());
+        activePlayers.add(player);
+        video._flvPlayer = player;
+        return video;
+      }
+      video.src = src;
+      video.addEventListener('error', () => {
+        if (options.fallbackToSnapshot) {
+          fallbackToSnapshot();
+          return;
+        }
+        video.replaceWith(Object.assign(document.createElement('div'), {
+          className: 'tile-placeholder',
+          textContent: 'FLV 播放失败',
+        }));
+      });
+      return video;
+    }
+
+    function createSnapshotPoller(item, intervalMs) {
+      const image = document.createElement('img');
+      image.className = 'tile-media';
+      image.alt = channelLabel(item);
+      image.loading = 'eager';
+      image.decoding = 'async';
+      image.referrerPolicy = 'no-referrer';
+      const refresh = () => {
+        image.src = API_PREFIX + '/api/csmart/snapshot/' + encodeURIComponent(item.number) + '?t=' + Date.now();
+      };
+      refresh();
+      const timer = setInterval(refresh, intervalMs || 5000);
+      image._snapshotTimer = timer;
+      activePlayers.add({ destroy: () => clearInterval(timer) });
+      image.addEventListener('error', () => {
+        image.alt = '截图加载失败';
+      });
+      return image;
+    }
+
+    function createLiveMedia(item, options = {}) {
+      const preferSnapshot = Boolean(options.preferSnapshot);
+      const src = flvSrc(item);
+      if (!HAS_BEARER) {
+        window.__cctvStats.playback = 'snapshot-poll';
+        return createSnapshotPoller(item, options.snapshotIntervalMs || 5000);
+      }
+      if (!preferSnapshot && src) {
+        window.__cctvStats.playback = 'flv';
+        return createFlvPlayer(item, {
+          fallbackToSnapshot: true,
+          snapshotIntervalMs: options.snapshotIntervalMs || 5000,
+        });
+      }
+      if (HAS_BEARER) {
+        window.__cctvStats.playback = 'csmart-iframe';
+        return createIframe(item);
+      }
+      window.__cctvStats.playback = 'snapshot-poll';
+      return createSnapshotPoller(item, options.snapshotIntervalMs || 5000);
     }
 
     function createIframe(item) {
@@ -402,7 +507,7 @@ function createCsmartIframePlayerHtml(options = {}) {
       title.textContent = '主画面 ' + channelLabel(item);
       mainTile.appendChild(title);
       if (liveMode) {
-        mainTile.appendChild(createIframe(item));
+        mainTile.appendChild(createLiveMedia(item, { preferSnapshot: false, snapshotIntervalMs: 5000 }));
       } else {
         mainTile.appendChild(createSnapshotImage(item));
       }
@@ -423,7 +528,7 @@ function createCsmartIframePlayerHtml(options = {}) {
       title.textContent = channelLabel(item);
       thumbnail.appendChild(title);
       if (liveMode) {
-        thumbnail.appendChild(createIframe(item));
+        thumbnail.appendChild(createLiveMedia(item, { preferSnapshot: true, snapshotIntervalMs: 8000 }));
       } else {
         thumbnail.appendChild(createSnapshotImage(item));
       }
@@ -467,6 +572,7 @@ function createCsmartIframePlayerHtml(options = {}) {
     }
 
     function render() {
+      disposePlayers();
       const list = visibleChannels();
       stage.className = 'meeting-stage layout-' + currentLayout;
       thumbnailWall.innerHTML = '';

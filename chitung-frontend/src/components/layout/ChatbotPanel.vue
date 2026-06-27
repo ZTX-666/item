@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { askRag, getSkills, sendChatMessage } from '../../services/chitungApi'
 import { useDocmateSession } from '../../composables/useDocmateSession'
+import { useJobPolling } from '../../composables/useJobPolling'
 import DocmateDiffReview from '../documents/DocmateDiffReview.vue'
 import ChatRichBlocks from '../chat/ChatRichBlocks.vue'
 import assistantAvatar from '../../assets/logos/assistant-avatar.png'
@@ -90,14 +91,14 @@ interface Message {
   richBlocks?: Array<Record<string, unknown>>
 }
 
-const messages = ref<Message[]>([
-  {
-    id: 1,
-    role: 'assistant',
-    content:
-      '你好，我是赤瞳守护者内置的闪闪助手，专为安全生产场景设计。我可以帮你：\n🔍 隐患排查与处置 — 发现、记录、跟踪闭环\n📋 安全巡检 — 执行巡检任务、生成巡检报告\n📝 表单智能填报 — 自动识别字段，快速完成安全记录\n📖 制度法规查询 — 精准检索安全规章与合规要求\n⚙️ 工作流编排 — 串联多部门安全流程，自动化执行\n\n安全的事，交给我们来守护。',
-  },
-])
+const WELCOME_MESSAGE =
+  '你好，我是赤瞳守护者内置的闪闪助手，专为安全生产场景设计。我可以帮你：\n🔍 隐患排查与处置 — 发现、记录、跟踪闭环\n📋 安全巡检 — 执行巡检任务、生成巡检报告\n📝 表单智能填报 — 自动识别字段，快速完成安全记录\n📖 制度法规查询 — 精准检索安全规章与合规要求\n⚙️ 工作流编排 — 串联多部门安全流程，自动化执行\n\n安全的事，交给我们来守护。'
+
+function createWelcomeMessage(): Message {
+  return { id: 1, role: 'assistant', content: WELCOME_MESSAGE }
+}
+
+const messages = ref<Message[]>([createWelcomeMessage()])
 const inputText = ref('')
 const isTyping = ref(false)
 const messagesEl = ref<HTMLElement | null>(null)
@@ -106,10 +107,12 @@ const skillsLoading = ref(false)
 const skillsError = ref('')
 const selectedSkillLabel = ref('')
 const selectedSkillName = ref<string | null>(null)
+const currentSessionId = ref<string | null>(null)
 let nextId = 2
 
 // ── DocMate 文档改稿能力（与文档工作台共享同一会话） ──
 const docmate = useDocmateSession()
+const { poll: pollBackgroundJob } = useJobPolling()
 const mode = ref<'chat' | 'edit' | 'rag'>('chat')
 
 // 文档一旦加载，自动切到改稿模式
@@ -259,7 +262,13 @@ async function sendMessage() {
     if (selectedSkillName.value) {
       context.skill = selectedSkillName.value
     }
-    const response = await sendChatMessage({ message: text, channel: 'local_chat', context })
+    const response = await sendChatMessage({
+      message: text,
+      channel: 'local_chat',
+      context,
+      sessionId: currentSessionId.value || undefined,
+    })
+    if (response.sessionId) currentSessionId.value = response.sessionId
     selectedSkillName.value = null
     pushAssistantWithTrace(
       response.message,
@@ -268,6 +277,31 @@ async function sendMessage() {
       (response.payload?.toolResults as Array<Record<string, unknown>> | undefined) ?? [],
       (response.payload?.richBlocks as Array<Record<string, unknown>> | undefined) ?? [],
     )
+    const patrolJobCard = ((response.payload?.cards as Array<Record<string, unknown>> | undefined) ?? []).find(
+      (card) => card.card_type === 'visual_patrol_job',
+    )
+    const patrolJobId = String((patrolJobCard?.data as Record<string, unknown> | undefined)?.job_id || '')
+    if (patrolJobId) {
+      void pollBackgroundJob(patrolJobId, async (job) => {
+        const result = (job.result || {}) as Record<string, unknown>
+        const reply = String(result.reply || '')
+        const cards = (result.cards as Array<Record<string, unknown>> | undefined) ?? []
+        const toolResults = (result.tool_results as Array<Record<string, unknown>> | undefined) ?? []
+        if (job.status === 'success' && reply) {
+          pushAssistantWithTrace(
+            reply,
+            [
+              { stage: 'execute', status: 'done', title: '视觉巡检完成', detail: patrolJobId },
+              { stage: 'result', status: 'done', title: '报告已生成', detail: reply.slice(0, 120) },
+            ],
+            cards,
+            toolResults,
+          )
+        } else if (job.status === 'failed') {
+          pushAssistant(`视觉巡检后台任务失败：${job.error || '未知错误'}`)
+        }
+      })
+    }
   } catch (error) {
     pushAssistant(`请求失败：${error instanceof Error ? error.message : String(error)}`)
   } finally {
@@ -301,6 +335,21 @@ function handleKeydown(event: KeyboardEvent) {
     event.preventDefault()
     sendMessage()
   }
+}
+
+function clearConversation() {
+  if (isTyping.value) return
+  messages.value = [createWelcomeMessage()]
+  nextId = 2
+  currentSessionId.value = null
+  inputText.value = ''
+  selectedSkillLabel.value = ''
+  selectedSkillName.value = null
+  skillMenuOpen.value = false
+  if (!docmate.isLoaded.value) {
+    mode.value = 'chat'
+  }
+  scrollToBottom()
 }
 </script>
 
@@ -407,15 +456,38 @@ function handleKeydown(event: KeyboardEvent) {
           </span>
         </button>
       </div>
+      <div class="skill-dock__bar">
+        <button
+          class="skill-trigger"
+          :class="{ 'skill-trigger--active': skillMenuOpen }"
+          type="button"
+          title="技能"
+          @click="skillMenuOpen = !skillMenuOpen"
+        >
+          <span>🔨</span>
+          <strong>技能</strong>
+        </button>
+        <button
+          class="clear-chat-btn"
+          type="button"
+          title="清空当前对话并重新开始"
+          :disabled="isTyping"
+          @click="clearConversation"
+        >
+          清空对话
+        </button>
+      </div>
+    </div>
+
+    <div v-else class="chat-footer-tools">
       <button
-        class="skill-trigger"
-        :class="{ 'skill-trigger--active': skillMenuOpen }"
+        class="clear-chat-btn"
         type="button"
-        title="技能"
-        @click="skillMenuOpen = !skillMenuOpen"
+        title="清空当前对话并重新开始"
+        :disabled="isTyping"
+        @click="clearConversation"
       >
-        <span>🔨</span>
-        <strong>技能</strong>
+        清空对话
       </button>
     </div>
 
@@ -442,13 +514,14 @@ function handleKeydown(event: KeyboardEvent) {
   height: 100%;
   overflow: hidden;
   position: relative;
-  transition: opacity 0.2s ease;
+  transition: width 0.28s var(--ease-out), opacity 0.22s var(--ease-out), border-color 0.22s var(--ease-out);
   width: 380px;
 }
 
 .chatbot-panel--hidden {
-  border-left: 0;
+  border-left-color: transparent;
   opacity: 0;
+  pointer-events: none;
   width: 0 !important;
 }
 
@@ -689,6 +762,41 @@ function handleKeydown(event: KeyboardEvent) {
 .skill-dock {
   border-top: 1px solid #e5e9f2;
   padding: 8px 12px 0;
+}
+
+.skill-dock__bar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.chat-footer-tools {
+  border-top: 1px solid #e5e9f2;
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px 0;
+}
+
+.clear-chat-btn {
+  background: #fff;
+  border: 1px solid #d5dbe7;
+  border-radius: 999px;
+  color: #667085;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+.clear-chat-btn:hover:not(:disabled) {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #c2410c;
+}
+
+.clear-chat-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .skill-menu {

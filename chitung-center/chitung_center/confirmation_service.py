@@ -61,17 +61,23 @@ async def list_pending_confirmations(
     workflow_run_id: str | None = None,
     limit: int = 50,
 ) -> dict[str, Any]:
-    await workflow_store.ensure_schema()
-    result = await toolbox_client.call_tool(
-        "query_pending_confirmations",
-        {
-            "status": status,
-            "action_type": action_type,
-            "source_channel": source_channel,
-            "workflow_run_id": workflow_run_id,
-            "limit": limit,
-        },
-    )
+    try:
+        await workflow_store.ensure_schema()
+    except Exception:  # noqa: BLE001 - listing must stay available if schema init is slow/unreachable.
+        pass
+    try:
+        result = await toolbox_client.call_tool(
+            "query_pending_confirmations",
+            {
+                "status": status,
+                "action_type": action_type,
+                "source_channel": source_channel,
+                "workflow_run_id": workflow_run_id,
+                "limit": limit,
+            },
+        )
+    except Exception as exc:  # noqa: BLE001 - UI should degrade gracefully when toolbox is busy.
+        return {"ok": False, "items": [], "error": str(exc), "tool_result": {}}
     items = []
     if isinstance(result.get("data"), dict):
         items = result["data"].get("items", [])

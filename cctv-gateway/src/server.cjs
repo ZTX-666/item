@@ -217,11 +217,13 @@ async function getChannels({ refresh = false } = {}) {
 function healthPayload() {
   const cached = channelCache || loadCachedChannels(ROOT, CACHE_FILE);
   const bearer = process.env.CSMART_BEARER || getLatestCsmartBearer({ baseDir: ROOT });
+  const channelCount = cached?.channels?.length || 0;
   return {
-    ok: Boolean(cached?.channels?.length || bearer),
+    ok: channelCount > 0 || Boolean(bearer),
     hasBearer: Boolean(bearer),
+    hasFlvPlayback: channelCount > 0 && Boolean(cached?.channels?.some((item) => item?.flv)),
     cacheFile: CACHE_FILE,
-    channelCount: cached?.channels?.length || 0,
+    channelCount,
     channelUpdatedAt: cached?.updatedAt || null,
     gateway: CSMART_GATEWAY,
     orgId: CSMART_ORG_ID,
@@ -244,9 +246,12 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
     if (url.pathname === '/' || url.pathname === '/player') {
+      const bearer = process.env.CSMART_BEARER || getLatestCsmartBearer({ baseDir: ROOT });
       sendHtml(res, createCsmartIframePlayerHtml({
         defaultChannelNo: Number(url.searchParams.get('channel') || 1),
         playerUrl: PLAYER_URL,
+        gatewayBaseUrl: `http://${HOST}:${PORT}`,
+        hasBearer: Boolean(bearer),
       }));
       return;
     }

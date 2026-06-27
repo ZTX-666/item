@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import hashlib
 import io
@@ -494,12 +495,12 @@ class RagService:
             except Exception as exc:
                 last_error = exc
         try:
-            return self._embed_with_sentence_transformers(texts)
+            return await asyncio.to_thread(self._embed_with_sentence_transformers, texts)
         except Exception as exc:
             if last_error:
                 print(f"RAG LLM embedding failed, falling back locally: {last_error}")
             print(f"RAG sentence-transformers unavailable, using local hash embeddings: {exc}")
-            return _embed_with_local_hash(texts)
+            return await asyncio.to_thread(_embed_with_local_hash, texts)
 
     async def _embed_with_llm_gateway(self, texts: list[str]) -> list[list[float]]:
         url = settings.llm_embedding_base_url or _default_embedding_url(settings.llm_base_url)

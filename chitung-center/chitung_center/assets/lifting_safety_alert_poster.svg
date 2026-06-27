@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="960" viewBox="0 0 720 960">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a0505"/>
+      <stop offset="100%" stop-color="#4a0a0a"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="960" fill="url(#bg)"/>
+  <rect x="24" y="24" width="672" height="912" rx="20" fill="none" stroke="#ff4d4f" stroke-width="6"/>
+  <polygon points="360,72 408,168 312,168" fill="#ff4d4f"/>
+  <text x="360" y="155" text-anchor="middle" fill="#fff" font-size="52" font-family="Arial, sans-serif" font-weight="700">!</text>
+  <text x="360" y="230" text-anchor="middle" fill="#ffccc7" font-size="34" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="700">
+Ð‰hf:</text>
+  <text x="360" y="278" text-anchor="middle" fill="#ffa39e" font-size="22" font-family="Microsoft YaHei, SimHei, sans-serif">LIFTING OPERATION ALERT</text>
+  <rect x="56" y="310" width="608" height="420" rx="16" fill="#2b0505" stroke="#ff7875" stroke-width="2"/>
+  <text x="88" y="360" fill="#fff" font-size="24" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="700">:K / ø" / °:¡ºXÅû</text>
+  <text x="88" y="410" fill="#ffd6d6" font-size="20" font-family="Microsoft YaHei, SimHei, sans-serif">" 
+ÐMn¤w}ÑN¹
+wŒ}</text>
+  <text x="88" y="450" fill="#ffd6d6" font-size="20" font-family="Microsoft YaHei, SimHei, sans-serif">" švôf:bºXÛeÞlJ„</text>
+  <text x="88" y="490" fill="#ffd6d6" font-size="20" font-family="Microsoft YaHei, SimHei, sans-serif">" v£)Æ¿×;ö‚\
+Ð</text>
+  <text x="88" y="530" fill="#ffd6d6" font-size="20" font-family="Microsoft YaHei, SimHei, sans-serif">" Ñ°8Ës\åv
+¥‰h;û</text>
+  <text x="88" y="590" fill="#ff7875" font-size="18" font-family="Microsoft YaHei, SimHei, sans-serif">L‹EY­ · °:Ësêå · 24 ö…Íˆt9</text>
+  <rect x="56" y="760" width="608" height="120" rx="12" fill="#ff4d4f"/>
+  <text x="360" y="810" text-anchor="middle" fill="#fff" font-size="28" font-family="Microsoft YaHei, SimHei, sans-serif" font-weight="700">‰hà¥x · 
+ÐÅÄ</text>
+  <text x="360" y="850" text-anchor="middle" fill="#fff" font-size="18" font-family="Microsoft YaHei, SimHei, sans-serif">d³‰h-ð · ;¨„fT¨</text>
+  <text x="360" y="920" text-anchor="middle" fill="#8c8c8c" font-size="16" font-family="Arial, sans-serif">CHITUNG SAFETY PLATFORM</text>
+</svg>

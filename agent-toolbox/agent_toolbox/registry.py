@@ -89,6 +89,18 @@ def health_checks() -> dict[str, dict[str, object]]:
         },
     }
 
+    from .tools.desktop_automation import desktop_automation_health
+
+    checks.update(
+        {
+            "web_search": desktop_automation_health(),
+            "fetch_url_content": desktop_automation_health(),
+            "run_bash_command": desktop_automation_health(),
+            "run_powershell_command": desktop_automation_health(),
+            "read_local_file": desktop_automation_health(),
+        }
+    )
+
     try:
         resp = requests.get(f"{settings.whatsapp_archive_base_url.rstrip('/')}/api/health", timeout=2)
         checks["whatsapp_archive"]["available"] = resp.ok
@@ -211,6 +223,22 @@ def tool_specs() -> list[ToolSpec]:
                     "confirmed_by": {"type": "string"},
                 },
                 "required": ["chat", "text"],
+            },
+        ),
+        ToolSpec(
+            name="whatsapp_send_file_confirmed",
+            description="Send WhatsApp file/image via local wacli send file after human confirmation.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "chat": {"type": "string"},
+                    "file_path": {"type": "string"},
+                    "caption": {"type": "string", "default": ""},
+                    "confirmed": {"type": "boolean", "default": False},
+                    "dry_run": {"type": "boolean", "default": False},
+                    "confirmed_by": {"type": "string"},
+                },
+                "required": ["chat", "file_path"],
             },
         ),
         ToolSpec(
@@ -955,6 +983,71 @@ def tool_specs() -> list[ToolSpec]:
                     "corrected_status": {"type": "string"},
                     "notes": {"type": "string"},
                 },
+            },
+        ),
+        ToolSpec(
+            name="web_search",
+            description="Search the public web for latest safety news, regulations, and project references.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer", "default": 8, "minimum": 1, "maximum": 15},
+                    "region": {"type": "string", "default": "wt-wt"},
+                },
+                "required": ["query"],
+            },
+        ),
+        ToolSpec(
+            name="fetch_url_content",
+            description="Fetch a public HTTP/HTTPS page and extract readable text or links.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string"},
+                    "extract_mode": {"type": "string", "enum": ["readable", "links", "raw"], "default": "readable"},
+                    "max_chars": {"type": "integer", "default": 12000},
+                },
+                "required": ["url"],
+            },
+        ),
+        ToolSpec(
+            name="run_bash_command",
+            description="Run a sandboxed Bash command under the agent workspace with safety guards.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string"},
+                    "cwd": {"type": "string"},
+                    "timeout_seconds": {"type": "integer", "default": 120},
+                },
+                "required": ["command"],
+            },
+        ),
+        ToolSpec(
+            name="run_powershell_command",
+            description="Run a sandboxed PowerShell command for Windows automation under the workspace.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string"},
+                    "cwd": {"type": "string"},
+                    "timeout_seconds": {"type": "integer", "default": 120},
+                },
+                "required": ["command"],
+            },
+        ),
+        ToolSpec(
+            name="read_local_file",
+            description="Read local text, PDF, DOCX, Jupyter notebook, code, or directory listings within allowed roots.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "max_chars": {"type": "integer", "default": 16000},
+                    "include_binary_preview": {"type": "boolean", "default": False},
+                },
+                "required": ["path"],
             },
         ),
     ]

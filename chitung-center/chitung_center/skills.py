@@ -10,6 +10,7 @@ from typing import Any
 from chitung_center.config import settings
 
 SKILL_USE_PREFIX = re.compile(r"🔨\s*使用技能[：:]\s*(.+?)(?:\n|$)", re.IGNORECASE)
+COMPLIANCE_QUERY_MARKERS = ("是否符合", "符合规定", "符合制度", "合规", "规章制度", "规程要求")
 
 
 @dataclass
@@ -283,21 +284,27 @@ class SkillLoader:
 
     def _route_by_triggers(self, message: str) -> SkillRoute | None:
         lowered = message.lower()
+        compliance_query = any(marker in message for marker in COMPLIANCE_QUERY_MARKERS)
         best: SkillRoute | None = None
-        best_hits = 0
+        best_score = 0.0
         for skill in self.list_skills(enabled_only=True):
             if not skill.triggers or not skill.intents:
                 continue
             hits = [trigger for trigger in skill.triggers if trigger.lower() in lowered]
-            if len(hits) > best_hits:
-                best_hits = len(hits)
+            if not hits:
+                continue
+            score = float(len(hits))
+            if compliance_query and skill.intents[0] == "knowledge_query":
+                score += 2.0
+            if score > best_score:
+                best_score = score
                 best = SkillRoute(
                     skill_name=skill.name,
                     intent=skill.intents[0],
                     confidence=min(0.9, 0.5 + 0.1 * len(hits)),
                     reason=f"技能触发词匹配：{', '.join(hits[:4])}",
                 )
-        return best if best_hits > 0 else None
+        return best if best_score > 0 else None
 
     def _match_skill_label(self, label: str) -> str | None:
         normalized = _normalize_label(label)
@@ -355,10 +362,22 @@ INTENT_TO_SKILL: dict[str, str] = {
     "weather_news_risk": "daily-risk-briefing",
     "external_info_monitor": "external-info-monitor",
     "document_form": "shanshan-doc",
+    "docmate_edit": "docmate-edit",
     "knowledge_query": "knowledge-query",
     "whatsapp_sql_query": "whatsapp-sql-query",
     "whatsapp_wacli_ops": "whatsapp-wacli-ops",
     "long_term_memory": "long-term-memory",
+    "web_search": "web-search",
+    "url_fetch": "url-fetch",
+    "run_bash": "shell-runner",
+    "run_powershell": "powershell-runner",
+    "file_inspect": "file-inspect",
+    "desktop_assistant": "workbuddy-assistant",
+    "industry_lifting_incident_response": "industry-lifting-response",
+    "lifting_safety_patrol": "industry-lifting-response",
+    "skill_usage_coach": "skill-usage-coach",
+    "workflow_usage_coach": "workflow-usage-coach",
+    "automation_usage_coach": "automation-usage-coach",
 }
 
 SKILL_TO_INTENT = {skill: intent for intent, skill in INTENT_TO_SKILL.items()}

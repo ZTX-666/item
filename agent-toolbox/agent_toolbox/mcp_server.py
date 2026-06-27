@@ -48,6 +48,18 @@ from .tools.documents_ocr import (
     search_policy_clauses,
     summarize_policy_document,
 )
+from .tools.desktop_automation import (
+    FetchUrlRequest,
+    ReadLocalFileRequest,
+    RunBashRequest,
+    RunPowerShellRequest,
+    WebSearchRequest,
+    fetch_url_content,
+    read_local_file,
+    run_bash_command,
+    run_powershell_command,
+    web_search,
+)
 from .tools.case_management import (
     CaseCloseReviewRequest,
     CaseDraftRequest,
@@ -224,6 +236,7 @@ from .tools.whatsapp import (
     WhatsAppGroupsRefreshRequest,
     WhatsAppSearchRequest,
     WhatsAppSendTextRequest,
+    WhatsAppSendFileRequest,
     WhatsAppSyncStartRequest,
     WhatsAppSyncStatusRequest,
     WhatsAppSyncStopRequest,
@@ -235,6 +248,7 @@ from .tools.whatsapp import (
     refresh_groups_wacli,
     search_messages,
     send_text_confirmed,
+    send_file_confirmed,
     start_auth,
     start_sync,
     stop_auth,
@@ -274,6 +288,8 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return refresh_groups_wacli(WhatsAppGroupsRefreshRequest(**arguments)).model_dump()
     if name == "whatsapp_send_text_confirmed":
         return send_text_confirmed(WhatsAppSendTextRequest(**arguments)).model_dump()
+    if name == "whatsapp_send_file_confirmed":
+        return send_file_confirmed(WhatsAppSendFileRequest(**arguments)).model_dump()
     if name == "whatsapp_sync_start":
         return start_sync(WhatsAppSyncStartRequest(**arguments)).model_dump()
     if name == "whatsapp_sync_status":
@@ -434,6 +450,16 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return connect_hazard_actions(SafetyActionConnectRequest(**arguments)).model_dump()
     if name == "record_classification_feedback":
         return record_classification_feedback(ClassificationFeedbackRequest(**arguments)).model_dump()
+    if name == "web_search":
+        return web_search(WebSearchRequest(**arguments))
+    if name == "fetch_url_content":
+        return fetch_url_content(FetchUrlRequest(**arguments))
+    if name == "run_bash_command":
+        return run_bash_command(RunBashRequest(**arguments))
+    if name == "run_powershell_command":
+        return run_powershell_command(RunPowerShellRequest(**arguments))
+    if name == "read_local_file":
+        return read_local_file(ReadLocalFileRequest(**arguments))
     if name == "init_workflow_confirmation_schema":
         return init_workflow_confirmation_schema(WorkflowSchemaInitRequest(**arguments)).model_dump()
     if name == "create_workflow_run":

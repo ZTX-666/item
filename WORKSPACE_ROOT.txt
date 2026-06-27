@@ -1,0 +1,11 @@
+Canonical Chitung workspace root (no spaces in path).
+
+Unified at: 2026-06-24
+Primary path: E:\ChinaOverSeaFinal
+
+Start:  scripts\启动赤瞳平台.bat
+Check:  scripts\演示前检查.bat
+Verify: scripts\verify_workspace_sync.py
+Stop:   scripts\停止赤瞳平台.bat
+
+Do NOT use E:\ChinaOverSea Final (with space) — that copy is deprecated.

@@ -23,6 +23,16 @@ from ..config import settings
 HKO_WEATHER_API = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php"
 DEFAULT_HKO_DATA_TYPES = ["rhrread", "warnsum", "warningInfo", "swt", "flw", "fnd"]
 
+WEATHER_WARNING_DISPLAY: dict[str, dict[str, str | list[str]]] = {
+    "WHOT": {
+        "label_sc": "黄色酷热天气警告",
+        "label_tc": "黃色酷熱天氣警告",
+        "keywords": ["酷热", "暑热", "WHOT", "酷熱", "暑熱"],
+    },
+    "WRAIN": {"label_sc": "暴雨警告", "label_tc": "暴雨警告", "keywords": ["暴雨", "WRAIN"]},
+    "WTCSGNL": {"label_sc": "热带气旋警告", "label_tc": "熱帶氣旋警告", "keywords": ["台风", "颱風", "WTCSGNL"]},
+}
+
 WEATHER_RISK_BY_WARNING_CODE = {
     "WTCSGNL": "high",
     "WRAIN": "high",
@@ -775,15 +785,18 @@ def _collect_external_items(
         weather_summary = weather_result.get("summary") or {}
         for basis in weather_summary.get("risk_basis", []):
             code = basis.get("warning_code", "weather_warning")
+            title = _weather_warning_title(basis)
             items.append(
                 {
                     "source": "hko",
                     "source_name": "香港天文台",
                     "source_type": "official_weather",
-                    "title": f"天文台天气警告：{code}",
+                    "title": title,
                     "url": HKO_WEATHER_API,
                     "risk_level": basis.get("risk_level", "medium"),
-                    "matched_keywords": [code],
+                    "matched_keywords": _weather_warning_keywords(basis),
+                    "short_summary": _weather_warning_summary(basis),
+                    "published_at": basis.get("update_time") or basis.get("issue_time"),
                     "payload": basis,
                 }
             )
@@ -931,27 +944,89 @@ def _extract_links(text: str, page_url: str, base_url: str) -> list[tuple[str, s
     return links
 
 
+def _weather_warning_title(basis: dict[str, Any]) -> str:
+    code = str(basis.get("warning_code") or "weather_warning")
+    name = str(basis.get("warning_name") or code)
+    display = WEATHER_WARNING_DISPLAY.get(code, {})
+    label = str(display.get("label_sc") or name)
+    if code == "WHOT":
+        return f"天文台发布{label}：{name}"
+    if display.get("label_sc"):
+        return f"天文台天气警告：{label}（{code}）"
+    return f"天文台天气警告：{name}（{code}）"
+
+
+def _weather_warning_summary(basis: dict[str, Any]) -> str | None:
+    code = str(basis.get("warning_code") or "")
+    name = str(basis.get("warning_name") or code)
+    action_code = str(basis.get("action_code") or "").strip()
+    update_time = str(basis.get("update_time") or "").strip()
+    parts = [f"香港天文台现正生效{name}（{code}）"]
+    if update_time:
+        parts.append(f"最近更新时间：{update_time}")
+    if action_code:
+        action_label = {"ISSUE": "发出", "REISSUE": "重新发出", "CANCEL": "取消"}.get(action_code, action_code)
+        parts.append(f"状态：{action_label}")
+    return "。".join(parts) + "。"
+
+
+def _weather_warning_keywords(basis: dict[str, Any]) -> list[str]:
+    code = str(basis.get("warning_code") or "")
+    keywords = [code] if code else []
+    display = WEATHER_WARNING_DISPLAY.get(code, {})
+    extra = display.get("keywords")
+    if isinstance(extra, list):
+        keywords.extend(str(item) for item in extra if str(item).strip())
+    name = str(basis.get("warning_name") or "")
+    if name and name not in keywords:
+        keywords.append(name)
+    return list(dict.fromkeys(keywords))
+
+
+def _weather_recommended_action(code: str, priority: str) -> str:
+    if code == "WHOT":
+        return "执行防暑降温安排，检查饮水、遮阴、休息节奏和热应激记录。"
+    return _recommended_action_for_priority(priority)
+
+
 def _summarize_weather(items: list[dict[str, Any]]) -> dict[str, Any]:
     active_warning_codes: list[str] = []
     special_tips: list[str] = []
+    risk_basis: list[dict[str, Any]] = []
     for item in items:
         data_type = item.get("data_type")
         data = item.get("data") or {}
         if data_type == "warnsum":
-            active_warning_codes.extend(sorted(data.keys()))
+            for code, detail in sorted(data.items()):
+                if not isinstance(detail, dict):
+                    continue
+                active_warning_codes.append(code)
+                risk_basis.append(
+                    {
+                        "warning_code": code,
+                        "warning_name": detail.get("name") or detail.get("name_tc") or code,
+                        "action_code": detail.get("actionCode"),
+                        "issue_time": detail.get("issueTime"),
+                        "update_time": detail.get("updateTime"),
+                        "risk_level": WEATHER_RISK_BY_WARNING_CODE.get(code, "low"),
+                    }
+                )
         if data_type in {"rhrread", "swt"}:
             tips = data.get("specialWxTips") or data.get("swt") or []
             if isinstance(tips, list):
-                special_tips.extend(str(tip) for tip in tips)
-    levels = [WEATHER_RISK_BY_WARNING_CODE.get(code, "low") for code in active_warning_codes]
+                for tip in tips:
+                    if isinstance(tip, dict):
+                        desc = str(tip.get("desc") or tip.get("description") or "").strip()
+                        if desc:
+                            special_tips.append(desc)
+                    elif str(tip).strip():
+                        special_tips.append(str(tip).strip())
+    levels = [entry.get("risk_level", "low") for entry in risk_basis]
     return {
         "active_warning_codes": active_warning_codes,
         "special_tips": special_tips,
         "highest_risk_level": _highest_risk(levels),
-        "risk_basis": [
-            {"warning_code": code, "risk_level": WEATHER_RISK_BY_WARNING_CODE.get(code, "low")}
-            for code in active_warning_codes
-        ],
+        "risk_basis": risk_basis,
     }
 
 
@@ -1124,8 +1199,8 @@ def generate_risk_cards(
             code = basis.get("warning_code", "weather_warning")
             risk_level = basis.get("risk_level", "medium")
             priority = _risk_level_to_priority(risk_level)
-            title = f"天文台天气警告：{code}"
-            keywords = [code]
+            title = _weather_warning_title(basis)
+            keywords = _weather_warning_keywords(basis)
             cards.append({
                 "card_id": uuid.uuid4().hex[:12],
                 "report_id": report_id,
@@ -1133,14 +1208,14 @@ def generate_risk_cards(
                 "source_name": "香港天文台",
                 "source_url": HKO_WEATHER_API,
                 "title": title,
-                "summary": None,
+                "summary": _weather_warning_summary(basis),
                 "priority": priority,
                 "risk_level": risk_level,
                 "emoji_tag": _pick_emoji(title, keywords),
                 "keywords": keywords,
                 "location": "香港",
-                "event_date": _now_iso(),
-                "recommended_action": _recommended_action_for_priority(priority),
+                "event_date": basis.get("update_time") or basis.get("issue_time") or _now_iso(),
+                "recommended_action": _weather_recommended_action(str(code), priority),
                 "is_confirmed": 1,
                 "payload": basis,
             })
